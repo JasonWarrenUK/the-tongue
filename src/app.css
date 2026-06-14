@@ -1,0 +1,37 @@
+@import "tailwindcss";
+@import "reasonable-colors";
+
+/* Semantic aliases — the only place RC vars are referenced directly.
+   Dark warm UI: grey surfaces, amber accent, rose warn, emerald positive.
+   amber-2 (#ffe0b2) used for accent: dark theme needs a *light* gold against
+   dark surfaces — amber-3 (#b98300) is a dark mustard, unsuitable here. */
+:root {
+  --color-surface:    var(--color-gray-6);   /* panels                */
+  --color-surface-2:  var(--color-gray-5);   /* raised / hover states */
+  --color-bg:         var(--color-gray-6);   /* app background        */
+  --color-border:     var(--color-gray-5);
+  --color-muted:      var(--color-gray-3);   /* secondary text        */
+  --color-fg:         var(--color-gray-1);   /* primary text          */
+  --color-accent:     var(--color-amber-2);  /* light gold on dark    */
+  --color-on-accent:  var(--color-gray-6);   /* text on accent bg     */
+  --color-warn:       var(--color-rose-3);       /* collisions / fracture  */
+  --color-positive:   var(--color-emerald-2);
+  --color-barrier:    var(--color-cinnamon-4);   /* impassable terrain edges */
+}
+
+/* Map semantic aliases into utility classes (bg-surface, text-accent, …).
+   @theme inline resolves the value at build time so Tailwind's JIT can
+   emit correct CSS — RC :root aliases above must be declared first. */
+@theme inline {
+  --color-surface:   var(--color-surface);
+  --color-surface-2: var(--color-surface-2);
+  --color-bg:        var(--color-bg);
+  --color-border:    var(--color-border);
+  --color-muted:     var(--color-muted);
+  --color-fg:        var(--color-fg);
+  --color-accent:    var(--color-accent);
+  --color-on-accent: var(--color-on-accent);
+  --color-warn:      var(--color-warn);
+  --color-positive:  var(--color-positive);
+  --color-barrier:   var(--color-barrier);
+}
