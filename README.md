@@ -1,42 +1,62 @@
-# sv
+# The Tongue
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+A language-evolution simulator. Generate a proto-language from a seed, steer its sound changes, expand its territory, and watch it fracture into a family of mutually-(un)intelligible daughters as geography divides it.
 
-## Creating a project
+**Live:** https://the-tongue.vercel.app
 
-If you're seeing this, you've probably already done this step. Congrats!
+---
 
-```sh
-# create a new project
-npx sv create my-app
-```
+## What it is
 
-To recreate this project with the same configuration:
+Each world is generated from a numeric seed: a phoneme inventory, a syllable template, a 32-word lexicon, and a 4×3 terrain map. You play as the language community — spending influence to apply sound changes, expand into adjacent regions, and hold off autonomous drift.
 
-```sh
-# recreate this project
-bun x sv create --template minimal --types ts --install bun .tmp-scaffold
-```
+At the end of each generation:
+- Untouched branches **drift** automatically (weighted toward cross-linguistically common rules)
+- Communities **spread** into adjacent free territory
+- Any branch whose territory is split by impassable terrain **fractures** into daughter languages
 
-## Developing
+The **mutual intelligibility matrix** tracks how far apart the family has grown, using normalised edit distance across the shared concept list as a proxy.
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+---
 
-```sh
-npm run dev
+## Stack
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
+- **SvelteKit 2** + **Svelte 5** (runes) + **TypeScript** (strict)
+- **Tailwind CSS v4** (CSS-first, no config file) + **Reasonable Colors**
+- **Vite 7** + **bun**
 
-## Building
+The engine (`src/lib/engine/`) is plain TypeScript with no framework dependency — deterministic per seed using a mulberry32 RNG.
 
-To create a production version of your app:
+---
+
+## Getting started
 
 ```sh
-npm run build
+bun install
+bun run dev       # http://localhost:5173
+bun run build
+bun run check     # svelte-check (0 errors expected)
 ```
 
-You can preview the production build with `npm run preview`.
+No environment variables or external services required.
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+---
+
+## Project structure
+
+```
+src/lib/engine/     # deterministic game logic (no Svelte)
+  types.ts          # shared interfaces
+  rng.ts            # mulberry32 + hashRand
+  lexicon.ts        # inventory, template, word generation
+  phonology.ts      # phone table, 10 sound-change rules, collision detection
+  intelligibility.ts
+  tree.ts           # branch layout + colour
+  geography.ts      # terrain, adjacency, passable components
+  world.ts          # makeWorld, freshState
+  generation.ts     # resolveGeneration (drift → spread → fracture → repool)
+
+src/lib/game.svelte.ts   # reactive singleton (Svelte 5 $state / $derived)
+src/lib/components/      # presentational Svelte components
+src/routes/+page.svelte  # wires everything together
+```
