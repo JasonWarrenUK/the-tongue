@@ -9,8 +9,9 @@ export interface Patch {
   delete?: boolean; voice?: boolean; manner?: string; place?: string;
   height?: string; back?: boolean; round?: boolean;
 }
+export type RuleCategory = "lenition" | "deletion" | "assimilation" | "vowelShift";
 export interface Rule {
-  id: string; name: string; note: string; w: number;
+  id: string; name: string; note: string; w: number; category: RuleCategory;
   match: (p: Phone) => boolean;
   pre: ((p: Phone | null) => boolean) | null;
   post: ((p: Phone | null) => boolean) | null;
@@ -20,8 +21,9 @@ export interface Rule {
 export interface LexEntry { concept: string; word: string[] }
 export type Lexicon = LexEntry[];
 
+export type Terrain = "plain" | "hill" | "mountain" | "water";
 export interface Region { id: number; x: number; y: number }
-export interface Edge { a: number; b: number; passable: boolean; cost: number; name?: string }
+export interface Edge { a: number; b: number; passable: boolean; cost: number; name?: Terrain }
 export interface AdjEntry { to: number; passable: boolean; cost: number }
 export type Adjacency = Record<number, AdjEntry[]>;
 

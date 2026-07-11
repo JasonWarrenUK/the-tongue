@@ -1,6 +1,6 @@
 import { hashRand } from "./rng";
 import { driftRule, applyRuleToLex } from "./phonology";
-import { ownerMap, freeAdjacentFor, passableComponents, basePool } from "./geography";
+import { ownerMap, freeAdjacentFor, passableComponents, basePool, isolationScore } from "./geography";
 import { leavesOf, isLeaf, childrenOf, NAME_POOL } from "./tree";
 import type { Branch, GameState } from "./types";
 
@@ -10,16 +10,17 @@ export function resolveGeneration(s: GameState): GameState {
   const branches: Record<number, Branch> = {};
   Object.values(s.branches).forEach((b) => (branches[b.id] = { ...b, territory: [...b.territory], history: [...b.history] }));
 
-  // 1. drift untouched leaves
+  // 1. drift untouched leaves (terrain-biased: 2GEO.2 — see 2geo-1-terrain-sound-change spike)
+  const owner = ownerMap(branches);
   leavesOf(branches).forEach((L) => {
     if (s.touched[L.id]) return;
-    const rule = driftRule(L.lex, seed, turn, L.id); if (!rule) return;
+    const iso = isolationScore(L.id, L.territory, s.world.edges, owner);
+    const rule = driftRule(L.lex, seed, turn, L.id, iso); if (!rule) return;
     branches[L.id] = { ...branches[L.id], lex: applyRuleToLex(L.lex, rule).lex, history: [...branches[L.id].history, { name: rule.name, note: rule.note, drift: true }] };
     log.push(`${L.name} drifted (${rule.name.toLowerCase()})`);
   });
 
   // 2. passive expansion (prefer passable; cross a barrier only when boxed in)
-  const owner = ownerMap(branches);
   leavesOf(branches).forEach((L) => {
     const b = branches[L.id]; b.pressure = (b.pressure || 0) + 1;
     if (b.pressure >= s.settings.spreadEvery) {

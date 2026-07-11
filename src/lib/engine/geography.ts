@@ -1,9 +1,9 @@
-import type { Adjacency, Branch, FreeRegion, Region, Edge, Settings } from "./types";
+import type { Adjacency, Branch, FreeRegion, Region, Edge, Settings, Terrain } from "./types";
 
 // branch helpers re-exported from tree to avoid a cycle are imported where needed
 import { leavesOf } from "./tree";
 
-export function pickTerrain(rng: () => number): { name: string; passable: boolean; cost: number } {
+export function pickTerrain(rng: () => number): { name: Terrain; passable: boolean; cost: number } {
   const r = rng();
   if (r < 0.55) return { name: "plain", passable: true, cost: 1 };
   if (r < 0.75) return { name: "hill", passable: true, cost: 2 };
@@ -61,4 +61,52 @@ export function basePool(branches: Record<number, Branch>, settings: Settings): 
 }
 export function overheadFor(branch: Branch, settings: Settings): number {
   return settings.overhead + Math.max(0, branch.territory.length - 1);
+}
+
+const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
+
+// isolationScore ∈ [0,1]: 1 = walled/isolated, 0 = open, 0.5 = interior/neutral.
+// Border edges (contact with other leaf branches) carry the primary weight;
+// impassable internal terrain nudges the score up as a secondary signal.
+export function isolationScore(
+  branchId: number, territory: number[], edges: Edge[], owner: Record<number, number>
+): number {
+  if (territory.length === 0) return 0.5; // no owned regions — neutral, matches the "no border edges" case
+  let passableBorder = 0, impassableBorder = 0, passableInternal = 0, impassableInternal = 0;
+  edges.forEach((e) => {
+    const aOwned = owner[e.a] === branchId, bOwned = owner[e.b] === branchId;
+    if (!aOwned && !bOwned) return;
+    if (aOwned && bOwned) { if (e.passable) passableInternal++; else impassableInternal++; return; }
+    // exactly one endpoint owned by this branch — border edge only if the other side has a different leaf owner
+    const otherOwner = aOwned ? owner[e.b] : owner[e.a];
+    if (otherOwner === undefined || otherOwner === branchId) return;
+    if (e.passable) passableBorder++; else impassableBorder++;
+  });
+  const borderTotal = passableBorder + impassableBorder;
+  const isolation = borderTotal === 0 ? 0.5 : impassableBorder / borderTotal;
+  const internalTotal = passableInternal + impassableInternal;
+  const internalIsolation = internalTotal === 0 ? 0 : impassableInternal / internalTotal;
+  return clamp01(0.75 * isolation + 0.25 * internalIsolation);
+}
+
+const IMPASSABILITY_RANK: Record<Terrain, number> = { plain: 0, hill: 1, mountain: 2, water: 3 };
+
+// Plurality terrain across a branch's internal + border edges; ties favour the
+// more impassable terrain (rugged terrain is the more salient daily reference).
+export function dominantTerrain(
+  branchId: number, territory: number[], edges: Edge[], owner: Record<number, number>
+): Terrain {
+  if (territory.length === 0) return "plain"; // no owned regions — no terrain signal to read
+  const counts: Record<Terrain, number> = { plain: 0, hill: 0, mountain: 0, water: 0 };
+  edges.forEach((e) => {
+    const aOwned = owner[e.a] === branchId, bOwned = owner[e.b] === branchId;
+    if (!aOwned && !bOwned) return;
+    if (e.name) counts[e.name]++;
+  });
+  let best: Terrain = "plain";
+  (Object.keys(counts) as Terrain[]).forEach((t) => {
+    if (counts[t] > counts[best]) best = t;
+    else if (counts[t] === counts[best] && IMPASSABILITY_RANK[t] > IMPASSABILITY_RANK[best]) best = t;
+  });
+  return best;
 }
