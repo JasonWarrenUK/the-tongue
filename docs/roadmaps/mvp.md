@@ -7,7 +7,7 @@ description: The Tongue — seeded language-evolution simulator, from core engin
 |            | Status                    | Next Up                          | Blocked |
 | ---------- | -------------------------- | --------------------------------- | ------- |
 | **Core**   | ✅ Milestone 1 complete    | —                                  | —       |
-| **Geo**    | 🔸 2GEO.1 complete          | 2GEO.2, 2GEO.3                    | —       |
+| **Geo**    | 🔸 2GEO.2 complete          | 2GEO.3                             | —       |
 | **Stakes** | Not started                 | 2STK.1 design spike               | 2GEO.2, 2GEO.4 |
 | **Glyphs** | Not started                 | 2GLY.1 design spike               | 2STK.2  |
 | **UI**     | Not started                 | 2UI.1 audit                       | 2STK.2, 2GLY.4 |
@@ -56,10 +56,10 @@ description: The Tongue — seeded language-evolution simulator, from core engin
 <a name="m2-done"><h4>Completed (Milestone 2)</h4></a>
 
 - [x] 2GEO.1. Design spike: terrain→sound-change bias ruleset — split into a social-geography contact/isolation axis (sound change) and a physical-geography terrain axis (semantic salience), with a full implementation contract for 2GEO.2 and 2GEO.3 (`docs/spikes/2geo-1-terrain-sound-change.md`)
+- [x] 2GEO.2. Implement terrain-biased rule weighting in `phonology.ts` — contract specified in the 2GEO.1 spike
 
 <a name="m2-todo"><h4>To Do (Milestone 2)</h4></a>
 
-- [ ] 2GEO.2. Implement terrain-biased rule weighting in `phonology.ts` — contract specified in the 2GEO.1 spike
 - [ ] 2GEO.3. Implement biome-driven vocabulary expansion — concepts useful to a region's terrain drift/expand preferentially — contract specified in the 2GEO.1 spike
 
 <a name="m2-blocked"><h4>Blocked (Milestone 2)</h4></a>
@@ -104,7 +104,7 @@ m1 --> m2
 m2 --> m3
 
 2GEO.1["`*2GEO.1*<br/>**Geo**<br/>terrain→sound-change spike`"]:::done
-2GEO.2["`*2GEO.2*<br/>**Geo**<br/>terrain-biased rule weighting`"]:::open
+2GEO.2["`*2GEO.2*<br/>**Geo**<br/>terrain-biased rule weighting`"]:::done
 2GEO.3["`*2GEO.3*<br/>**Geo**<br/>biome-driven vocabulary`"]:::open
 2GEO.4["`*2GEO.4*<br/>**Geo**<br/>neighbour contact effects`"]
 2STK.1["`*2STK.1*<br/>**Stakes**<br/>rule-choice stakes spike`"]
