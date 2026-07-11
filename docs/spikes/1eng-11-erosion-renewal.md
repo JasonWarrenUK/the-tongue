@@ -144,7 +144,10 @@ Diphthongs and long vowels do not fit the scalar `height/back/round` V-model, so
 
 <a name="renewal-rules"><h3>4.2. Renewal rules (build structure)</h3></a>
 
-Mirror the existing `note` idiom. Both emit real phones.
+> [!WARNING]
+> **Post-implementation correction.** The `pre:isV`-conditioned `break` originally specified here **could not bootstrap renewal from a fully-eroded lexicon** — empirical testing during 1ENG.12 showed realistic 32-concept lexicons still ossified on ~97% of turns even with `epenth` + the mid-vowel-only `break` active, because both rules require pre-existing structure (a cluster, or hiatus) that a minimal `[C]V` word never regenerates once eroded away. The as-built rules below (`break` broadened to any word-final vowel, plus a new `paragoge` rule) replace the original design and are what actually ships. Kept here for the historical record; §4.2 as originally written should be read as superseded.
+
+Mirror the existing `note` idiom. All emit real phones.
 
 ```ts
 // R1 — Anaptyxis: insert a vowel to break a cluster. Recreates V_V (feeds voice/spirant)
@@ -157,18 +160,33 @@ Mirror the existing `note` idiom. Both emit real phones.
     { from:"abs", type:"V", patch:{ height:"high", back:false, round:false } }, // insert /i/
   ] },
 
-// R2 — Vowel breaking: mid vowel → diphthong (e→ie front, o→uo back), only after a vowel
-// (V_ hiatus). pre:isV keeps it from firing on every mid vowel and gives it a different
-// trigger than `raise`, so they don't cancel. Output is a REAL diphthong phone.
-{ id:"break", name:"Vowel breaking", note:"mid V → diphthong / V _  (e→ie, o→uo)",
+// R1b — Paragoge (as-built addition): unconditioned word-final vowel epenthesis after
+// a consonant. Bootstrap mechanism — fires on ANY consonant-final word, even one with
+// no cluster left, so a fully-eroded [C]V(C) branch always has a live renewal move.
+{ id:"paragoge", name:"Paragoge", note:"∅ → V / C _ #  (unconditioned word-final vowel epenthesis)",
+  w:1.5, category:"epenthesis",
+  match:isC, pre:null, post:bound,
+  xform:()=>[
+    { from:"self", patch:{} },
+    { from:"abs", type:"V", patch:{ height:"high", back:false, round:false } },
+  ] },
+
+// R2 — Vowel breaking (as-built: UNCONDITIONED, not mid-vowel-after-hiatus). Any
+// word-final vowel may diphthongise (real: cf. the unconditioned Great Vowel Shift,
+// §1). This is the second bootstrap mechanism — it fires on the [C]V floor itself,
+// where post:bound is the only environment left once hiatus and mid vowels have both
+// eroded away. Output is a REAL diphthong phone.
+{ id:"break", name:"Vowel breaking", note:"V → diphthong / _ #  (unconditioned; e→ie, a→ai, u→uo…)",
   w:2.5, category:"vowelShift",
-  match:(p)=>isV(p)&&p.height==="mid", pre:isV, post:null,
+  match:isV, pre:null, post:bound,
   xform:(p)=>[
-    { from:"abs", type:"V", patch:{ diph:true, ...(p.back ? {nucleus:"u",offglide:"o"} : {nucleus:"i",offglide:"e"}) } },
+    { from:"abs", type:"V", patch: p.back ? {diph:true,nucleus:"u",offglide:"o"} : {diph:true,nucleus:"i",offglide:"e"} },
   ] },
 ```
 
-`break` is 1→1 in count but changes a monophthong into a diphthong phone; `epenth` is 1→2. `resolve` must return `"i"` for `{height:"high",back:false,round:false}` (true today) and the diphthong id for the `diph` spec (new branch).
+`break` and `paragoge`/`epenth` differ in count (`break` is 1→1 phone but changes a monophthong into a diphthong phone; `epenth`/`paragoge` are 1→2). `resolve` must return `"i"` for `{height:"high",back:false,round:false}` (true today) and the diphthong id for the `diph` spec (new branch).
+
+**Why unconditioned bootstrap rules are necessary.** `break` (any vowel, `post:bound`) and `paragoge` (any consonant, `post:bound`) between them guarantee that *every* non-empty word has at least one firing rule: a word's final phone is either a vowel (`break` fires) or a consonant (`paragoge` fires) — never neither. This makes the "permanent ossification" state the spike's §1 diagnosis worried about **provably unreachable** for any real word, not merely less frequent. See §6 (updated).
 
 <a name="erosion-rules"><h3>4.3. Erosion rules that fire *because* diphthongs/long vowels exist</h3></a>
 
@@ -200,22 +218,30 @@ New worlds may contain diphthongs/long vowels from turn 0. Extend `genInventory`
 
 <a name="cycle"><h3>4.5. One traced cycle (proves the loop closes)</h3></a>
 
+> [!NOTE]
+> Updated for the as-built unconditioned `break` (§4.2). The cycle below shows a word converging all the way to the single-vowel ossification floor and still finding a live renewal move — the case the original `pre:isV` design could not handle.
+
 Phones by grapheme, `#` = boundary.
 
-Start **/apeto/** `[a,p,e,t,o]` — cluster-free but has mid vowels and a final mid vowel.
+Start **/apeto/** `[a,p,e,t,o]` — cluster-free but has vowels throughout. Trace verified directly against `applyRuleToWord`:
 
-1. `break` fires on `e` (mid, `pre=a` vowel) → `[a, ie, t, o]` = **/aieto/** (diphthong created).
-2. `apoc` fires on final `o` → `[a, ie, t]`.
-3. `finalC` fires on `t` → `[a, ie]`.
-4. `smooth` (erosion) fires on `ie` → `[a, e]` = **/ae/** (diphthong consumed, mid vowel re-exposed).
-5. `break` fires on `e` again → `[a, ie]`… **oscillation, not ossification.**
+1. `apoc` fires on final `o` → `[a, p, e, t]` = /apet/.
+2. `finalC` fires on `t` → `[a, p, e]` = /ape/.
+3. `voice` fires on `p` in `a_e` (V_V) → `[a, b, e]` = /abe/.
+4. `apoc` fires on final `e` → `[a, b]` = /ab/.
+5. `finalC` fires on `b` → `[a]`. **The floor: a bare single vowel, zero consonants, zero clusters, zero hiatus, zero mid vowels.**
+6. Under the *original* `pre:isV`-conditioned `break`: no firing rule exists here — permanent ossification (the bug this spike diagnoses). Under the **as-built unconditioned `break`** (`match:isV, post:bound`): fires on `a` → `[ie]` (diphthong created from nothing).
+7. `smooth` (erosion) fires on `ie` → `[e]` (mid vowel re-exposed).
+8. `break` fires on `e` again → `[ie]`… **oscillation, not ossification, sustained indefinitely from the bare-vowel floor.**
 
 Cluster branch, **/atra/** `[a,t,r,a]`:
 
-6. `epenth` fires on `t` before `r` → `[a, t, i, r, a]` — cluster broken, +1 syllable, two fresh `V_V` sites.
-7. `voice`/`spirant` (lenition) now fire on `t` in `a_i` → `[a, d/θ, i, r, a]`. Erosion re-grips exactly where renewal rebuilt.
+9. `epenth` fires on `t` before `r` → `[a, t, i, r, a]` — cluster broken, +1 syllable, two fresh `V_V` sites.
+10. `voice`/`spirant` (lenition) now fire on `t` in `a_i` → `[a, d/θ, i, r, a]`. Erosion re-grips exactly where renewal rebuilt.
 
-The loop closes on both axes: **deletion → minimal → (break/epenth) → clusters+hiatus+diphthongs → (smooth/shorten/lenition/deletion) re-fire.**
+Consonant-final floor, **/mat/** `[m,a,t]` eroded to **/m/** (bare consonant, no vowel — a degenerate transducer-level case, not a real word shape, but useful to confirm the bootstrap covers both edges): `paragoge` fires (`match:isC, post:bound`) → `[m, i]`, immediately restoring a vowel.
+
+The loop closes on both axes, all the way down to the single-phone floor: **deletion → minimal `[C]V` or `V` or `C` → (break/paragoge/epenth) → clusters+hiatus+diphthongs → (smooth/shorten/lenition/deletion) re-fire.**
 
 <a name="damping"><h3>4.6. Damping (prevent unbounded growth)</h3></a>
 
@@ -265,11 +291,14 @@ Renewal/new-erosion rules pass through `applyRuleToLex` identically; the per-wor
 
 ---
 
-<a name="guard"><h2>6. The `driftRule` null guard — keep it</h2></a>
+<a name="guard"><h2>6. The `driftRule` null guard — keep it, but ossification is now unreachable</h2></a>
 
-Keep `if (!firing.length) return null` ([`phonology.ts:121`](../../src/lib/engine/phonology.ts)). Even with renewal, `firing` can still be empty — e.g. a lexicon of only bare high vowels (`[i]`,`[a]`,`[u]`): `break` needs a mid vowel (none), `epenth` needs a cluster (none), `smooth`/`shorten` need diphthongs/long vowels (none), and every deletion/lenition rule that *matches* is refused by the min-vowel guard → `fires:0` → filtered out. Renewal *reduces* ossification frequency but does not make it provably impossible. [`generation.ts:18`](../../src/lib/engine/generation.ts) handles `null` gracefully (branch skips drift that turn).
+> [!NOTE]
+> **Post-implementation update.** This section originally argued the guard was still reachable (e.g. an all-high-vowel lexicon). Empirical testing during 1ENG.12 showed the mid-vowel-only `break` from §4.2's original design in fact could **not** rescue that case either — it doesn't fire on high vowels. The as-built fix (§4.2: unconditioned `break` + new `paragoge`) closes this fully, not just partially. Updated analysis below.
 
-The guard's meaning shifts from "permanent ossification" to "no legal move this turn (rare, usually transient — renewal re-arms the lexicon next time a neighbouring word changes)."
+Keep `if (!firing.length) return null` ([`phonology.ts:121`](../../src/lib/engine/phonology.ts)) as a defensive backstop, but with the as-built `break` (any word-final vowel) and `paragoge` (any word-final consonant) both in `RULES`, **every non-empty word has at least one firing rule**: a word's final phone is always either a vowel or a consonant, and one of the two rules matches unconditionally on `post:bound` in either case. This was verified against realistic 32-concept lexicons across multiple seeds (0 nulls over 300-turn sweeps at `iso=1`, versus ~97% null under the original `pre:isV`-conditioned design) and against every single-phone word shape.
+
+The guard is therefore no longer known to be reachable for any word the game can actually produce — but it stays in place as a regression safety net (e.g. against a future refactor that empties `RULES` or narrows a rule's environment). [`generation.ts:18`](../../src/lib/engine/generation.ts) still handles `null` gracefully (branch skips drift that turn) if it is ever hit.
 
 ---
 

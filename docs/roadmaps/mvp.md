@@ -6,7 +6,7 @@ description: The Tongue — seeded language-evolution simulator, from core engin
 
 |            | Status                    | Next Up                          | Blocked |
 | ---------- | -------------------------- | --------------------------------- | ------- |
-| **Core**   | ✅ Milestone 1 complete    | 1ENG.9, 1ENG.12                    | —       |
+| **Core**   | ✅ Milestone 1 complete    | 1ENG.9                             | —       |
 | **Geo**    | ✅ 2GEO.3 complete          | 2GEO.4 design spike                | —       |
 | **Stakes** | Not started                 | 2STK.1 design spike               | 2GEO.2, 2GEO.4 |
 | **Glyphs** | Not started                 | 2GLY.1 design spike               | 2STK.2  |
@@ -43,6 +43,7 @@ description: The Tongue — seeded language-evolution simulator, from core engin
 - [x] 1ENG.7. World/state initialisation (`world.ts`)
 - [x] 1ENG.8. Generation resolution: drift → spread → fracture → repool (`generation.ts`)
 - [x] 1ENG.11. Research spike: rule-set erosion/renewal balance — diagnosed why the purely-reductive `RULES` ossify a branch after a few generations, surveyed real diachronic renewal mechanisms (epenthesis, vowel breaking/diphthongisation, monophthongisation, vowel shortening), and produced a build-ready contract for 1ENG.12 (`docs/spikes/1eng-11-erosion-renewal.md`)
+- [x] 1ENG.12. Erosion/renewal mechanism — widened the phonology transducer to a 1→N segment model, added real diphthong/long-vowel phones (seeded into starting inventories too), and added `epenth`/`break`/`paragoge` (renewal) plus `smooth`/`shorten` (erosion of the new structure) rules. Testing during implementation found the spike's original mid-vowel-conditioned `break` couldn't bootstrap from a fully-eroded lexicon (~97% of turns still ossified); corrected to an unconditioned `break` + new `paragoge` rule, which together guarantee every word has a live renewal move — verified at 0 ossified turns across 150-turn/multi-seed end-to-end sweeps (`docs/spikes/1eng-11-erosion-renewal.md`, `phonology.ts`)
 - [x] 1UI.1. Reactive game state singleton (Svelte 5 runes) (`game.svelte.ts`)
 - [x] 1UI.2. Map, family tree, intelligibility matrix, word table, change list, history panels
 - [x] 1UI.3. Economy config panel for tuning pool/growth/overhead/cost settings
@@ -51,7 +52,9 @@ description: The Tongue — seeded language-evolution simulator, from core engin
 <a name="m1-todo"><h4>To Do (Milestone 1)</h4></a>
 
 - [ ] 1ENG.9. Fracture: guarantee children diverge from the parent at the moment of fracture, not only via later drift — currently a fractured branch's children are exact lexicon copies of the parent (`generation.ts:45`)
-- [ ] 1ENG.12. Implement chosen erosion/renewal mechanism — widen the phonology transducer to a 1→N segment model, add real diphthong/long-vowel phones (seeded into starting inventories too), and add `epenth`/`break` (renewal) plus `smooth`/`shorten` (erosion of the new structure) rules — full contract in the 1ENG.11 spike (`docs/spikes/1eng-11-erosion-renewal.md`)
+- [ ] 1ENG.13. Compensatory lengthening — a deletion rule whose `xform` deletes a coda and lengthens the preceding vowel; unblocked now that 1ENG.12 added long-vowel phones (small, rule-only per 1ENG.11 spike §8)
+- [ ] 1ENG.14. Design spike: syntax-conditioned sound change — many real sound changes are conditioned by the preceding/following *word*, not just the preceding/following phoneme (sandhi, cross-word assimilation/liaison); the engine currently has no representation of word order or utterance-level context at all (each lexicon entry is an isolated concept→word mapping). Needs its own spike to define a minimal syntax/adjacency model before any cross-word rule can be built
+- [ ] 1ENG.15. Design spike: morphological renewal (agreement/tense) — noun-verb agreement and grammatical tense marking are a major real-world source of the vocabulary/sound variety that keeps a language's phonology alive (paradigms, inflectional affixes); named but explicitly out-of-scope in the 1ENG.11 spike (§8) as belonging with 2GEO.4/borrowing. Needs a spike to define a minimal inflectional-paradigm model before implementation
 
 <a name="m1-blocked"><h4>Blocked (Milestone 1)</h4></a>
 
@@ -119,7 +122,10 @@ m2 --> m3
 1ENG9["`*1ENG.9*<br/>**Core**<br/>fracture divergence-at-birth`"]:::open
 1ENG10["`*1ENG.10*<br/>**Core**<br/>lineage-continuation fracture`"]
 1ENG11["`*1ENG.11*<br/>**Core**<br/>erosion/renewal spike`"]:::done
-1ENG12["`*1ENG.12*<br/>**Core**<br/>renewal mechanism`"]:::open
+1ENG12["`*1ENG.12*<br/>**Core**<br/>renewal mechanism`"]:::done
+1ENG13["`*1ENG.13*<br/>**Core**<br/>compensatory lengthening`"]:::open
+1ENG14["`*1ENG.14*<br/>**Core**<br/>syntax-conditioned change spike`"]:::open
+1ENG15["`*1ENG.15*<br/>**Core**<br/>morphological renewal spike`"]:::open
 
 2GEO.1["`*2GEO.1*<br/>**Geo**<br/>terrain→sound-change spike`"]:::done
 2GEO.2["`*2GEO.2*<br/>**Geo**<br/>terrain-biased rule weighting`"]:::done
@@ -141,6 +147,7 @@ m2 --> m3
 
 1ENG9 --> 1ENG10
 1ENG11 --> 1ENG12
+1ENG12 --> 1ENG13
 
 2GEO.1 --> 2GEO.2
 2GEO.1 --> 2GEO.3
@@ -164,6 +171,8 @@ m2 --> m3
 m1 -.-> 2GEO.1
 m1 -.-> 1ENG9
 m1 -.-> 1ENG11
+m1 -.-> 1ENG14
+m1 -.-> 1ENG15
 m1 -.-> 2LEX1
 m2 -.-> 2UI.2
 m3 -.-> 3PER.1
