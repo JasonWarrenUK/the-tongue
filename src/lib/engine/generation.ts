@@ -1,6 +1,6 @@
 import { hashRand } from "./rng";
 import { driftRule, applyRuleToLex } from "./phonology";
-import { ownerMap, freeAdjacentFor, passableComponents, basePool, isolationScore } from "./geography";
+import { ownerMap, freeAdjacentFor, passableComponents, basePool, isolationScore, dominantTerrain } from "./geography";
 import { leavesOf, isLeaf, childrenOf, NAME_POOL } from "./tree";
 import type { Branch, GameState } from "./types";
 
@@ -16,7 +16,8 @@ export function resolveGeneration(s: GameState): GameState {
     if (s.touched[L.id]) return;
     const iso = isolationScore(L.id, L.territory, s.world.edges, owner);
     const rule = driftRule(L.lex, seed, turn, L.id, iso); if (!rule) return;
-    branches[L.id] = { ...branches[L.id], lex: applyRuleToLex(L.lex, rule).lex, history: [...branches[L.id].history, { name: rule.name, note: rule.note, drift: true }] };
+    const terrain = dominantTerrain(L.id, L.territory, s.world.edges, owner);
+    branches[L.id] = { ...branches[L.id], lex: applyRuleToLex(L.lex, rule, { terrain, seed, turn, branchId: L.id }).lex, history: [...branches[L.id].history, { name: rule.name, note: rule.note, drift: true }] };
     log.push(`${L.name} drifted (${rule.name.toLowerCase()})`);
   });
 

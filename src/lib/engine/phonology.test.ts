@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { driftRule, biasedMult, firingRules } from "./phonology";
+import { driftRule, biasedMult, firingRules, applyRuleToLex, RULE_BY_ID } from "./phonology";
 import { hashRand } from "./rng";
 import type { Lexicon } from "./types";
 
@@ -96,5 +96,62 @@ describe("driftRule bias", () => {
     const c = driftRule(MIXED_LEX, seed, 5, branchId, 0.73);
     expect(a?.id).toBe(b?.id);
     expect(b?.id).toBe(c?.id);
+  });
+});
+
+describe("applyRuleToLex salience gating (2GEO.3)", () => {
+  const apoc = RULE_BY_ID.apoc; // vowel → ∅ / _ # — fires on any word ending in a vowel
+  // "stone" is core-salient (0.5) for mountain terrain; "unrelated" has no
+  // salience entry for mountain (0) — see SALIENCE_CORE/SECONDARY in lexicon.ts.
+  // Words carry a second vowel so deletion leaves at least one vowel behind
+  // (applyRuleToWord rejects a change that would zero out all vowels).
+  const LEX: Lexicon = [
+    { concept: "stone", word: ["m", "a", "t", "a"] },
+    { concept: "unrelated", word: ["t", "i", "p", "a"] },
+  ];
+  const seed = 99, branchId = 4;
+
+  test("no salience context: behaviour is unchanged from pre-2GEO.3 (both words drift)", () => {
+    const { lex, fires } = applyRuleToLex(LEX, apoc);
+    expect(fires).toBe(2);
+    expect(lex[0].word).toEqual(["m", "a", "t"]);
+    expect(lex[1].word).toEqual(["t", "i", "p"]);
+  });
+
+  test("non-salient concept (retention 0) is never blocked: matches ungated output every turn", () => {
+    for (let turn = 0; turn < 50; turn++) {
+      const gated = applyRuleToLex(LEX, apoc, { terrain: "mountain", seed, turn, branchId });
+      const ungated = applyRuleToLex(LEX, apoc);
+      expect(gated.lex[1].word).toEqual(ungated.lex[1].word);
+    }
+  });
+
+  test("salient concept drifts strictly less often than a non-salient concept over a turn sweep", () => {
+    let stoneChanged = 0, unrelatedChanged = 0;
+    const sweep = 300;
+    for (let turn = 0; turn < sweep; turn++) {
+      const { lex } = applyRuleToLex(LEX, apoc, { terrain: "mountain", seed, turn, branchId });
+      if (lex[0].word.length < LEX[0].word.length) stoneChanged++;
+      if (lex[1].word.length < LEX[1].word.length) unrelatedChanged++;
+    }
+    expect(unrelatedChanged).toBe(sweep); // retention 0 — always drifts
+    expect(stoneChanged).toBeLessThan(unrelatedChanged); // retention 0.5 — blocked roughly half the time
+    expect(stoneChanged).toBeGreaterThan(0); // not fully frozen
+  });
+
+  test("determinism: same salience context → identical output across repeated calls", () => {
+    const ctx = { terrain: "mountain" as const, seed, turn: 12, branchId };
+    const a = applyRuleToLex(LEX, apoc, ctx);
+    const b = applyRuleToLex(LEX, apoc, ctx);
+    expect(a.lex).toEqual(b.lex);
+    expect(a.fires).toBe(b.fires);
+  });
+
+  test("firingRules selection stays terrain-agnostic (fires count matches ungated form)", () => {
+    // firingRules internally calls applyRuleToLex without a salience context —
+    // confirms drift-rule selection weighting is unaffected by 2GEO.3.
+    const firing = firingRules(LEX);
+    const apocEntry = firing.find((f) => f.rule.id === "apoc");
+    expect(apocEntry?.fires).toBe(2);
   });
 });

@@ -7,7 +7,7 @@ description: The Tongue — seeded language-evolution simulator, from core engin
 |            | Status                    | Next Up                          | Blocked |
 | ---------- | -------------------------- | --------------------------------- | ------- |
 | **Core**   | ✅ Milestone 1 complete    | 1ENG.9, 1ENG.11                    | —       |
-| **Geo**    | 🔸 2GEO.2 complete          | 2GEO.3                             | —       |
+| **Geo**    | ✅ 2GEO.3 complete          | 2GEO.4 design spike                | —       |
 | **Stakes** | Not started                 | 2STK.1 design spike               | 2GEO.2, 2GEO.4 |
 | **Glyphs** | Not started                 | 2GLY.1 design spike               | 2STK.2  |
 | **Lexicon** | Not started                | 2LEX.1 design spike               | —       |
@@ -68,15 +68,15 @@ description: The Tongue — seeded language-evolution simulator, from core engin
 
 - [x] 2GEO.1. Design spike: terrain→sound-change bias ruleset — split into a social-geography contact/isolation axis (sound change) and a physical-geography terrain axis (semantic salience), with a full implementation contract for 2GEO.2 and 2GEO.3 (`docs/spikes/2geo-1-terrain-sound-change.md`)
 - [x] 2GEO.2. Implement terrain-biased rule weighting in `phonology.ts` — contract specified in the 2GEO.1 spike
+- [x] 2GEO.3. Implement biome-driven vocabulary resistance — terrain-salient concepts (`salienceRetention` in `lexicon.ts`) drift/replace more slowly, gating word-level drift in `applyRuleToLex` (`phonology.ts`) — contract specified in the 2GEO.1 spike, Axis B minimum scope (iii)
 
 <a name="m2-todo"><h4>To Do (Milestone 2)</h4></a>
 
-- [ ] 2GEO.3. Implement biome-driven vocabulary expansion — concepts useful to a region's terrain drift/expand preferentially — contract specified in the 2GEO.1 spike
+- [ ] 2GEO.4. Design spike: neighbour contact/borrowing mechanic — bordering branches converge via borrowing, not just diverge; Axis B's salient-concept borrowing lever is the natural home (2GEO.1 spike §242 sketches `borderEdges`/`dominantTerrain` as hooks but does not give this a build-ready contract) — needs its own spike before implementation, following the 2STK.1/2GLY.1/2LEX.1 pattern
 - [ ] 2LEX.1. Design spike: homophone-collision resolution mechanic — how a real semantic collision between two concepts (`homophoneForms`/`collisionPairs` in `phonology.ts`, currently only previewed before a player picks a rule) gets resolved once it actually lands during drift — candidates include a forced disambiguating follow-up change, a tolerated real homophone surfaced in UI/narrative, a borrowed synonym, or compounding — informed by real linguistics on homophone avoidance/tolerance
 
 <a name="m2-blocked"><h4>Blocked (Milestone 2)</h4></a>
 
-- [ ] 2GEO.4. Implement neighbour contact effects — bordering branches converge via borrowing, not just diverge — **depends on 2GEO.2, 2GEO.3**
 - [ ] 2STK.1. Design spike: rule-choice stakes mechanic (resource trade-offs vs directional goals vs prerequisite chains) — **depends on 2GEO.2, 2GEO.4**
 - [ ] 2STK.2. Implement chosen rule-stakes mechanic — **depends on 2STK.1**
 - [ ] 2GLY.1. Design spike: glyph mutation ruleset — shape-drift grammar + phoneme→glyph reassignment rules, referencing real script lineages (e.g. Phoenician → Greek → Etruscan → Latin) — **depends on 2STK.2**
@@ -123,8 +123,8 @@ m2 --> m3
 
 2GEO.1["`*2GEO.1*<br/>**Geo**<br/>terrain→sound-change spike`"]:::done
 2GEO.2["`*2GEO.2*<br/>**Geo**<br/>terrain-biased rule weighting`"]:::done
-2GEO.3["`*2GEO.3*<br/>**Geo**<br/>biome-driven vocabulary`"]:::open
-2GEO.4["`*2GEO.4*<br/>**Geo**<br/>neighbour contact effects`"]
+2GEO.3["`*2GEO.3*<br/>**Geo**<br/>biome-driven vocabulary`"]:::done
+2GEO.4["`*2GEO.4*<br/>**Geo**<br/>neighbour contact spike`"]:::open
 2STK.1["`*2STK.1*<br/>**Stakes**<br/>rule-choice stakes spike`"]
 2STK.2["`*2STK.2*<br/>**Stakes**<br/>rule-stakes mechanic`"]
 2GLY.1["`*2GLY.1*<br/>**Glyphs**<br/>glyph mutation ruleset spike`"]
