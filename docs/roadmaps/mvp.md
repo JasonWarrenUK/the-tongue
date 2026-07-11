@@ -6,7 +6,7 @@ description: The Tongue — seeded language-evolution simulator, from core engin
 
 |            | Status                    | Next Up                          | Blocked |
 | ---------- | -------------------------- | --------------------------------- | ------- |
-| **Core**   | ✅ 1ENG.10 complete         | 1ENG.13                            | —       |
+| **Core**   | ✅ 1ENG.10 complete         | 1ENG.13                            | 1ENG.16 |
 | **Geo**    | ✅ 2GEO.3 complete          | 2GEO.4 design spike                | —       |
 | **Stakes** | Not started                 | 2STK.1 design spike               | 2GEO.2, 2GEO.4 |
 | **Glyphs** | Not started                 | 2GLY.1 design spike               | 2STK.2  |
@@ -46,6 +46,7 @@ description: The Tongue — seeded language-evolution simulator, from core engin
 - [x] 1ENG.12. Erosion/renewal mechanism — widened the phonology transducer to a 1→N segment model, added real diphthong/long-vowel phones (seeded into starting inventories too), and added `epenth`/`break`/`paragoge` (renewal) plus `smooth`/`shorten` (erosion of the new structure) rules. Testing during implementation found the spike's original mid-vowel-conditioned `break` couldn't bootstrap from a fully-eroded lexicon (~97% of turns still ossified); corrected to an unconditioned `break` + new `paragoge` rule, which together guarantee every word has a live renewal move — verified at 0 ossified turns across 150-turn/multi-seed end-to-end sweeps (`docs/spikes/1eng-11-erosion-renewal.md`, `phonology.ts`)
 - [x] 1ENG.9. Fracture: children now diverge from the parent at the moment of fracture via a seeded birth drift step against the post-split owner map, instead of starting as exact lexicon copies (`generation.ts`)
 - [x] 1ENG.10. Fracture reworked to continue the parent lineage on its largest surviving component (ties broken by lowest region id) instead of retiring the parent and minting a fresh branch per component; only the other component(s) spin off as new siblings. Added a divergence-threshold rename mechanic: every branch accrues a flat chain of drift anchors (`Anchor`), and a new `naming.ts` module renders them at display time via an event-density-aware perspective-collapse into Old/Middle/Late era names and `Proto-<blend>` names for shared ancestors of genuinely diverged descendants — bare stems for living tips. Branch names are now generated phonotactically from each branch's own inventory (`naming.ts` `genStem`) instead of drawn from a static pool. Surfaced and fixed a latent bug in `isLeaf`/`leavesOf` (previously "childless", which silently broke once a still-territory-owning branch could also have children) and a `root.name` placeholder ("Proto") colliding with the new Proto- naming vocabulary (`generation.ts`, `naming.ts`, `tree.ts`, `world.ts`)
+- [x] 1ENG.18. Language-shift/assimilation death — a much smaller branch bordering (via a passable edge) a near-identical, much larger neighbour (intelligibility above a cutoff, size ratio below a threshold) sustained over several turns has its territory absorbed into that neighbour and becomes a dead ancestor. Closes a gap surfaced after 1ENG.10 shipped: nothing in the engine previously emptied a branch's territory, so the Old/Middle/Late/Proto- era-naming payoff was unreachable in play — this makes it reachable via a real historical death pattern (Cornish, Manx) rather than territory conquest, keeping clear of 2GEO.4's planned neighbour-contact/borrowing scope. New `geography.ts` `neighborsOf`/`dominantAssimilator` helpers, a new turn-loop step in `generation.ts` (after spread, before fracture), and a UI warning mirroring the existing fracture warning (`game.svelte.ts`, `+page.svelte`)
 - [x] 1UI.1. Reactive game state singleton (Svelte 5 runes) (`game.svelte.ts`)
 - [x] 1UI.2. Map, family tree, intelligibility matrix, word table, change list, history panels
 - [x] 1UI.3. Economy config panel for tuning pool/growth/overhead/cost settings
@@ -59,7 +60,8 @@ description: The Tongue — seeded language-evolution simulator, from core engin
 
 <a name="m1-blocked"><h4>Blocked (Milestone 1)</h4></a>
 
-_None currently._
+- [ ] 1ENG.16. Research spike: survey Zompist conlang tools ([SCA](https://www.zompist.com/sca2.html), [Gen](https://www.zompist.com/gen.html), [Phono](https://www.zompist.com/phono.html), [GGG](https://www.zompist.com/ggg.html), [GTG](https://www.zompist.com/gtg.html), [MG](https://www.zompist.com/mg.html)) for mechanisms and approaches applicable to our own engine — sound-change rule notation and batch application (SCA), procedural word/name generation (Gen), phonology description conventions (Phono), and general conlanging methodology (GGG, GTG, MG); produce a build-ready contract for 1ENG.17 identifying which findings are worth adopting — **depends on 1ENG.13, 1ENG.14, 1ENG.15**
+- [ ] 1ENG.17. Implement chosen improvements from the Zompist tools survey *(placeholder — depends on 1ENG.16)* — **depends on 1ENG.16**
 
 ---
 
@@ -122,11 +124,14 @@ m2 --> m3
 
 1ENG9["`*1ENG.9*<br/>**Core**<br/>fracture divergence-at-birth`"]:::done
 1ENG10["`*1ENG.10*<br/>**Core**<br/>lineage-continuation fracture`"]:::done
+1ENG18["`*1ENG.18*<br/>**Core**<br/>assimilation death`"]:::done
 1ENG11["`*1ENG.11*<br/>**Core**<br/>erosion/renewal spike`"]:::done
 1ENG12["`*1ENG.12*<br/>**Core**<br/>renewal mechanism`"]:::done
 1ENG13["`*1ENG.13*<br/>**Core**<br/>compensatory lengthening`"]:::open
 1ENG14["`*1ENG.14*<br/>**Core**<br/>syntax-conditioned change spike`"]:::open
 1ENG15["`*1ENG.15*<br/>**Core**<br/>morphological renewal spike`"]:::open
+1ENG16["`*1ENG.16*<br/>**Core**<br/>conlang tools survey spike`"]
+1ENG17["`*1ENG.17*<br/>**Core**<br/>survey-derived improvements`"]
 
 2GEO.1["`*2GEO.1*<br/>**Geo**<br/>terrain→sound-change spike`"]:::done
 2GEO.2["`*2GEO.2*<br/>**Geo**<br/>terrain-biased rule weighting`"]:::done
@@ -147,8 +152,13 @@ m2 --> m3
 3SHR.1["`*3SHR.1*<br/>**Share**<br/>export/share output`"]
 
 1ENG9 --> 1ENG10
+1ENG10 --> 1ENG18
 1ENG11 --> 1ENG12
 1ENG12 --> 1ENG13
+1ENG13 --> 1ENG16
+1ENG14 --> 1ENG16
+1ENG15 --> 1ENG16
+1ENG16 --> 1ENG17
 
 2GEO.1 --> 2GEO.2
 2GEO.1 --> 2GEO.3

@@ -1,12 +1,13 @@
 import { hashRand } from "./rng";
 import { driftRule, applyRuleToLex } from "./phonology";
-import { ownerMap, freeAdjacentFor, passableComponents, basePool, isolationScore, dominantTerrain } from "./geography";
+import { ownerMap, freeAdjacentFor, passableComponents, basePool, isolationScore, dominantTerrain, dominantAssimilator, ASSIM_TURNS } from "./geography";
 import { leavesOf, isLeaf, childrenOf } from "./tree";
 import { inventoryOf, genStem, RENAME_CUT } from "./naming";
 import { intelligibility } from "./intelligibility";
 import type { Anchor, Branch, GameState, HistoryEntry, Lexicon } from "./types";
 
-// One generation resolves: autonomous drift → passive spread → geographic fracture → repool.
+// One generation resolves: autonomous drift → rename check → passive spread →
+// assimilation death → geographic fracture → repool.
 export function resolveGeneration(s: GameState): GameState {
   const seed = s.world.seed, turn = s.turn, adj = s.world.adj, log: string[] = [];
   const branches: Record<number, Branch> = {};
@@ -57,7 +58,34 @@ export function resolveGeneration(s: GameState): GameState {
     }
   });
 
-  // 4. fracture any territory no longer joined by passable terrain (1ENG.10:
+  // 4. language-shift/assimilation death: a much smaller branch bordering a
+  //    near-identical dominant neighbour, sustained over ASSIM_TURNS turns, stops
+  //    being spoken as its own language and its territory transfers to the neighbour.
+  //    Runs after spread (this turn's growth has settled) and before fracture (a
+  //    neighbour that just absorbed territory may itself now need re-splitting).
+  //    Guarded on >1 living leaf so a lone/boxed-in branch — which by definition has no
+  //    neighbour to assimilate into — can never be evaluated into extinction.
+  if (leavesOf(branches).length > 1) {
+    leavesOf(branches).forEach((L) => {
+      const b = branches[L.id];
+      // dominant candidate = most mutually intelligible qualifying neighbour; ties
+      // broken by larger territory, then lower id (mirrors the fracture tie-break) —
+      // shared with the live UI warning check (game.svelte.ts), see geography.ts.
+      const dominant = dominantAssimilator(b, branches, s.world.edges, owner);
+      if (!dominant) { if (b.assimilationPressure) branches[L.id] = { ...b, assimilationPressure: 0 }; return; }
+      const pressure = b.assimilationPressure + 1;
+      if (pressure < ASSIM_TURNS) { branches[L.id] = { ...b, assimilationPressure: pressure }; return; }
+      // threshold reached: absorb. Re-read the dominant branch in case an earlier
+      // absorption this same pass already grew it.
+      const absorber = branches[dominant.id];
+      branches[absorber.id] = { ...absorber, territory: [...absorber.territory, ...b.territory] };
+      b.territory.forEach((r) => (owner[r] = absorber.id));
+      branches[L.id] = { ...b, territory: [], assimilationPressure: 0 };
+      log.push(`${b.name} assimilated into ${absorber.name}`);
+    });
+  }
+
+  // 5. fracture any territory no longer joined by passable terrain (1ENG.10:
   //    lineage-continuation). The parent's lineage CONTINUES on its largest surviving
   //    component (ties -> lowest region id) — same id, name, history, anchors. Only
   //    the OTHER component(s) spin off as new siblings, each with a fresh phonotactic
@@ -94,7 +122,7 @@ export function resolveGeneration(s: GameState): GameState {
         const startLex = parent.lex.map((e) => ({ concept: e.concept, word: [...e.word] }));
         // birth anchor: the sibling's starting lexicon, so subsequent rename checks
         // measure drift from the moment it became its own lineage, not the parent's.
-        branches[id] = { id, name, parentId: parent.id, depth: parent.depth + 1, splitIndex: parent.history.length, history: [...parent.history], lex: startLex, territory: comp, pressure: 0, anchors: [{ lex: startLex, turn, historyIndex: parent.history.length, driftFromPrev: 0 }] };
+        branches[id] = { id, name, parentId: parent.id, depth: parent.depth + 1, splitIndex: parent.history.length, history: [...parent.history], lex: startLex, territory: comp, pressure: 0, anchors: [{ lex: startLex, turn, historyIndex: parent.history.length, driftFromPrev: 0 }], assimilationPressure: 0 };
       });
       branches[L.id] = { ...parent, territory: main };
       // parent keeps its component; siblings own theirs — ownerMap reflects the

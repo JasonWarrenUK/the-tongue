@@ -13,7 +13,7 @@ const MIXED_LEX: Lexicon = [
 function mkBranch(overrides: Partial<Branch> = {}): Branch {
   return {
     id: 0, name: "Aenic", parentId: null, depth: 0, splitIndex: 0, history: [],
-    lex: MIXED_LEX, territory: [0], pressure: 0, anchors: [], ...overrides,
+    lex: MIXED_LEX, territory: [0], pressure: 0, anchors: [], assimilationPressure: 0, ...overrides,
   };
 }
 function anchor(driftFromPrev: number, turn: number): Anchor {

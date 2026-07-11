@@ -44,6 +44,7 @@
             <span class="text-muted font-normal text-xs">· {game.sel.territory.length} region{game.sel.territory.length !== 1 ? "s" : ""} · {game.st.touched[game.st.selectedId] ? "held" : "will drift"}</span>
           </h2>
           {#if game.fracturing}<span class="text-xs text-warn">⚠ will fracture at gen end</span>{/if}
+          {#if game.assimilatingInto}<span class="text-xs text-warn">⚠ assimilating into {game.assimilatingInto} — drift or expand to resist</span>{/if}
         </div>
         <WordTable lex={game.sel.lex} previewLex={game.previewLex} curHomo={game.curHomo} prevHomo={game.prevHomo} />
       </div>

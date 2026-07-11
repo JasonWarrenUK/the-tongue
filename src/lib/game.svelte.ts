@@ -2,7 +2,7 @@ import { freshState } from "./engine/world";
 import { resolveGeneration } from "./engine/generation";
 import { RULES, RULE_BY_ID, applyRuleToLex, collisionPairs, homophoneForms } from "./engine/phonology";
 import { leavesOf, isLeaf, descendsFrom } from "./engine/tree";
-import { ownerMap, freeAdjacentFor, passableComponents, basePool, overheadFor } from "./engine/geography";
+import { ownerMap, freeAdjacentFor, passableComponents, basePool, overheadFor, dominantAssimilator, ASSIM_TURNS } from "./engine/geography";
 import { displayName, protoBlendFor } from "./engine/naming";
 import type { GameState, Settings, Candidate } from "./engine/types";
 
@@ -29,6 +29,16 @@ class Game {
   overheadDue = $derived(this.st.touched[this.st.selectedId] ? 0 : this.overhead);
   stepCost = $derived(this.st.settings.changeCost + this.overheadDue);
   fracturing = $derived(passableComponents(this.sel.territory, this.st.world.adj).length > 1);
+  // language-shift/assimilation warning: mirrors `fracturing` but reflects ACCUMULATED
+  // state (assimilationPressure), not a live geometric recheck — a branch only warns
+  // once it's one turn away from being absorbed, giving the player a chance to react
+  // (any drift/expand action on it breaks the streak by changing intelligibility/size).
+  assimilatingInto = $derived.by<string | null>(() => {
+    const b = this.sel;
+    if (b.assimilationPressure < ASSIM_TURNS - 1) return null;
+    const dominant = dominantAssimilator(b, this.st.branches, this.st.world.edges, ownerMap(this.st.branches));
+    return dominant?.name ?? null;
+  });
   // 1ENG.10: one computed display name per branch — the perspective-collapsed era name
   // (bare stem for a living tip, Old/Middle/Late/Proto- for a dead ancestor). Built
   // once per render pass since protoBlendFor needs the branch's live descendant leaves,

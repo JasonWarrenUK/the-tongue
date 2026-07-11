@@ -2,6 +2,7 @@ import type { Adjacency, Branch, FreeRegion, Region, Edge, Settings, Terrain } f
 
 // branch helpers re-exported from tree to avoid a cycle are imported where needed
 import { leavesOf } from "./tree";
+import { intelligibility } from "./intelligibility";
 
 export function pickTerrain(rng: () => number): { name: Terrain; passable: boolean; cost: number } {
   const r = rng();
@@ -87,6 +88,60 @@ export function isolationScore(
   const internalTotal = passableInternal + impassableInternal;
   const internalIsolation = internalTotal === 0 ? 0 : impassableInternal / internalTotal;
   return clamp01(0.75 * isolation + 0.25 * internalIsolation);
+}
+
+// Distinct branch ids sharing a PASSABLE border edge with `branchId` — the population-
+// contact signal a language-shift/assimilation mechanic needs (an impassable border
+// carries no foot traffic, so it never brings two populations into contact). Same
+// border-detection shape as isolationScore above, but returns the neighbour identities
+// instead of a scalar.
+export function neighborsOf(branchId: number, territory: number[], edges: Edge[], owner: Record<number, number>): number[] {
+  if (territory.length === 0) return [];
+  const found = new Set<number>();
+  edges.forEach((e) => {
+    if (!e.passable) return;
+    const aOwned = owner[e.a] === branchId, bOwned = owner[e.b] === branchId;
+    if (!aOwned && !bOwned) return;
+    if (aOwned && bOwned) return; // internal edge, not a border
+    const otherOwner = aOwned ? owner[e.b] : owner[e.a];
+    if (otherOwner === undefined || otherOwner === branchId) return;
+    found.add(otherOwner);
+  });
+  return [...found];
+}
+
+// Language-shift/assimilation death constants — shared between the engine step
+// (generation.ts) and the live UI warning check (game.svelte.ts), which is why the
+// selection logic lives here rather than duplicated in both call sites.
+// Tuned from an initial 0.75/3/5 after end-to-end sweeps showed fracture itself is
+// infrequent (0-2 events/150 turns per 1ENG.10's own testing), so few small/large
+// sibling pairs ever coexist long enough to trigger a stricter threshold — loosened so
+// assimilation is a regularly-visible dynamic rather than a rare event.
+export const ASSIM_INTEL_CUT = 0.75; // near-identical dialects
+export const ASSIM_SIZE_RATIO = 2; // small must be under 1/2 the neighbour's territory
+export const ASSIM_TURNS = 3; // sustained turns before assimilation completes
+
+// The neighbour a small, near-identical branch would be assimilated into RIGHT NOW, if
+// any qualifies — most mutually intelligible passable-bordering neighbour that's at
+// least ASSIM_SIZE_RATIO times larger; ties broken by larger territory, then lower id
+// (mirrors the 1ENG.10 fracture tie-break). Pure/live — safe to call every render for a
+// warning, and is exactly what generation.ts's assimilation step also calls each turn.
+export function dominantAssimilator(
+  branch: Branch, branches: Record<number, Branch>, edges: Edge[], owner: Record<number, number>,
+): Branch | null {
+  const neighbourIds = neighborsOf(branch.id, branch.territory, edges, owner);
+  let dominant: Branch | null = null, bestIntel = -1;
+  neighbourIds.forEach((nid) => {
+    const n = branches[nid]; if (!n) return;
+    if (branch.territory.length * ASSIM_SIZE_RATIO >= n.territory.length) return; // not small enough
+    const intel = intelligibility(branch.lex, n.lex);
+    if (intel <= ASSIM_INTEL_CUT) return; // not close enough
+    const better = intel > bestIntel
+      || (intel === bestIntel && dominant && (n.territory.length > dominant.territory.length
+        || (n.territory.length === dominant.territory.length && n.id < dominant.id)));
+    if (better) { bestIntel = intel; dominant = n; }
+  });
+  return dominant;
 }
 
 const IMPASSABILITY_RANK: Record<Terrain, number> = { plain: 0, hill: 1, mountain: 2, water: 3 };

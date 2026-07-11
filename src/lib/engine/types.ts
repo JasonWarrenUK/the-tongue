@@ -64,6 +64,10 @@ export interface Branch {
   id: number; name: string; parentId: number | null; depth: number;
   splitIndex: number; history: HistoryEntry[]; lex: Lexicon;
   territory: number[]; pressure: number; anchors: Anchor[];
+  // language-shift/assimilation death: turns sustained bordering a much larger,
+  // near-identical neighbour (see generation.ts). Resets to 0 the moment the trigger
+  // stops holding; reaching the threshold empties `territory`, killing the branch.
+  assimilationPressure: number;
 }
 export interface Settings {
   pool: number; growth: number; overhead: number; changeCost: number; spreadEvery: number;

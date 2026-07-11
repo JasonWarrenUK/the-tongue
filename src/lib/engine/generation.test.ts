@@ -46,7 +46,7 @@ function fractureState(lex: Lexicon = MIXED_LEX): GameState {
   const branch: Branch = {
     id: 0, name: "Aenic", parentId: null, depth: 0, splitIndex: 0, history: [],
     lex: lex.map((e) => ({ concept: e.concept, word: [...e.word] })),
-    territory: [0, 1, 2, 3], pressure: 0, anchors: birthAnchor(lex),
+    territory: [0, 1, 2, 3], pressure: 0, anchors: birthAnchor(lex), assimilationPressure: 0,
   };
   return {
     world: { seed: 1234, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1, 2, 3].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0 },
@@ -180,7 +180,7 @@ describe("1ENG.10 lineage-continuation fracture", () => {
     const mkBranch = (id: number, name: string, territory: number[]): Branch => ({
       id, name, parentId: null, depth: 0, splitIndex: 0, history: [],
       lex: MIXED_LEX.map((e) => ({ concept: e.concept, word: [...e.word] })),
-      territory, pressure: 0, anchors: birthAnchor(MIXED_LEX),
+      territory, pressure: 0, anchors: birthAnchor(MIXED_LEX), assimilationPressure: 0,
     });
 
     const s: GameState = {
@@ -215,7 +215,7 @@ describe("1ENG.10 divergence-threshold rename", () => {
     const branch: Branch = {
       id: 0, name: "Aenic", parentId: null, depth: 0, splitIndex: 0, history: [],
       lex: MIXED_LEX.map((e) => ({ concept: e.concept, word: [...e.word] })),
-      territory: [0], pressure: 0, anchors: birthAnchor(MIXED_LEX),
+      territory: [0], pressure: 0, anchors: birthAnchor(MIXED_LEX), assimilationPressure: 0,
     };
     return {
       world: { seed: 99, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1, 2, 3].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0 },
