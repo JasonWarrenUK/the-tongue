@@ -1,7 +1,31 @@
 import { pick } from "./rng";
-import type { Inventory, Template, Lexicon } from "./types";
+import type { Inventory, Template, Lexicon, Terrain } from "./types";
 
 export const CONCEPTS = ["water","fire","stone","tree","leaf","root","seed","fish","bird","dog","wolf","hand","eye","ear","tooth","bone","blood","skin","meat","sun","moon","star","sky","rain","wind","hill","river","path","house","night","day","snow"];
+
+// 2GEO.3 Axis B — physical terrain sets per-concept salience; salient concepts
+// resist drift/loss. Graded: core-salient 0.5, secondary 0.25, else 0.
+// Source: 2GEO.1 spike §4 (docs/spikes/2geo-1-terrain-sound-change.md:157-161).
+const SALIENCE_CORE: Record<Terrain, string[]> = {
+  mountain: ["stone", "hill"],
+  hill: ["stone", "hill"],
+  water: ["fish", "river"],
+  plain: ["sky", "wind"],
+};
+const SALIENCE_SECONDARY: Record<Terrain, string[]> = {
+  mountain: ["snow", "path", "bone"],
+  hill: ["snow", "path", "bone"],
+  water: ["water", "wind", "star"],
+  plain: ["bird", "path", "water"],
+};
+
+// Retention weight in [0,1): higher = more drift-resistant. Slice 2 will scale
+// effective drift probability by (1 - salienceRetention(concept, terrain)).
+export function salienceRetention(concept: string, terrain: Terrain): number {
+  if (SALIENCE_CORE[terrain].includes(concept)) return 0.5;
+  if (SALIENCE_SECONDARY[terrain].includes(concept)) return 0.25;
+  return 0;
+}
 
 export function genInventory(rng: () => number): Inventory {
   const vowels = rng() < 0.2 ? ["i","a","u"] : ["i","e","a","o","u"];
