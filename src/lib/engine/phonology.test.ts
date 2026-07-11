@@ -234,6 +234,25 @@ describe("smooth / shorten (erosion of the new renewal structure)", () => {
     const r = applyRuleToWord(["a", "uo"], RULE_BY_ID.smooth);
     expect(r).toEqual({ ids: ["a", "o"], changed: true });
   });
+  // Seed-only diphthongs (lexicon.ts DIPHTHONGS) that `break` itself never produces —
+  // smooth must key off each diphthong's own nucleus, not just offglide==="o", or these
+  // silently monophthongise to the wrong vowel (regression: all four collapsed to "e").
+  test("smooth: [a,ei] -> [a,e] (front nucleus -> mid V)", () => {
+    const r = applyRuleToWord(["a", "ei"], RULE_BY_ID.smooth);
+    expect(r).toEqual({ ids: ["a", "e"], changed: true });
+  });
+  test("smooth: [a,ou] -> [a,o] (back nucleus -> mid V)", () => {
+    const r = applyRuleToWord(["a", "ou"], RULE_BY_ID.smooth);
+    expect(r).toEqual({ ids: ["a", "o"], changed: true });
+  });
+  test("smooth: [a,au] -> [a,e] (front nucleus -> mid V)", () => {
+    const r = applyRuleToWord(["a", "au"], RULE_BY_ID.smooth);
+    expect(r).toEqual({ ids: ["a", "e"], changed: true });
+  });
+  test("smooth: [a,ai] -> [a,e] (front nucleus -> mid V)", () => {
+    const r = applyRuleToWord(["a", "ai"], RULE_BY_ID.smooth);
+    expect(r).toEqual({ ids: ["a", "e"], changed: true });
+  });
   test("smooth does not fire on a monophthong", () => {
     const r = applyRuleToWord(["a", "e"], RULE_BY_ID.smooth);
     expect(r).toEqual({ ids: ["a", "e"], changed: false });

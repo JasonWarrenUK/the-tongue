@@ -95,9 +95,10 @@ export const RULES: Rule[] = [
     ] },
   { id:"smooth", name:"Monophthongisation", note:"diphthong → mid V  (ie→e, uo→o)", w:2.5, category:"lenition",
     match:(p)=>isV(p)&&!!p.diph, pre:null, post:null,
-    xform:(p)=>[
-      { from:"abs", type:"V", patch:{ height:"mid", back:p.offglide==="o", round:p.offglide==="o" } },
-    ] },
+    xform:(p)=>{
+      const back = p.nucleus === "u" || p.nucleus === "o";
+      return [{ from:"abs", type:"V", patch:{ height:"mid", back, round:back } }];
+    } },
   { id:"shorten", name:"Vowel shortening", note:"long V → short / _ #", w:2, category:"deletion",
     match:(p)=>isV(p)&&!!p.long, pre:null, post:bound,
     xform:()=>({ long:false }) },
