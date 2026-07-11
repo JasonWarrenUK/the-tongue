@@ -28,7 +28,7 @@
       </Panel>
       <Panel title="Family tree">
         <FamilyTree branches={game.st.branches} rootId={game.st.rootId} selectedId={game.st.selectedId}
-          touched={game.st.touched} onselect={(id) => game.selectBranch(id)} />
+          touched={game.st.touched} displayNames={game.displayNames} onselect={(id) => game.selectBranch(id)} />
       </Panel>
     </div>
 

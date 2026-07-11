@@ -1,9 +1,9 @@
 <script lang="ts">
   import { layoutTree, isLeaf, branchColor } from "$lib/engine/tree";
   import type { Branch } from "$lib/engine/types";
-  let { branches, rootId, selectedId, touched, onselect }:
+  let { branches, rootId, selectedId, touched, displayNames, onselect }:
     { branches: Record<number, Branch>; rootId: number; selectedId: number;
-      touched: Record<number, boolean>; onselect: (id: number) => void } = $props();
+      touched: Record<number, boolean>; displayNames: Record<number, string>; onselect: (id: number) => void } = $props();
 
   const COL = 96, ROW = 62, NW = 78, NH = 36;
   const pos = $derived(layoutTree(branches, rootId));
@@ -28,7 +28,7 @@
         <rect width={NW} height={NH} rx="6" fill={selected ? "var(--color-surface-2)" : "var(--color-surface)"}
           stroke={selected ? "var(--color-accent)" : leaf ? "var(--color-muted)" : "var(--color-border)"} stroke-width={selected ? 2 : 1.5} />
         {#if leaf}<rect x="6" y={NH - 7} width={NW - 12} height="3" rx="1.5" fill={branchColor(b.id)} />{/if}
-        <text x={NW / 2} y="15" text-anchor="middle" fill={selected ? "var(--color-accent)" : leaf ? "var(--color-fg)" : "var(--color-muted)"} font-size="12" font-weight="600">{b.name}</text>
+        <text x={NW / 2} y="15" text-anchor="middle" fill={selected ? "var(--color-accent)" : leaf ? "var(--color-fg)" : "var(--color-muted)"} font-size="12" font-weight="600">{displayNames[b.id] ?? b.name}</text>
         <text x={NW / 2} y="27" text-anchor="middle" fill="var(--color-muted)" font-size="9">{leaf ? `${b.history.length} chg` : "ancestor"}</text>
         {#if leaf && touched[b.id]}<circle cx={NW - 8} cy="8" r="3.5" fill="var(--color-accent)" />{/if}
       </g>
