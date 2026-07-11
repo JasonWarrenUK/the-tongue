@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { driftRule, biasedMult, firingRules, applyRuleToLex, RULE_BY_ID } from "./phonology";
+import { driftRule, biasedMult, firingRules, applyRuleToLex, applyRuleToWord, RULE_BY_ID, MAX_LEN } from "./phonology";
 import { hashRand } from "./rng";
 import type { Lexicon } from "./types";
 
@@ -153,5 +153,228 @@ describe("applyRuleToLex salience gating (2GEO.3)", () => {
     const firing = firingRules(LEX);
     const apocEntry = firing.find((f) => f.rule.id === "apoc");
     expect(apocEntry?.fires).toBe(2);
+  });
+});
+
+// 1ENG.12 — widening applyRuleToWord to a 1->N transducer (1eng-11 spike §3).
+describe("applyRuleToWord backward compatibility (1ENG.12 regression goldens)", () => {
+  test("voice: [a,p,a] -> [a,b,a]", () => {
+    const r = applyRuleToWord(["a", "p", "a"], RULE_BY_ID.voice);
+    expect(r).toEqual({ ids: ["a", "b", "a"], changed: true });
+  });
+  test("apoc: [t,a,p,e] -> [t,a,p]", () => {
+    const r = applyRuleToWord(["t", "a", "p", "e"], RULE_BY_ID.apoc);
+    expect(r).toEqual({ ids: ["t", "a", "p"], changed: true });
+  });
+  test("cluster: [a,p,t,a] -> [a,t,a]", () => {
+    const r = applyRuleToWord(["a", "p", "t", "a"], RULE_BY_ID.cluster);
+    expect(r).toEqual({ ids: ["a", "t", "a"], changed: true });
+  });
+  test("apoc on [p,a]: guard refuses (would zero the only vowel) -> unchanged", () => {
+    const r = applyRuleToWord(["p", "a"], RULE_BY_ID.apoc);
+    expect(r).toEqual({ ids: ["p", "a"], changed: false });
+  });
+  test("every original 9 rules still resolve through the self-seg path unchanged", () => {
+    const ORIGINAL_IDS = ["voice", "spirant", "devoice", "apoc", "finalC", "palat", "debucc", "raise", "nasassim", "cluster"];
+    for (const id of ORIGINAL_IDS) expect(RULE_BY_ID[id]).toBeDefined();
+  });
+});
+
+describe("epenth / break (renewal rules)", () => {
+  // break is unconditioned (fires on any word-final vowel, not only a pre-existing
+  // mid vowel after hiatus) — this is what lets renewal bootstrap from a fully-eroded
+  // CV/V floor, where no cluster or hiatus survives for epenth/the old break to exploit.
+  test("break: [a,e] -> [a,ie] (front V word-finally)", () => {
+    const r = applyRuleToWord(["a", "e"], RULE_BY_ID.break);
+    expect(r).toEqual({ ids: ["a", "ie"], changed: true });
+  });
+  test("break: [a,o] -> [a,uo] (back V word-finally)", () => {
+    const r = applyRuleToWord(["a", "o"], RULE_BY_ID.break);
+    expect(r).toEqual({ ids: ["a", "uo"], changed: true });
+  });
+  test("break fires on a bare single-vowel word (the ossification floor)", () => {
+    const r = applyRuleToWord(["a"], RULE_BY_ID.break);
+    expect(r).toEqual({ ids: ["ie"], changed: true }); // "a" is a front (non-back) vowel
+  });
+  test("break does not fire on a non-final vowel", () => {
+    const r = applyRuleToWord(["e", "t"], RULE_BY_ID.break);
+    expect(r).toEqual({ ids: ["e", "t"], changed: false });
+  });
+  test("epenth: [a,t,r,a] -> [a,t,i,r,a] (cluster broken)", () => {
+    const r = applyRuleToWord(["a", "t", "r", "a"], RULE_BY_ID.epenth);
+    expect(r).toEqual({ ids: ["a", "t", "i", "r", "a"], changed: true });
+  });
+  test("epenth does not fire without a cluster", () => {
+    const r = applyRuleToWord(["a", "t", "a"], RULE_BY_ID.epenth);
+    expect(r).toEqual({ ids: ["a", "t", "a"], changed: false });
+  });
+  // paragoge — the other bootstrap mechanism: unconditioned word-final vowel
+  // epenthesis after a consonant, firing even without a pre-existing cluster.
+  test("paragoge: [m,a,t] -> [m,a,t,i] (consonant-final word gains a final vowel)", () => {
+    const r = applyRuleToWord(["m", "a", "t"], RULE_BY_ID.paragoge);
+    expect(r).toEqual({ ids: ["m", "a", "t", "i"], changed: true });
+  });
+  test("paragoge fires on the bare [C]V ossification floor's consonant-final sibling", () => {
+    const r = applyRuleToWord(["m"], RULE_BY_ID.paragoge);
+    expect(r.changed).toBe(true);
+    expect(r.ids[r.ids.length - 1]).toBe("i");
+  });
+  test("paragoge does not fire on a vowel-final word", () => {
+    const r = applyRuleToWord(["m", "a"], RULE_BY_ID.paragoge);
+    expect(r).toEqual({ ids: ["m", "a"], changed: false });
+  });
+});
+
+describe("smooth / shorten (erosion of the new renewal structure)", () => {
+  test("smooth: [a,ie] -> [a,e] (front diphthong -> mid V)", () => {
+    const r = applyRuleToWord(["a", "ie"], RULE_BY_ID.smooth);
+    expect(r).toEqual({ ids: ["a", "e"], changed: true });
+  });
+  test("smooth: [a,uo] -> [a,o] (back diphthong -> mid V)", () => {
+    const r = applyRuleToWord(["a", "uo"], RULE_BY_ID.smooth);
+    expect(r).toEqual({ ids: ["a", "o"], changed: true });
+  });
+  // Seed-only diphthongs (lexicon.ts DIPHTHONGS) that `break` itself never produces —
+  // smooth must key off each diphthong's own nucleus, not just offglide==="o", or these
+  // silently monophthongise to the wrong vowel (regression: all four collapsed to "e").
+  test("smooth: [a,ei] -> [a,e] (front nucleus -> mid V)", () => {
+    const r = applyRuleToWord(["a", "ei"], RULE_BY_ID.smooth);
+    expect(r).toEqual({ ids: ["a", "e"], changed: true });
+  });
+  test("smooth: [a,ou] -> [a,o] (back nucleus -> mid V)", () => {
+    const r = applyRuleToWord(["a", "ou"], RULE_BY_ID.smooth);
+    expect(r).toEqual({ ids: ["a", "o"], changed: true });
+  });
+  test("smooth: [a,au] -> [a,e] (front nucleus -> mid V)", () => {
+    const r = applyRuleToWord(["a", "au"], RULE_BY_ID.smooth);
+    expect(r).toEqual({ ids: ["a", "e"], changed: true });
+  });
+  test("smooth: [a,ai] -> [a,e] (front nucleus -> mid V)", () => {
+    const r = applyRuleToWord(["a", "ai"], RULE_BY_ID.smooth);
+    expect(r).toEqual({ ids: ["a", "e"], changed: true });
+  });
+  test("smooth does not fire on a monophthong", () => {
+    const r = applyRuleToWord(["a", "e"], RULE_BY_ID.smooth);
+    expect(r).toEqual({ ids: ["a", "e"], changed: false });
+  });
+  test("shorten: [a,aː] -> [a,a] word-finally", () => {
+    const r = applyRuleToWord(["a", "aː"], RULE_BY_ID.shorten);
+    expect(r).toEqual({ ids: ["a", "a"], changed: true });
+  });
+  test("shorten does not fire on a short vowel", () => {
+    const r = applyRuleToWord(["a", "a"], RULE_BY_ID.shorten);
+    expect(r).toEqual({ ids: ["a", "a"], changed: false });
+  });
+  test("shorten does not fire on a non-final long vowel", () => {
+    const r = applyRuleToWord(["aː", "t", "a"], RULE_BY_ID.shorten);
+    expect(r).toEqual({ ids: ["aː", "t", "a"], changed: false });
+  });
+});
+
+describe("biasedMult epenthesis (1ENG.12)", () => {
+  test("fully isolated (iso=1): epenthesis ~1.56", () => {
+    expect(biasedMult("epenthesis", 1)).toBeCloseTo(1.56, 5);
+  });
+  test("fully open (iso=0): epenthesis clamps to 0.5", () => {
+    expect(biasedMult("epenthesis", 0)).toBeCloseTo(0.5, 5);
+  });
+  test("neutral (iso=0.5): epenthesis is 1.0", () => {
+    expect(biasedMult("epenthesis", 0.5)).toBeCloseTo(1, 5);
+  });
+  test("stays within the 0.5-2.0 band across the iso sweep", () => {
+    for (const iso of [0, 0.25, 0.5, 0.75, 1]) {
+      const m = biasedMult("epenthesis", iso);
+      expect(m).toBeGreaterThanOrEqual(0.5);
+      expect(m).toBeLessThanOrEqual(2);
+    }
+  });
+});
+
+describe("erosion<->renewal cycle (1ENG.12, 1eng-11 spike §4.5)", () => {
+  const seed = 7, branchId = 1;
+  // A lexicon that starts already fairly minimal, so the sweep exercises the
+  // ossification edge the spike diagnosed (firingRules emptying out) rather
+  // than just burning through the original 9 reductive rules first.
+  const START: Lexicon = [
+    { concept: "a", word: ["a", "t", "e"] },
+    { concept: "b", word: ["m", "a", "t", "r", "a"] },
+    { concept: "c", word: ["s", "i", "n"] },
+    { concept: "d", word: ["k", "o"] },
+  ];
+
+  function sweep(iso: number, turns: number, useRenewal: boolean) {
+    let lex = START;
+    let nonNull = 0;
+    const maxLenSeen: number[] = [];
+    for (let turn = 0; turn < turns; turn++) {
+      const rule = useRenewal
+        ? driftRule(lex, seed, turn, branchId, iso)
+        : (() => {
+            // Renewal-disabled control: pick among firing rules restricted to the
+            // original 9 reductive ids, to prove renewal is what prevents ossification.
+            const ORIGINAL = new Set(["voice", "spirant", "devoice", "apoc", "finalC", "palat", "debucc", "raise", "nasassim", "cluster"]);
+            const firing = firingRules(lex).filter((f) => ORIGINAL.has(f.rule.id));
+            if (!firing.length) return null;
+            const total = firing.reduce((a, x) => a + x.rule.w, 0);
+            let roll = hashRand(seed + 7, turn * 131 + 17, branchId * 911 + 3) * total;
+            for (const x of firing) { roll -= x.rule.w; if (roll <= 0) return x.rule; }
+            return firing[firing.length - 1].rule;
+          })();
+      if (rule) {
+        nonNull++;
+        lex = applyRuleToLex(lex, rule).lex;
+      }
+      maxLenSeen.push(Math.max(...lex.map((e) => e.word.length)));
+    }
+    return { nonNull, lex, maxLenSeen };
+  }
+
+  test("with renewal, an isolated branch keeps drifting over 200 turns (>=95% non-null)", () => {
+    const { nonNull } = sweep(1, 200, true);
+    expect(nonNull / 200).toBeGreaterThanOrEqual(0.95);
+  });
+
+  test("renewal-disabled control ossifies (drops to all-null well before 200 turns)", () => {
+    const { nonNull } = sweep(1, 200, false);
+    expect(nonNull).toBeLessThan(200);
+  });
+
+  test("no unbounded growth: every word stays within MAX_LEN across a 200-turn sweep", () => {
+    const { maxLenSeen } = sweep(1, 200, true);
+    for (const len of maxLenSeen) expect(len).toBeLessThanOrEqual(MAX_LEN);
+  });
+
+  test("determinism: a full 50-turn transcript is byte-identical across two runs", () => {
+    const a = sweep(0.8, 50, true);
+    const b = sweep(0.8, 50, true);
+    expect(a.lex).toEqual(b.lex);
+    expect(a.nonNull).toBe(b.nonNull);
+  });
+});
+
+describe("driftRule null guard (1ENG.12)", () => {
+  // break (any word-final V) + paragoge (any word-final C) between them guarantee at
+  // least one firing rule for every non-empty word: a word ends in either a vowel or
+  // a consonant, never neither. So the "permanent ossification" state the original
+  // spike worried about is no longer reachable for any real word — every minimal
+  // lexicon the old 9-rule set would have frozen now has a live move.
+  test("every single-phone word has at least one firing rule (no reachable dead end)", () => {
+    for (const w of [["i"], ["a"], ["u"], ["m"], ["p"], ["t"]]) {
+      expect(firingRules([{ concept: "x", word: w }]).length).toBeGreaterThan(0);
+    }
+  });
+  test("a lexicon that would have ossified under the original 9-rule set now keeps drifting", () => {
+    const LEX: Lexicon = [{ concept: "a", word: ["i"] }, { concept: "b", word: ["a"] }, { concept: "c", word: ["u"] }];
+    expect(() => driftRule(LEX, 1, 1, 1, 0.5)).not.toThrow();
+    expect(driftRule(LEX, 1, 1, 1, 0.5)).not.toBeNull();
+  });
+  // The guard itself (phonology.ts driftRule: `if (!firing.length) return null`) is
+  // kept as a defensive backstop per the spike (§6) — it is no longer known to be
+  // reachable, but a function computing over an emptied-out RULES array (e.g. a
+  // future refactor) should still degrade to null rather than throw.
+  test("driftRule never throws, even on a pathological empty ruleset input (regression safety)", () => {
+    const EMPTY: Lexicon = [];
+    expect(() => driftRule(EMPTY, 1, 1, 1, 0.5)).not.toThrow();
+    expect(driftRule(EMPTY, 1, 1, 1, 0.5)).toBeNull();
   });
 });

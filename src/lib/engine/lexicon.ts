@@ -27,8 +27,16 @@ export function salienceRetention(concept: string, terrain: Terrain): number {
   return 0;
 }
 
+// 1ENG.12 renewal phones (1eng-11 spike §4.4) — seeded into starting inventories, not
+// only produced by drift, so a fresh world can already have complexity for erosion
+// (smooth/shorten) to grip from turn 0.
+const DIPHTHONGS = ["ie", "uo", "ei", "ou", "au", "ai"];
+const LONG_VOWELS = ["iː", "eː", "aː", "oː", "uː"];
+
 export function genInventory(rng: () => number): Inventory {
   const vowels = rng() < 0.2 ? ["i","a","u"] : ["i","e","a","o","u"];
+  if (rng() < 0.3) vowels.push(pick(DIPHTHONGS, rng));
+  if (rng() < 0.25) vowels.push(pick(LONG_VOWELS, rng));
   const cons = ["p","t","k","m","n","s","l"];
   const voiced = rng() < 0.7;
   if (voiced) cons.push("b","d","g");

@@ -4,18 +4,34 @@ export interface Phone {
   id: string; g: string; type: PhoneType;
   place?: string; manner?: string; voice?: boolean; obstruent?: boolean;
   height?: string; back?: boolean; round?: boolean;
+  // 1ENG.12 renewal: long vowels (long) and diphthongs (diph, decomposed structurally
+  // since they don't fit the scalar height/back/round model) — see 1eng-11 spike §4.1.
+  long?: boolean; diph?: boolean; nucleus?: string; offglide?: string;
 }
 export interface Patch {
   delete?: boolean; voice?: boolean; manner?: string; place?: string;
-  height?: string; back?: boolean; round?: boolean;
+  height?: string; back?: boolean; round?: boolean; long?: boolean;
+  diph?: boolean; nucleus?: string; offglide?: string;
 }
-export type RuleCategory = "lenition" | "deletion" | "assimilation" | "vowelShift";
+export type RuleCategory = "lenition" | "deletion" | "assimilation" | "vowelShift" | "epenthesis";
+
+// 1ENG.12: a single output segment. `from:"self"` = resolve as (input phone features
+// + patch) — the pre-1ENG.12 applyXform semantics. `from:"abs"` = a brand-new segment
+// resolved from the patch alone (an inserted/broken-off phone with no source to diff
+// against). See 1eng-11 spike §3.
+export type Seg =
+  | { from: "self"; patch: Patch }
+  | { from: "abs"; type: PhoneType; patch: Patch };
+// A rule's xform may return a legacy Patch (1-in/<=1-out, pre-1ENG.12 shape) or an
+// ordered Seg[] (1-in/N-out, for renewal rules like epenthesis and breaking).
+export type XformResult = Patch | Seg[];
+
 export interface Rule {
   id: string; name: string; note: string; w: number; category: RuleCategory;
   match: (p: Phone) => boolean;
   pre: ((p: Phone | null) => boolean) | null;
   post: ((p: Phone | null) => boolean) | null;
-  xform: (p: Phone, ctx: { pre: Phone | null; post: Phone | null }) => Patch;
+  xform: (p: Phone, ctx: { pre: Phone | null; post: Phone | null }) => XformResult;
 }
 
 export interface LexEntry { concept: string; word: string[] }
