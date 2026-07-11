@@ -103,8 +103,9 @@ export function biasedMult(category: RuleCategory, iso: number): number {
 export function driftRule(lex: Lexicon, seed: number, turn: number, branchId: number, iso: number): Rule | null {
   const firing = firingRules(lex);
   if (!firing.length) return null;
-  const total = firing.reduce((a, x) => a + x.rule.w * biasedMult(x.rule.category, iso), 0);
+  const weighted = firing.map((x) => ({ rule: x.rule, weight: x.rule.w * biasedMult(x.rule.category, iso) }));
+  const total = weighted.reduce((a, x) => a + x.weight, 0);
   let roll = hashRand(seed + 7, turn * 131 + 17, branchId * 911 + 3) * total;
-  for (const x of firing) { roll -= x.rule.w * biasedMult(x.rule.category, iso); if (roll <= 0) return x.rule; }
-  return firing[firing.length - 1].rule;
+  for (const x of weighted) { roll -= x.weight; if (roll <= 0) return x.rule; }
+  return weighted[weighted.length - 1].rule;
 }
