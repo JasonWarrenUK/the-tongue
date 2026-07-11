@@ -1,5 +1,6 @@
 import { hashRand } from "./rng";
-import type { Phone, PhoneType, Patch, Rule, RuleCategory, Lexicon } from "./types";
+import { salienceRetention } from "./lexicon";
+import type { Phone, PhoneType, Patch, Rule, RuleCategory, Lexicon, Terrain } from "./types";
 
 const C = (id: string, place: string, manner: string, voice: boolean): Phone =>
   ({ id, g: id, type: "C", place, manner, voice, obstruent: manner === "stop" || manner === "fric" });
@@ -68,9 +69,25 @@ export function applyRuleToWord(ids: string[], rule: Rule): { ids: string[]; cha
   if (out.length === 0 || !out.some((id) => BY_ID[id].type === "V")) return { ids, changed: false };
   return { ids: out, changed };
 }
-export function applyRuleToLex(lex: Lexicon, rule: Rule): { lex: Lexicon; fires: number } {
+// 2GEO.3 Axis B — physical terrain sets per-concept salience (2geo-1 spike §4).
+// Optional context: when supplied, a word that would change is scaled by
+// (1 - salienceRetention(concept, terrain)) via a deterministic per-word roll,
+// so salient-domain concepts resist drift. Omitted for firingRules' selection
+// pass so drift-rule weighting stays terrain-agnostic, matching pre-2GEO.3 behaviour.
+export interface SalienceContext { terrain: Terrain; seed: number; turn: number; branchId: number }
+export function applyRuleToLex(lex: Lexicon, rule: Rule, salience?: SalienceContext): { lex: Lexicon; fires: number } {
   let fires = 0;
-  const next = lex.map((e) => { const r = applyRuleToWord(e.word, rule); if (r.changed) fires++; return { ...e, word: r.ids }; });
+  const next = lex.map((e, i) => {
+    const r = applyRuleToWord(e.word, rule);
+    if (!r.changed) return { ...e, word: r.ids };
+    if (salience) {
+      const retention = salienceRetention(e.concept, salience.terrain);
+      const roll = hashRand(salience.seed + 13, salience.turn * 151 + 29, salience.branchId * 733 + i);
+      if (roll < retention) return e; // blocked: word keeps its pre-rule form
+    }
+    fires++;
+    return { ...e, word: r.ids };
+  });
   return { lex: next, fires };
 }
 export const formOf = (w: string[]): string => w.map((id) => BY_ID[id].g).join("");
