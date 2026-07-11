@@ -6,7 +6,7 @@ description: The Tongue — seeded language-evolution simulator, from core engin
 
 |            | Status                    | Next Up                          | Blocked |
 | ---------- | -------------------------- | --------------------------------- | ------- |
-| **Core**   | ✅ Milestone 1 complete    | 1ENG.9, 1ENG.11                    | —       |
+| **Core**   | ✅ Milestone 1 complete    | 1ENG.9, 1ENG.12                    | —       |
 | **Geo**    | ✅ 2GEO.3 complete          | 2GEO.4 design spike                | —       |
 | **Stakes** | Not started                 | 2STK.1 design spike               | 2GEO.2, 2GEO.4 |
 | **Glyphs** | Not started                 | 2GLY.1 design spike               | 2STK.2  |
@@ -42,6 +42,7 @@ description: The Tongue — seeded language-evolution simulator, from core engin
 - [x] 1ENG.6. Terrain map, adjacency, and passable-component detection (`geography.ts`)
 - [x] 1ENG.7. World/state initialisation (`world.ts`)
 - [x] 1ENG.8. Generation resolution: drift → spread → fracture → repool (`generation.ts`)
+- [x] 1ENG.11. Research spike: rule-set erosion/renewal balance — diagnosed why the purely-reductive `RULES` ossify a branch after a few generations, surveyed real diachronic renewal mechanisms (epenthesis, vowel breaking/diphthongisation, monophthongisation, vowel shortening), and produced a build-ready contract for 1ENG.12 (`docs/spikes/1eng-11-erosion-renewal.md`)
 - [x] 1UI.1. Reactive game state singleton (Svelte 5 runes) (`game.svelte.ts`)
 - [x] 1UI.2. Map, family tree, intelligibility matrix, word table, change list, history panels
 - [x] 1UI.3. Economy config panel for tuning pool/growth/overhead/cost settings
@@ -50,12 +51,11 @@ description: The Tongue — seeded language-evolution simulator, from core engin
 <a name="m1-todo"><h4>To Do (Milestone 1)</h4></a>
 
 - [ ] 1ENG.9. Fracture: guarantee children diverge from the parent at the moment of fracture, not only via later drift — currently a fractured branch's children are exact lexicon copies of the parent (`generation.ts:45`)
-- [ ] 1ENG.11. Research spike: rule-set erosion/renewal balance — every rule in `RULES` (`phonology.ts:39-49`) is purely reductive (lenition/deletion/assimilation/vowelShift only ever delete, merge, or simplify); once a lexicon reaches minimal CV/V syllables with no matching environments left, `firingRules()` returns empty and `driftRule()` permanently returns `null`, ossifying the branch after a few generations. Survey real diachronic phonology for renewal/anti-erosion mechanisms (epenthesis, dissimilation, vowel breaking/diphthongisation, compensatory lengthening, morphological/borrowing-driven complexity) and produce a build-ready contract for a sustainable erosion↔renewal cycle
+- [ ] 1ENG.12. Implement chosen erosion/renewal mechanism — widen the phonology transducer to a 1→N segment model, add real diphthong/long-vowel phones (seeded into starting inventories too), and add `epenth`/`break` (renewal) plus `smooth`/`shorten` (erosion of the new structure) rules — full contract in the 1ENG.11 spike (`docs/spikes/1eng-11-erosion-renewal.md`)
 
 <a name="m1-blocked"><h4>Blocked (Milestone 1)</h4></a>
 
 - [ ] 1ENG.10. Fracture: rework to continue the parent lineage as one branch and spin off only the new sibling(s), instead of retiring the parent and minting two new branches every split; add a divergence-threshold mechanic so a lineage is renamed once accumulated drift makes "still the same language" a fiction (cf. Old English → Middle English, Proto-Indo-European → daughter branches) — **depends on 1ENG.9**
-- [ ] 1ENG.12. Implement chosen erosion/renewal mechanism *(placeholder — scope defined by the 1ENG.11 spike's contract)* — **depends on 1ENG.11**
 
 ---
 
@@ -118,8 +118,8 @@ m2 --> m3
 
 1ENG9["`*1ENG.9*<br/>**Core**<br/>fracture divergence-at-birth`"]:::open
 1ENG10["`*1ENG.10*<br/>**Core**<br/>lineage-continuation fracture`"]
-1ENG11["`*1ENG.11*<br/>**Core**<br/>erosion/renewal spike`"]:::open
-1ENG12["`*1ENG.12*<br/>**Core**<br/>renewal mechanism`"]
+1ENG11["`*1ENG.11*<br/>**Core**<br/>erosion/renewal spike`"]:::done
+1ENG12["`*1ENG.12*<br/>**Core**<br/>renewal mechanism`"]:::open
 
 2GEO.1["`*2GEO.1*<br/>**Geo**<br/>terrain→sound-change spike`"]:::done
 2GEO.2["`*2GEO.2*<br/>**Geo**<br/>terrain-biased rule weighting`"]:::done
