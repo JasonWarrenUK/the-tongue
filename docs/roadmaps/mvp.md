@@ -6,11 +6,12 @@ description: The Tongue — seeded language-evolution simulator, from core engin
 
 |            | Status                    | Next Up                          | Blocked |
 | ---------- | -------------------------- | --------------------------------- | ------- |
-| **Core**   | ✅ Milestone 1 complete    | —                                  | —       |
+| **Core**   | ✅ Milestone 1 complete    | 1ENG.9, 1ENG.11                    | —       |
 | **Geo**    | 🔸 2GEO.2 complete          | 2GEO.3                             | —       |
 | **Stakes** | Not started                 | 2STK.1 design spike               | 2GEO.2, 2GEO.4 |
 | **Glyphs** | Not started                 | 2GLY.1 design spike               | 2STK.2  |
-| **UI**     | Not started                 | 2UI.1 audit                       | 2STK.2, 2GLY.4 |
+| **Lexicon** | Not started                | 2LEX.1 design spike               | —       |
+| **UI**     | Not started                 | 2UI.1 audit                       | 2STK.2, 2GLY.4, 2LEX.2 |
 
 ---
 
@@ -46,6 +47,16 @@ description: The Tongue — seeded language-evolution simulator, from core engin
 - [x] 1UI.3. Economy config panel for tuning pool/growth/overhead/cost settings
 - [x] 1UI.4. Main route wiring all components together (`+page.svelte`)
 
+<a name="m1-todo"><h4>To Do (Milestone 1)</h4></a>
+
+- [ ] 1ENG.9. Fracture: guarantee children diverge from the parent at the moment of fracture, not only via later drift — currently a fractured branch's children are exact lexicon copies of the parent (`generation.ts:45`)
+- [ ] 1ENG.11. Research spike: rule-set erosion/renewal balance — every rule in `RULES` (`phonology.ts:39-49`) is purely reductive (lenition/deletion/assimilation/vowelShift only ever delete, merge, or simplify); once a lexicon reaches minimal CV/V syllables with no matching environments left, `firingRules()` returns empty and `driftRule()` permanently returns `null`, ossifying the branch after a few generations. Survey real diachronic phonology for renewal/anti-erosion mechanisms (epenthesis, dissimilation, vowel breaking/diphthongisation, compensatory lengthening, morphological/borrowing-driven complexity) and produce a build-ready contract for a sustainable erosion↔renewal cycle
+
+<a name="m1-blocked"><h4>Blocked (Milestone 1)</h4></a>
+
+- [ ] 1ENG.10. Fracture: rework to continue the parent lineage as one branch and spin off only the new sibling(s), instead of retiring the parent and minting two new branches every split; add a divergence-threshold mechanic so a lineage is renamed once accumulated drift makes "still the same language" a fiction (cf. Old English → Middle English, Proto-Indo-European → daughter branches) — **depends on 1ENG.9**
+- [ ] 1ENG.12. Implement chosen erosion/renewal mechanism *(placeholder — scope defined by the 1ENG.11 spike's contract)* — **depends on 1ENG.11**
+
 ---
 
 <a name="m2"><h3>Milestone 2: Depth & Legibility</h3></a>
@@ -61,6 +72,7 @@ description: The Tongue — seeded language-evolution simulator, from core engin
 <a name="m2-todo"><h4>To Do (Milestone 2)</h4></a>
 
 - [ ] 2GEO.3. Implement biome-driven vocabulary expansion — concepts useful to a region's terrain drift/expand preferentially — contract specified in the 2GEO.1 spike
+- [ ] 2LEX.1. Design spike: homophone-collision resolution mechanic — how a real semantic collision between two concepts (`homophoneForms`/`collisionPairs` in `phonology.ts`, currently only previewed before a player picks a rule) gets resolved once it actually lands during drift — candidates include a forced disambiguating follow-up change, a tolerated real homophone surfaced in UI/narrative, a borrowed synonym, or compounding — informed by real linguistics on homophone avoidance/tolerance
 
 <a name="m2-blocked"><h4>Blocked (Milestone 2)</h4></a>
 
@@ -71,7 +83,8 @@ description: The Tongue — seeded language-evolution simulator, from core engin
 - [ ] 2GLY.2. Implement per-generation glyph shape drift (independent stylistic mutation) — **depends on 2GLY.1**
 - [ ] 2GLY.3. Implement phoneme→glyph reassignment logic, tied to phone split/merge/deletion from phonology rules — **depends on 2GLY.1**
 - [ ] 2GLY.4. Build glyph rendering component (branch-level script display) — **depends on 2GLY.2, 2GLY.3**
-- [ ] 2UI.1. UI completeness audit across all components — existing panels plus new biome/stakes/glyph data — verify every player-facing decision has a legible data source — **depends on 2STK.2, 2GLY.4**
+- [ ] 2LEX.2. Implement chosen homophone-collision resolution mechanic — **depends on 2LEX.1**
+- [ ] 2UI.1. UI completeness audit across all components — existing panels plus new biome/stakes/glyph/lexicon data — verify every player-facing decision has a legible data source — **depends on 2STK.2, 2GLY.4, 2LEX.2**
 - [ ] 2UI.2. Build onboarding — inline explainers, full tutorial mode, and a UI layout rethink, informed by the audit findings — **depends on 2UI.1**
 
 ---
@@ -103,6 +116,11 @@ m3{"`**Milestone 3**<br/>Persistence & Sharing`"}:::mile
 m1 --> m2
 m2 --> m3
 
+1ENG9["`*1ENG.9*<br/>**Core**<br/>fracture divergence-at-birth`"]:::open
+1ENG10["`*1ENG.10*<br/>**Core**<br/>lineage-continuation fracture`"]
+1ENG11["`*1ENG.11*<br/>**Core**<br/>erosion/renewal spike`"]:::open
+1ENG12["`*1ENG.12*<br/>**Core**<br/>renewal mechanism`"]
+
 2GEO.1["`*2GEO.1*<br/>**Geo**<br/>terrain→sound-change spike`"]:::done
 2GEO.2["`*2GEO.2*<br/>**Geo**<br/>terrain-biased rule weighting`"]:::done
 2GEO.3["`*2GEO.3*<br/>**Geo**<br/>biome-driven vocabulary`"]:::open
@@ -113,11 +131,16 @@ m2 --> m3
 2GLY.2["`*2GLY.2*<br/>**Glyphs**<br/>glyph shape drift`"]
 2GLY.3["`*2GLY.3*<br/>**Glyphs**<br/>phoneme→glyph reassignment`"]
 2GLY.4["`*2GLY.4*<br/>**Glyphs**<br/>glyph rendering component`"]
+2LEX1["`*2LEX.1*<br/>**Lexicon**<br/>homophone-collision spike`"]:::open
+2LEX2["`*2LEX.2*<br/>**Lexicon**<br/>collision-resolution mechanic`"]
 2UI.1["`*2UI.1*<br/>**UI**<br/>completeness audit`"]
 2UI.2["`*2UI.2*<br/>**UI**<br/>onboarding`"]
 
 3PER.1["`*3PER.1*<br/>**Persist**<br/>local save/load`"]
 3SHR.1["`*3SHR.1*<br/>**Share**<br/>export/share output`"]
+
+1ENG9 --> 1ENG10
+1ENG11 --> 1ENG12
 
 2GEO.1 --> 2GEO.2
 2GEO.1 --> 2GEO.3
@@ -131,12 +154,17 @@ m2 --> m3
 2GLY.1 --> 2GLY.3
 2GLY.2 --> 2GLY.4
 2GLY.3 --> 2GLY.4
+2LEX1 --> 2LEX2
+2LEX2 --> 2UI.1
 2STK.2 --> 2UI.1
 2GLY.4 --> 2UI.1
 2UI.1 --> 2UI.2
 3PER.1 --> 3SHR.1
 
 m1 -.-> 2GEO.1
+m1 -.-> 1ENG9
+m1 -.-> 1ENG11
+m1 -.-> 2LEX1
 m2 -.-> 2UI.2
 m3 -.-> 3PER.1
 
