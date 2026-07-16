@@ -1,7 +1,11 @@
 <script lang="ts">
+  import { BY_ID } from "$lib/engine/phonology";
   import type { World } from "$lib/engine/types";
   let { seed = $bindable(), leafCount, world, onload, onnew }:
     { seed: number; leafCount: number; world: World; onload: () => void; onnew: () => void } = $props();
+  // world.inv stores phone ids (internal keys) — render each through its grapheme (g)
+  // so long vowels show as ā/ē/ī/ō/ū rather than the raw "id + ː" internal form.
+  const graph = (id: string) => BY_ID[id]?.g ?? id;
 </script>
 
 <div class="border-b border-border pb-4">
@@ -16,7 +20,7 @@
   </div>
   <div class="flex flex-wrap gap-x-6 gap-y-1 mt-3 text-xs text-muted">
     <span>syllable <span class="font-mono text-fg">{world.tmpl.label}</span></span>
-    <span>vowels <span class="font-mono text-fg">{world.inv.vowels.join(" ")}</span></span>
-    <span>consonants <span class="font-mono text-fg">{world.inv.consonants.join(" ")}</span></span>
+    <span>vowels <span class="font-mono text-fg">{world.inv.vowels.map(graph).join(" ")}</span></span>
+    <span>consonants <span class="font-mono text-fg">{world.inv.consonants.map(graph).join(" ")}</span></span>
   </div>
 </div>

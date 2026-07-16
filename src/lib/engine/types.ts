@@ -51,17 +51,30 @@ export interface World {
   regions: Region[]; edges: Edge[]; adj: Adjacency; start: number;
 }
 export interface HistoryEntry { name: string; note: string; drift?: boolean }
+// 1ENG.10 rename mechanic: a frozen lexicon snapshot marking a divergence-threshold
+// rename. The anchor chain is flat and lives on the branch that keeps drifting under
+// it — renames never spawn a new branch id, only fracture does. `driftFromPrev` (1 -
+// intelligibility against the previous anchor, or the branch's birth lexicon for the
+// first anchor) is the event-density signal the render-time naming collapse (naming.ts)
+// uses to decide which anchors stay resolved as distinct eras.
+export interface Anchor {
+  lex: Lexicon; turn: number; historyIndex: number; driftFromPrev: number;
+}
 export interface Branch {
   id: number; name: string; parentId: number | null; depth: number;
   splitIndex: number; history: HistoryEntry[]; lex: Lexicon;
-  territory: number[]; pressure: number;
+  territory: number[]; pressure: number; anchors: Anchor[];
+  // language-shift/assimilation death: turns sustained bordering a much larger,
+  // near-identical neighbour (see generation.ts). Resets to 0 the moment the trigger
+  // stops holding; reaching the threshold empties `territory`, killing the branch.
+  assimilationPressure: number;
 }
 export interface Settings {
   pool: number; growth: number; overhead: number; changeCost: number; spreadEvery: number;
 }
 export interface GameState {
   world: World; branches: Record<number, Branch>; rootId: number; selectedId: number;
-  nextId: number; nameIdx: number; turn: number; settings: Settings;
+  nextId: number; turn: number; settings: Settings;
   pool: number; touched: Record<number, boolean>; log: string[];
 }
 export interface FreeRegion { region: number; cost: number; passable: boolean }

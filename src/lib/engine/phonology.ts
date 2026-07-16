@@ -9,7 +9,10 @@ const V = (id: string, height: string, back: boolean, round: boolean): Phone =>
 // 1ENG.12 renewal phones — see 1eng-11 spike §4.1. Long vowels carry the base vowel's
 // features + long:true; diphthongs are structurally distinct (no height/back/round),
 // matched instead on nucleus/offglide.
-const VL = (base: Phone): Phone => ({ ...base, id: base.id + "ː", g: base.g + "ː", long: true });
+// id keeps the IPA length-mark suffix (internal key, used for matching/rules); g (the
+// displayed grapheme) uses a macron instead, so long vowels render as ā/ē/ī/ō/ū.
+const MACRON: Record<string, string> = { a: "ā", e: "ē", i: "ī", o: "ō", u: "ū" };
+const VL = (base: Phone): Phone => ({ ...base, id: base.id + "ː", g: MACRON[base.g] ?? base.g + "ː", long: true });
 const VD = (id: string, nucleus: string, offglide: string): Phone =>
   ({ id, g: id, type: "V", diph: true, nucleus, offglide });
 
