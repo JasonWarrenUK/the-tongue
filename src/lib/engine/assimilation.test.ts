@@ -12,7 +12,7 @@ import type { GameState, Lexicon, Branch, Adjacency, Edge } from "./types";
 //
 // Layout: two disjoint clusters joined by ONE passable border edge (region 0 <-> 4).
 // Small branch owns region 0 (1 region); large branch owns 1,2,3,4 (4 regions) — a
-// 1:4 ratio, comfortably past ASSIM_SIZE_RATIO (1:3). Both start with the SAME lexicon
+// 1:4 ratio, comfortably past ASSIM_SIZE_RATIO (1:2). Both start with the SAME lexicon
 // (intelligibility 1.0, comfortably past ASSIM_INTEL_CUT).
 const LEX: Lexicon = [
   { concept: "a", word: ["t", "a", "p", "e"] },
@@ -114,7 +114,7 @@ describe("assimilation: trigger conditions", () => {
 
   test("not small enough (ratio not met) never accrues pressure", () => {
     // small owns 2 of the small side's reachable regions (still identical lex) but the
-    // ratio (2 vs 4, i.e. 1:2) no longer clears ASSIM_SIZE_RATIO (1:3).
+    // ratio (2 vs 4, i.e. 1:2) no longer clears ASSIM_SIZE_RATIO (1:2).
     const out = runTurns(smallVsLarge({ smallTerritory: [0], largeTerritory: [4] }), ASSIM_TURNS + 2);
     // 1:1 ratio — nowhere near qualifying.
     expect(out.branches[0].territory.length).toBeGreaterThan(0);
