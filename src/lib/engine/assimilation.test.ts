@@ -92,6 +92,13 @@ describe("assimilation: trigger conditions", () => {
     expect(s.log.some((l) => l.includes("assimilated into Large"))).toBe(true);
   });
 
+  test("reselection redirects off an assimilated selected branch to a living leaf", () => {
+    const out = runTurns(smallVsLarge(), ASSIM_TURNS);
+    // branch 0 (selected) was just assimilated to empty territory; selection must move.
+    expect(out.branches[out.selectedId].territory.length).toBeGreaterThan(0);
+    expect(leavesOf(out.branches).map((b) => b.id)).toContain(out.selectedId);
+  });
+
   test("not close enough (below ASSIM_INTEL_CUT) never accrues pressure", () => {
     // fully different phone sequence -> low intelligibility, well under the cutoff.
     const divergentLex: Lexicon = [

@@ -139,6 +139,10 @@ export function resolveGeneration(s: GameState): GameState {
   });
 
   let selectedId = s.selectedId;
-  if (!isLeaf(branches, selectedId)) { const kids = childrenOf(branches, selectedId); if (kids.length) selectedId = kids[0].id; }
+  if (!isLeaf(branches, selectedId)) {
+    const kids = childrenOf(branches, selectedId);
+    if (kids.length) selectedId = kids[0].id;
+    else { const living = leavesOf(branches); if (living.length) selectedId = living[0].id; }
+  }
   return { ...s, branches, nextId, turn: turn + 1, pool: basePool(branches, s.settings), touched: {}, selectedId, log };
 }
