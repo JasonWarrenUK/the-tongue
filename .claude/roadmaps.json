@@ -120,8 +120,8 @@
 					},
 					{
 						"id": "1ENG.13",
-						"description": "Compensatory lengthening — a deletion rule whose `xform` deletes a coda and lengthens the preceding vowel; unblocked now that 1ENG.12 added long-vowel phones (small, rule-only per 1ENG.11 spike §8)",
-						"status": "todo",
+						"description": "Compensatory lengthening — split into `compleng` (medial coda in a cluster, `V _ C`, e.g. kast→kaːt) and `complengFinal` (word-final coda, `V _ #`, e.g. tas→taː), mirroring the epenth/paragoge medial/final split; both fire on the coda and use a new `Rule.lengthensPrev` flag so `applyRuleToWord` reaches back and lengthens the vowel it already emitted — the 1ENG.11 spike §8 claim that `Seg[]` already supported this was inaccurate (corrected in the spike doc)",
+						"status": "done",
 						"dependsOn": []
 					},
 					{
