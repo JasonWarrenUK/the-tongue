@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { driftRule, biasedMult, firingRules, applyRuleToLex, applyRuleToWord, RULE_BY_ID, MAX_LEN } from "./phonology";
+import { driftRule, biasedMult, firingRules, applyRuleToLex, applyRuleToWord, RULE_BY_ID, RULES, MAX_LEN } from "./phonology";
 import { hashRand } from "./rng";
 import type { Lexicon } from "./types";
 
@@ -268,6 +268,40 @@ describe("smooth / shorten (erosion of the new renewal structure)", () => {
   test("shorten does not fire on a non-final long vowel", () => {
     const r = applyRuleToWord(["aː", "t", "a"], RULE_BY_ID.shorten);
     expect(r).toEqual({ ids: ["aː", "t", "a"], changed: false });
+  });
+});
+
+describe("compleng / complengFinal (compensatory lengthening, 1ENG.13)", () => {
+  // shorten's inverse: a coda obstruent deletes and the vowel before it lengthens.
+  test("compleng: [k,a,s,t] -> [k,aː,t] (medial coda in a cluster absorbed)", () => {
+    const r = applyRuleToWord(["k", "a", "s", "t"], RULE_BY_ID.compleng);
+    expect(r).toEqual({ ids: ["k", "aː", "t"], changed: true });
+  });
+  test("complengFinal: [t,a,s] -> [t,aː] (word-final coda absorbed)", () => {
+    const r = applyRuleToWord(["t", "a", "s"], RULE_BY_ID.complengFinal);
+    expect(r).toEqual({ ids: ["t", "aː"], changed: true });
+  });
+  test("compleng does not fire on an open syllable (no coda after the vowel)", () => {
+    const r = applyRuleToWord(["p", "a"], RULE_BY_ID.compleng);
+    expect(r).toEqual({ ids: ["p", "a"], changed: false });
+  });
+  test("compleng does not fire on a word-final coda (post requires another C)", () => {
+    const r = applyRuleToWord(["t", "a", "s"], RULE_BY_ID.compleng);
+    expect(r).toEqual({ ids: ["t", "a", "s"], changed: false });
+  });
+  test("complengFinal does not fire on a medial coda (post requires the boundary)", () => {
+    const r = applyRuleToWord(["k", "a", "s", "t"], RULE_BY_ID.complengFinal);
+    expect(r).toEqual({ ids: ["k", "a", "s", "t"], changed: false });
+  });
+  test("compleng still deletes the coda when the preceding vowel is already long", () => {
+    const r = applyRuleToWord(["k", "aː", "s", "t"], RULE_BY_ID.compleng);
+    expect(r).toEqual({ ids: ["k", "aː", "t"], changed: true });
+  });
+  test("only compleng/complengFinal set lengthensPrev (all legacy rules unaffected)", () => {
+    for (const r of RULES) {
+      if (r.id === "compleng" || r.id === "complengFinal") expect(r.lengthensPrev).toBe(true);
+      else expect(r.lengthensPrev).toBeFalsy();
+    }
   });
 });
 

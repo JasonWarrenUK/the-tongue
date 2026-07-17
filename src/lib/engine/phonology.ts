@@ -105,6 +105,19 @@ export const RULES: Rule[] = [
   { id:"shorten", name:"Vowel shortening", note:"long V → short / _ #", w:2, category:"deletion",
     match:(p)=>isV(p)&&!!p.long, pre:null, post:bound,
     xform:()=>({ long:false }) },
+  // 1ENG.13 — compensatory lengthening (shorten's inverse: produces the long vowels
+  // shorten consumes). Deferred by the 1eng-11 spike §8 pending long-vowel phones
+  // (added by 1ENG.12); split medial/final exactly as epenth/paragoge (§4.2) were,
+  // since firing on the coda (not the vowel) keeps both environments expressible with
+  // a single-step pre/post — see lengthensPrev above for the reach-back mechanism.
+  { id:"compleng", name:"Compensatory lengthening", note:"C → ∅ / V _ C  (coda absorbed, vowel lengthened)",
+    w:2, category:"deletion",
+    match:(p)=>isC(p)&&!!p.obstruent, pre:isV, post:isC,
+    xform:()=>({ delete:true }), lengthensPrev:true },
+  { id:"complengFinal", name:"Final compensatory lengthening", note:"C → ∅ / V _ #  (final coda absorbed, vowel lengthened)",
+    w:2, category:"deletion",
+    match:(p)=>isC(p)&&!!p.obstruent, pre:isV, post:bound,
+    xform:()=>({ delete:true }), lengthensPrev:true },
 ];
 export const RULE_BY_ID: Record<string, Rule> = Object.fromEntries(RULES.map((r) => [r.id, r]));
 
@@ -143,6 +156,19 @@ export function applyRuleToWord(ids: string[], rule: Rule): { ids: string[]; cha
     }
     const slice = out.slice(before);
     if (slice.length !== 1 || slice[0] !== p.id) changed = true;
+    // 1ENG.13: compensatory lengthening. The coda just deleted itself above; reach back
+    // and lengthen the vowel it left behind. Safe because rule.pre === isV guarantees the
+    // input phone before this coda was a vowel, and only one rule runs per call, so
+    // out[out.length-1] is exactly that vowel's (unchanged, since it didn't match) output.
+    // Also assumes that vowel is plain, not a diphthong: applyXform resolves a diphthong's
+    // (undefined) height/back/round against {long:true} to null, so lengthening would be
+    // silently skipped rather than applied. Currently guaranteed because break, the only
+    // diphthong producer, fires word-finally only (post:bound), so a diphthong can never
+    // precede an obstruent coda for compleng/complengFinal to match against.
+    if (rule.lengthensPrev && out.length > 0) {
+      const long = applyXform(BY_ID[out[out.length - 1]], { long: true });
+      if (long !== null) { out[out.length - 1] = long; changed = true; }
+    }
   }
   if (out.length === 0 || !out.some((id) => BY_ID[id].type === "V")) return { ids, changed: false }; // floor
   if (out.length > MAX_LEN && out.length > ids.length) return { ids, changed: false };               // ceiling

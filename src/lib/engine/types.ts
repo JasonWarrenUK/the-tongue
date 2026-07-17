@@ -32,6 +32,10 @@ export interface Rule {
   pre: ((p: Phone | null) => boolean) | null;
   post: ((p: Phone | null) => boolean) | null;
   xform: (p: Phone, ctx: { pre: Phone | null; post: Phone | null }) => XformResult;
+  // 1ENG.13: on a hit, lengthen the previously-emitted output vowel (compensatory
+  // lengthening — a coda deletes itself and the vowel before it goes long instead).
+  // Optional and false for every pre-1ENG.13 rule, so their output is unaffected.
+  lengthensPrev?: boolean;
 }
 
 export interface LexEntry { concept: string; word: string[] }
