@@ -160,6 +160,11 @@ export function applyRuleToWord(ids: string[], rule: Rule): { ids: string[]; cha
     // and lengthen the vowel it left behind. Safe because rule.pre === isV guarantees the
     // input phone before this coda was a vowel, and only one rule runs per call, so
     // out[out.length-1] is exactly that vowel's (unchanged, since it didn't match) output.
+    // Also assumes that vowel is plain, not a diphthong: applyXform resolves a diphthong's
+    // (undefined) height/back/round against {long:true} to null, so lengthening would be
+    // silently skipped rather than applied. Currently guaranteed because break, the only
+    // diphthong producer, fires word-finally only (post:bound), so a diphthong can never
+    // precede an obstruent coda for compleng/complengFinal to match against.
     if (rule.lengthensPrev && out.length > 0) {
       const long = applyXform(BY_ID[out[out.length - 1]], { long: true });
       if (long !== null) { out[out.length - 1] = long; changed = true; }
