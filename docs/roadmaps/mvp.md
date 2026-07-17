@@ -6,7 +6,7 @@ description: The Tongue — seeded language-evolution simulator, from core engin
 
 A seeded, deterministic language-evolution simulator: sound-change rules drift a lexicon across autonomously drifting, spreading and fracturing branches, tracked through a mutual-intelligibility matrix. Milestone 1 (Core Simulator) is nearly complete; Milestone 2 (Depth & Legibility) is queued behind a chain of design spikes; Milestone 3 (Persistence & Sharing) is a deliberately deferred stub.
 
-**Critical path:** `2GEO.4 → 2STK.1 → 2STK.2 → 2GLY.1 → {2GLY.2, 2GLY.3} → 2GLY.4 → 2UI.1 → 2UI.2` — the longest unblocked chain through Milestone 2, gating the onboarding pass on stakes, glyphs and the homophone-resolution mechanic.
+**Critical path:** `2GEO.5 → 2STK.1 → 2STK.2 → 2GLY.1 → {2GLY.2, 2GLY.3} → 2GLY.4 → 2UI.1 → 2UI.2` — the longest unblocked chain through Milestone 2, gating the onboarding pass on stakes, glyphs and the homophone-resolution mechanic.
 
 ---
 
@@ -46,9 +46,10 @@ A seeded, deterministic language-evolution simulator: sound-change rules drift a
 - [x] **2GEO.1** — Design spike: terrain→sound-change bias ruleset — split into a social-geography contact/isolation axis (sound change) and a physical-geography terrain axis (semantic salience), with a full implementation contract for 2GEO.2 and 2GEO.3 (`docs/spikes/2geo-1-terrain-sound-change.md`)
 - [x] **2GEO.2** — Implement terrain-biased rule weighting in `phonology.ts` — contract specified in the 2GEO.1 spike _(depends on 2GEO.1)_
 - [x] **2GEO.3** — Implement biome-driven vocabulary resistance — terrain-salient concepts (`salienceRetention` in `lexicon.ts`) drift/replace more slowly, gating word-level drift in `applyRuleToLex` (`phonology.ts`) — contract specified in the 2GEO.1 spike, Axis B minimum scope (iii) _(depends on 2GEO.1)_
-- [ ] **2GEO.4** — Design spike: neighbour contact/borrowing mechanic — bordering branches converge via borrowing, not just diverge; Axis B's salient-concept borrowing lever is the natural home (2GEO.1 spike §242 sketches `borderEdges`/`dominantTerrain` as hooks but does not give this a build-ready contract) — needs its own spike before implementation, following the 2STK.1/2GLY.1/2LEX.1 pattern _(depends on 2GEO.2, 2GEO.3)_
+- [x] **2GEO.4** — Design spike: neighbour contact/borrowing mechanic — bordering branches converge via borrowing, the one convergent force in an otherwise all-divergent turn loop (drift, fracture and assimilation-death all pull branches apart or remove one). Specifies a directional per-ordered-pair mechanic: eligibility gated on the lender's terrain-salient concepts (`salienceRetention`/`dominantTerrain` — the borrowable subset of an otherwise borrowing-resistant basic list, per Tadmor/WOLD), selection of the most-divergent eligible concept, a pair-local contact throttle (passable A–B edges as a share of A's border), and a contact-graded outcome (faithful whole-copy at high contact, one-step adaptation at low contact — contact proxying bilingual proficiency, per Thomason & Kaufman). Salient concepts thus resist drift *and* attract borrowing (the real Wanderwort profile). Full build-ready contract for 2GEO.5, following the 2GEO.1 pattern (`docs/spikes/2geo-4-neighbour-contact-borrowing.md`) _(depends on 2GEO.2, 2GEO.3)_
+- [ ] **2GEO.5** — Implement the neighbour-borrowing mechanic — new `borrowing.ts` (`resolveBorrow`, `BORROW_RATE`, `BORROW_FAITHFUL_CUT`), `pairContact` in `geography.ts`, `formSimilarity` factored out of `intelligibility.ts`, `borrowableConcepts`/`stepToward` beside the salience helpers, and a new turn-loop step 3.5 in `generation.ts` (after spread, before assimilation). No new randomness beyond a fresh `hashRand` salt; seeded replay preserved — contract specified in the 2GEO.4 spike _(depends on 2GEO.4)_
 - [ ] **2LEX.1** — Design spike: homophone-collision resolution mechanic — how a real semantic collision between two concepts (`homophoneForms`/`collisionPairs` in `phonology.ts`, currently only previewed before a player picks a rule) gets resolved once it actually lands during drift — candidates include a forced disambiguating follow-up change, a tolerated real homophone surfaced in UI/narrative, a borrowed synonym, or compounding — informed by real linguistics on homophone avoidance/tolerance
-- [ ] **2STK.1** — Design spike: rule-choice stakes mechanic (resource trade-offs vs directional goals vs prerequisite chains) _(blocked — depends on 2GEO.2, 2GEO.4)_
+- [ ] **2STK.1** — Design spike: rule-choice stakes mechanic (resource trade-offs vs directional goals vs prerequisite chains) _(blocked — depends on 2GEO.2, 2GEO.5)_
 - [ ] **2STK.2** — Implement chosen rule-stakes mechanic _(blocked — depends on 2STK.1)_
 - [ ] **2GLY.1** — Design spike: glyph mutation ruleset — shape-drift grammar + phoneme→glyph reassignment rules, referencing real script lineages (e.g. Phoenician → Greek → Etruscan → Latin) _(blocked — depends on 2STK.2)_
 - [ ] **2GLY.2** — Implement per-generation glyph shape drift (independent stylistic mutation) _(blocked — depends on 2GLY.1)_
@@ -112,6 +113,7 @@ graph LR
 	2GEO.2["2GEO.2: Implement terrain-biased rule weighting…"]
 	2GEO.3["2GEO.3: Implement biome-driven vocabulary resis…"]
 	2GEO.4["2GEO.4: Design spike: neighbour contact/borrowi…"]
+	2GEO.5["2GEO.5: Implement the neighbour-borrowing mecha…"]
 	2LEX.1["2LEX.1: Design spike: homophone-collision resol…"]
 	2STK.1["2STK.1: Design spike: rule-choice stakes mechan…"]
 	2STK.2["2STK.2: Implement chosen rule-stakes mechanic"]
@@ -135,8 +137,9 @@ graph LR
 	2GEO.1 --> 2GEO.3
 	2GEO.2 --> 2GEO.4
 	2GEO.3 --> 2GEO.4
+	2GEO.4 --> 2GEO.5
 	2GEO.2 --> 2STK.1
-	2GEO.4 --> 2STK.1
+	2GEO.5 --> 2STK.1
 	2STK.1 --> 2STK.2
 	2STK.2 --> 2GLY.1
 	2GLY.1 --> 2GLY.2
@@ -166,9 +169,9 @@ graph LR
 	1UI.4 --> M1
 	2UI.2 --> M2
 	3SHR.1 --> M3
-	class 1ENG.14,1ENG.15,2GEO.4,2LEX.1,3PER.1 todo
+	class 1ENG.14,1ENG.15,2GEO.5,2LEX.1,3PER.1 todo
 	class 1ENG.16,1ENG.17,2GLY.1,2GLY.2,2GLY.3,2GLY.4,2LEX.2,2STK.1,2STK.2,2UI.1,2UI.2,3SHR.1 blocked
-	class 1ENG.1,1ENG.10,1ENG.11,1ENG.12,1ENG.13,1ENG.18,1ENG.2,1ENG.3,1ENG.4,1ENG.5,1ENG.6,1ENG.7,1ENG.8,1ENG.9,1UI.1,1UI.2,1UI.3,1UI.4,2GEO.1,2GEO.2,2GEO.3 done
+	class 1ENG.1,1ENG.10,1ENG.11,1ENG.12,1ENG.13,1ENG.18,1ENG.2,1ENG.3,1ENG.4,1ENG.5,1ENG.6,1ENG.7,1ENG.8,1ENG.9,1UI.1,1UI.2,1UI.3,1UI.4,2GEO.1,2GEO.2,2GEO.3,2GEO.4 done
 ```
 
 ---
