@@ -31,7 +31,7 @@ A seeded, deterministic language-evolution simulator: sound-change rules drift a
 - [x] **1UI.2** — Map, family tree, intelligibility matrix, word table, change list, history panels
 - [x] **1UI.3** — Economy config panel for tuning pool/growth/overhead/cost settings
 - [x] **1UI.4** — Main route wiring all components together (`+page.svelte`)
-- [ ] **1ENG.13** — Compensatory lengthening — a deletion rule whose `xform` deletes a coda and lengthens the preceding vowel; unblocked now that 1ENG.12 added long-vowel phones (small, rule-only per 1ENG.11 spike §8)
+- [x] **1ENG.13** — Compensatory lengthening — split into `compleng` (medial coda in a cluster, `V _ C`, e.g. kast→kaːt) and `complengFinal` (word-final coda, `V _ #`, e.g. tas→taː), mirroring the epenth/paragoge medial/final split; both fire on the coda and use a new `Rule.lengthensPrev` flag so `applyRuleToWord` reaches back and lengthens the vowel it already emitted — the 1ENG.11 spike §8 claim that `Seg[]` already supported this was inaccurate (corrected in the spike doc)
 - [ ] **1ENG.14** — Design spike: syntax-conditioned sound change — many real sound changes are conditioned by the preceding/following *word*, not just the preceding/following phoneme (sandhi, cross-word assimilation/liaison); the engine currently has no representation of word order or utterance-level context at all (each lexicon entry is an isolated concept→word mapping). Needs its own spike to define a minimal syntax/adjacency model before any cross-word rule can be built
 - [ ] **1ENG.15** — Design spike: morphological renewal (agreement/tense) — noun-verb agreement and grammatical tense marking are a major real-world source of the vocabulary/sound variety that keeps a language's phonology alive (paradigms, inflectional affixes); named but explicitly out-of-scope in the 1ENG.11 spike (§8) as belonging with 2GEO.4/borrowing. Needs a spike to define a minimal inflectional-paradigm model before implementation
 - [ ] **1ENG.16** — Research spike: survey Zompist conlang tools ([SCA](https://www.zompist.com/sca2.html), [Gen](https://www.zompist.com/gen.html), [Phono](https://www.zompist.com/phono.html), [GGG](https://www.zompist.com/ggg.html), [GTG](https://www.zompist.com/gtg.html), [MG](https://www.zompist.com/mg.html)) for mechanisms and approaches applicable to our own engine — sound-change rule notation and batch application (SCA), procedural word/name generation (Gen), phonology description conventions (Phono), and general conlanging methodology (GGG, GTG, MG); produce a build-ready contract for 1ENG.17 identifying which findings are worth adopting _(blocked — depends on 1ENG.13, 1ENG.14, 1ENG.15)_
@@ -103,7 +103,7 @@ graph LR
 	1UI.2["1UI.2: Map, family tree, intelligibility matrix…"]
 	1UI.3["1UI.3: Economy config panel for tuning pool/gro…"]
 	1UI.4["1UI.4: Main route wiring all components togethe…"]
-	1ENG.13["1ENG.13: Compensatory lengthening — a deletion…"]
+	1ENG.13["1ENG.13: Compensatory lengthening — split into…"]
 	1ENG.14["1ENG.14: Design spike: syntax-conditioned sound…"]
 	1ENG.15["1ENG.15: Design spike: morphological renewal (a…"]
 	1ENG.16["1ENG.16: Research spike: survey Zompist conlang…"]
@@ -166,9 +166,9 @@ graph LR
 	1UI.4 --> M1
 	2UI.2 --> M2
 	3SHR.1 --> M3
-	class 1ENG.13,1ENG.14,1ENG.15,2GEO.4,2LEX.1,3PER.1 todo
+	class 1ENG.14,1ENG.15,2GEO.4,2LEX.1,3PER.1 todo
 	class 1ENG.16,1ENG.17,2GLY.1,2GLY.2,2GLY.3,2GLY.4,2LEX.2,2STK.1,2STK.2,2UI.1,2UI.2,3SHR.1 blocked
-	class 1ENG.1,1ENG.10,1ENG.11,1ENG.12,1ENG.18,1ENG.2,1ENG.3,1ENG.4,1ENG.5,1ENG.6,1ENG.7,1ENG.8,1ENG.9,1UI.1,1UI.2,1UI.3,1UI.4,2GEO.1,2GEO.2,2GEO.3 done
+	class 1ENG.1,1ENG.10,1ENG.11,1ENG.12,1ENG.13,1ENG.18,1ENG.2,1ENG.3,1ENG.4,1ENG.5,1ENG.6,1ENG.7,1ENG.8,1ENG.9,1UI.1,1UI.2,1UI.3,1UI.4,2GEO.1,2GEO.2,2GEO.3 done
 ```
 
 ---
