@@ -155,6 +155,8 @@ Rationale for this exact position:
 
 Guard identically to assimilation: **only run when `leavesOf(branches).length > 1`** (a lone branch has no neighbour to borrow from). Borrowing never mints or removes a branch and never touches `territory` — it only edits `lex` — so it cannot itself trigger fracture or change ownership.
 
+**Intended same-turn coupling.** The loop mutates `branches[A.id].lex` as it iterates `leavesOf(branches)`, and reads each neighbour B live via `branches[bId]`. Because borrowing is directional (A writes only its own `lex`), a neighbour processed earlier in the same pass that already borrowed from A will lend A its *post-borrow* form when A's turn comes. This is intended, not a bug to iron out: it stays fully deterministic under the fixed `leavesOf` order (a stable sort of leaf ids), and same-turn cross-lending is a fair abstraction of two populations swapping words in the same era. 2GEO.5 should not "freeze" a pre-pass lexicon snapshot to avoid it.
+
 ---
 
 <a name="contract"><h2>5. Implementation contract</h2></a>
@@ -237,6 +239,7 @@ Note `neighborsOf` already returns only *passable*-border neighbours, so the pai
 - `stepToward`: strictly raises `formSimilarity` unless already 1; never returns a vowelless word; never exceeds `MAX_LEN`; identical inputs → unchanged.
 - `resolveBorrow`: high `contact` (≥ cut) → faithful copy (result equals B's form); low contact → single-edit result; already-identical eligible set → null; concept selected is the lowest-`sim` eligible one.
 - **Determinism:** same seed+turn+pair → identical result; the fresh `hashRand` salt draws differently from drift/spread/salience on the same (turn, branch) (regression guard that no salt collides).
+- **`intelligibility` parity (refactor guard):** `intelligibility` output stays byte-identical for a fixed lexicon pair after `formSimilarity` is extracted. The metric currently carries a `Math.max(|a|,|b|) || 1` fallback for the two-empty-forms case ([`intelligibility.ts`](../../src/lib/engine/intelligibility.ts)); the extraction must preserve it, so include an all-empty-forms pair in the fixture to pin the fallback.
 - **Convergence (integration):** two fixed bordering branches over N turns show rising `intelligibility` on at least the borrowed concepts; a walled pair (no passable edge) shows none. Neutral guard: a single-leaf world runs the loop unchanged (borrow step skipped).
 
 ---
