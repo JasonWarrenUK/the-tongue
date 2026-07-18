@@ -185,11 +185,19 @@
 					},
 					{
 						"id": "2GEO.4",
-						"description": "Design spike: neighbour contact/borrowing mechanic — bordering branches converge via borrowing, not just diverge; Axis B's salient-concept borrowing lever is the natural home (2GEO.1 spike §242 sketches `borderEdges`/`dominantTerrain` as hooks but does not give this a build-ready contract) — needs its own spike before implementation, following the 2STK.1/2GLY.1/2LEX.1 pattern",
-						"status": "todo",
+						"description": "Design spike: neighbour contact/borrowing mechanic — bordering branches converge via borrowing, the one convergent force in an otherwise all-divergent turn loop (drift, fracture and assimilation-death all pull branches apart or remove one). Specifies a directional per-ordered-pair mechanic: eligibility gated on the lender's terrain-salient concepts (`salienceRetention`/`dominantTerrain` — the borrowable subset of an otherwise borrowing-resistant basic list, per Tadmor/WOLD), selection of the most-divergent eligible concept, a pair-local contact throttle (passable A–B edges as a share of A's border), and a contact-graded outcome (faithful whole-copy at high contact, one-step adaptation at low contact — contact proxying bilingual proficiency, per Thomason & Kaufman). Salient concepts thus resist drift *and* attract borrowing (the real Wanderwort profile). Full build-ready contract for 2GEO.5, following the 2GEO.1 pattern (`docs/spikes/2geo-4-neighbour-contact-borrowing.md`)",
+						"status": "done",
 						"dependsOn": [
 							"2GEO.2",
 							"2GEO.3"
+						]
+					},
+					{
+						"id": "2GEO.5",
+						"description": "Implement the neighbour-borrowing mechanic — new `borrowing.ts` (`resolveBorrow`, `BORROW_RATE`, `BORROW_FAITHFUL_CUT`), `pairContact` in `geography.ts`, `formSimilarity` factored out of `intelligibility.ts`, `borrowableConcepts`/`stepToward` beside the salience helpers, and a new turn-loop step 3.5 in `generation.ts` (after spread, before assimilation). No new randomness beyond a fresh `hashRand` salt; seeded replay preserved — contract specified in the 2GEO.4 spike",
+						"status": "todo",
+						"dependsOn": [
+							"2GEO.4"
 						]
 					},
 					{
@@ -204,7 +212,7 @@
 						"status": "blocked",
 						"dependsOn": [
 							"2GEO.2",
-							"2GEO.4"
+							"2GEO.5"
 						]
 					},
 					{
