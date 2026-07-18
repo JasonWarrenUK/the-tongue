@@ -202,8 +202,8 @@
 					},
 					{
 						"id": "2LEX.1",
-						"description": "Design spike: homophone-collision resolution mechanic — how a real semantic collision between two concepts (`homophoneForms`/`collisionPairs` in `phonology.ts`, currently only previewed before a player picks a rule) gets resolved once it actually lands during drift — candidates include a forced disambiguating follow-up change, a tolerated real homophone surfaced in UI/narrative, a borrowed synonym, or compounding — informed by real linguistics on homophone avoidance/tolerance",
-						"status": "todo",
+						"description": "Design spike: homophone-collision resolution — measured collision dynamics in autonomous play (98% of branch-turns carry a live collision; 87% self-heal, median 3 turns; a 13% chronic tail never heals), then specified a severity × persistence mechanic: a six-field semantic grouping of `CONCEPTS` gates severity (same-field = confusable, operationalising Wedel's functional-load finding; cross-field homophones tolerated indefinitely and surfaced as flavour), a per-pair pressure counter (`COLLISION_TURNS` = 6, census-tuned) triggers autonomous repair, and repair compounds the less terrain-salient concept with a clipped field-mate modifier (the catfish pattern) under a per-world `compoundOrder` headedness trait — plus a Gilliéron-style borrowed-replacement arm gated on 2GEO.5 and a player choice-at-apply-time path (repair at `changeCost` or tolerate into the pressure clock). Full build-ready contract for 2LEX.2 (`docs/spikes/2lex-1-homophone-collision-resolution.md`)",
+						"status": "done",
 						"dependsOn": []
 					},
 					{
@@ -258,10 +258,11 @@
 					},
 					{
 						"id": "2LEX.2",
-						"description": "Implement chosen homophone-collision resolution mechanic",
+						"description": "Implement the homophone-collision resolution mechanic — new `collision.ts` (`severePairs`, `yieldingConcept`, `modifierCandidates`, `compoundWord`, `resolveCollision`, `COLLISION_TURNS`), `SEMANTIC_FIELDS`/`fieldOf` in `lexicon.ts`, `World.compoundOrder` + `Branch.collisionPressure` (breaking: required fields), turn-loop step 1.5 in `generation.ts` and the apply-time repair prompt in `game.svelte.ts`. No new randomness beyond one world-gen draw; seeded replay preserved — contract specified in the 2LEX.1 spike; the borrowing arm consumes 2GEO.5's exports",
 						"status": "blocked",
 						"dependsOn": [
-							"2LEX.1"
+							"2LEX.1",
+							"2GEO.5"
 						]
 					},
 					{

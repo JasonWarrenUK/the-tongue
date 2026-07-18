@@ -48,14 +48,14 @@ A seeded, deterministic language-evolution simulator: sound-change rules drift a
 - [x] **2GEO.3** — Implement biome-driven vocabulary resistance — terrain-salient concepts (`salienceRetention` in `lexicon.ts`) drift/replace more slowly, gating word-level drift in `applyRuleToLex` (`phonology.ts`) — contract specified in the 2GEO.1 spike, Axis B minimum scope (iii) _(depends on 2GEO.1)_
 - [x] **2GEO.4** — Design spike: neighbour contact/borrowing mechanic — bordering branches converge via borrowing, the one convergent force in an otherwise all-divergent turn loop (drift, fracture and assimilation-death all pull branches apart or remove one). Specifies a directional per-ordered-pair mechanic: eligibility gated on the lender's terrain-salient concepts (`salienceRetention`/`dominantTerrain` — the borrowable subset of an otherwise borrowing-resistant basic list, per Tadmor/WOLD), selection of the most-divergent eligible concept, a pair-local contact throttle (passable A–B edges as a share of A's border), and a contact-graded outcome (faithful whole-copy at high contact, one-step adaptation at low contact — contact proxying bilingual proficiency, per Thomason & Kaufman). Salient concepts thus resist drift *and* attract borrowing (the real Wanderwort profile). Full build-ready contract for 2GEO.5, following the 2GEO.1 pattern (`docs/spikes/2geo-4-neighbour-contact-borrowing.md`) _(depends on 2GEO.2, 2GEO.3)_
 - [ ] **2GEO.5** — Implement the neighbour-borrowing mechanic — new `borrowing.ts` (`resolveBorrow`, `BORROW_RATE`, `BORROW_FAITHFUL_CUT`), `pairContact` in `geography.ts`, `formSimilarity` factored out of `intelligibility.ts`, `borrowableConcepts`/`stepToward` beside the salience helpers, and a new turn-loop step 3.5 in `generation.ts` (after spread, before assimilation). No new randomness beyond a fresh `hashRand` salt; seeded replay preserved — contract specified in the 2GEO.4 spike _(depends on 2GEO.4)_
-- [ ] **2LEX.1** — Design spike: homophone-collision resolution mechanic — how a real semantic collision between two concepts (`homophoneForms`/`collisionPairs` in `phonology.ts`, currently only previewed before a player picks a rule) gets resolved once it actually lands during drift — candidates include a forced disambiguating follow-up change, a tolerated real homophone surfaced in UI/narrative, a borrowed synonym, or compounding — informed by real linguistics on homophone avoidance/tolerance
+- [x] **2LEX.1** — Design spike: homophone-collision resolution — measured collision dynamics in autonomous play (98% of branch-turns carry a live collision; 87% self-heal, median 3 turns; a 13% chronic tail never heals), then specified a severity × persistence mechanic: a six-field semantic grouping of `CONCEPTS` gates severity (same-field = confusable, operationalising Wedel's functional-load finding; cross-field homophones tolerated indefinitely and surfaced as flavour), a per-pair pressure counter (`COLLISION_TURNS` = 6, census-tuned) triggers autonomous repair, and repair compounds the less terrain-salient concept with a clipped field-mate modifier (the catfish pattern) under a per-world `compoundOrder` headedness trait — plus a Gilliéron-style borrowed-replacement arm gated on 2GEO.5 and a player choice-at-apply-time path (repair at `changeCost` or tolerate into the pressure clock). Full build-ready contract for 2LEX.2 (`docs/spikes/2lex-1-homophone-collision-resolution.md`)
 - [ ] **2STK.1** — Design spike: rule-choice stakes mechanic (resource trade-offs vs directional goals vs prerequisite chains) _(blocked — depends on 2GEO.2, 2GEO.5)_
 - [ ] **2STK.2** — Implement chosen rule-stakes mechanic _(blocked — depends on 2STK.1)_
 - [ ] **2GLY.1** — Design spike: glyph mutation ruleset — shape-drift grammar + phoneme→glyph reassignment rules, referencing real script lineages (e.g. Phoenician → Greek → Etruscan → Latin) _(blocked — depends on 2STK.2)_
 - [ ] **2GLY.2** — Implement per-generation glyph shape drift (independent stylistic mutation) _(blocked — depends on 2GLY.1)_
 - [ ] **2GLY.3** — Implement phoneme→glyph reassignment logic, tied to phone split/merge/deletion from phonology rules _(blocked — depends on 2GLY.1)_
 - [ ] **2GLY.4** — Build glyph rendering component (branch-level script display) _(blocked — depends on 2GLY.2, 2GLY.3)_
-- [ ] **2LEX.2** — Implement chosen homophone-collision resolution mechanic _(blocked — depends on 2LEX.1)_
+- [ ] **2LEX.2** — Implement the homophone-collision resolution mechanic — new `collision.ts` (`severePairs`, `yieldingConcept`, `modifierCandidates`, `compoundWord`, `resolveCollision`, `COLLISION_TURNS`), `SEMANTIC_FIELDS`/`fieldOf` in `lexicon.ts`, `World.compoundOrder` + `Branch.collisionPressure` (breaking: required fields), turn-loop step 1.5 in `generation.ts` and the apply-time repair prompt in `game.svelte.ts`. No new randomness beyond one world-gen draw; seeded replay preserved — contract specified in the 2LEX.1 spike; the borrowing arm consumes 2GEO.5's exports _(blocked — depends on 2LEX.1, 2GEO.5)_
 - [ ] **2UI.1** — UI completeness audit across all components — existing panels plus new biome/stakes/glyph/lexicon data — verify every player-facing decision has a legible data source _(blocked — depends on 2STK.2, 2GLY.4, 2LEX.2)_
 - [ ] **2UI.2** — Build onboarding — inline explainers, full tutorial mode, and a UI layout rethink, informed by the audit findings _(blocked — depends on 2UI.1)_
 
@@ -121,7 +121,7 @@ graph LR
 	2GLY.2["2GLY.2: Implement per-generation glyph shape dr…"]
 	2GLY.3["2GLY.3: Implement phoneme→glyph reassignment lo…"]
 	2GLY.4["2GLY.4: Build glyph rendering component (branch…"]
-	2LEX.2["2LEX.2: Implement chosen homophone-collision re…"]
+	2LEX.2["2LEX.2: Implement the homophone-collision resol…"]
 	2UI.1["2UI.1: UI completeness audit across all compone…"]
 	2UI.2["2UI.2: Build onboarding — inline explainers, fu…"]
 	3PER.1["3PER.1: Local persistence — save/load a session…"]
@@ -147,6 +147,7 @@ graph LR
 	2GLY.2 --> 2GLY.4
 	2GLY.3 --> 2GLY.4
 	2LEX.1 --> 2LEX.2
+	2GEO.5 --> 2LEX.2
 	2STK.2 --> 2UI.1
 	2GLY.4 --> 2UI.1
 	2LEX.2 --> 2UI.1
@@ -169,9 +170,9 @@ graph LR
 	1UI.4 --> M1
 	2UI.2 --> M2
 	3SHR.1 --> M3
-	class 1ENG.14,1ENG.15,2GEO.5,2LEX.1,3PER.1 todo
+	class 1ENG.14,1ENG.15,2GEO.5,3PER.1 todo
 	class 1ENG.16,1ENG.17,2GLY.1,2GLY.2,2GLY.3,2GLY.4,2LEX.2,2STK.1,2STK.2,2UI.1,2UI.2,3SHR.1 blocked
-	class 1ENG.1,1ENG.10,1ENG.11,1ENG.12,1ENG.13,1ENG.18,1ENG.2,1ENG.3,1ENG.4,1ENG.5,1ENG.6,1ENG.7,1ENG.8,1ENG.9,1UI.1,1UI.2,1UI.3,1UI.4,2GEO.1,2GEO.2,2GEO.3,2GEO.4 done
+	class 1ENG.1,1ENG.10,1ENG.11,1ENG.12,1ENG.13,1ENG.18,1ENG.2,1ENG.3,1ENG.4,1ENG.5,1ENG.6,1ENG.7,1ENG.8,1ENG.9,1UI.1,1UI.2,1UI.3,1UI.4,2GEO.1,2GEO.2,2GEO.3,2GEO.4,2LEX.1 done
 ```
 
 ---
