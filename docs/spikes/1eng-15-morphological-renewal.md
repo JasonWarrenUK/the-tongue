@@ -17,8 +17,8 @@ description: 1ENG.15 design spike; a minimal inflectional-paradigm model (tense 
   - [3.1. One substrate amendment: 'finish'](#finish)
   - [3.2. The paradigm: two categories, five cells](#paradigm)
   - [3.3. The life cycle: periphrasis → affix → dust → renewal](#cycle)
-  - [3.4. Affix erosion: the clock and its coupling to word order](#erosion)
-  - [3.5. Design arithmetic: how fast the cycle turns](#arithmetic)
+  - [3.4. Affix erosion: the real rules, in edge-injected context](#erosion)
+  - [3.5. What replaces the design arithmetic](#arithmetic)
 - [4. Where it slots in the turn loop](#slot)
 - [5. Implementation contract](#contract)
 - [6. Honesty ledger: real vs proxy vs flavour](#ledger)
@@ -53,7 +53,7 @@ Four claims underpin the model; each was checked against sources (foot of doc), 
 
 <a name="finish"><h3>3.1. One substrate amendment: 'finish'</h3></a>
 
-The 1ENG.14 verb list has no attested past-tense source ('go' and 'say' lead elsewhere). One concept is added: **finish** (verb, field `deeds`, appended at index 47, making 48 concepts). This is an explicit amendment to the committed 1ENG.14 table, made here so the pathway map in §3.2 points only at concepts that exist. 1ENG.19 implements the substrate with all 16 new concepts in one pass.
+The original 1ENG.14 verb list had no attested past-tense source ('go' and 'say' lead elsewhere). One concept is added: **finish** (class verb, appended at index 47, making 48 concepts), so the pathway map in §3.2 points only at concepts that exist. The [1ENG.14 doc](./1eng-14-syntax-conditioned-sound-change.md) now carries the amended table after the critique-pass revision; 1ENG.19 implements the substrate with all 16 new concepts in one pass.
 
 <a name="paradigm"><h3>3.2. The paradigm: two categories, five cells</h3></a>
 
@@ -72,7 +72,7 @@ Nonpast and third person stay unmarked for an engine-honest reason: the model de
 
 An affix's *form* is born from its source word's **current form in that branch**, clipped by the same first-vowel-prefix rule 2LEX.1 uses for compound modifiers (machinery reuse, one clipping concept across the engine). Two sibling branches whose words for 'finish' have drifted apart will mint *different* past-tense affixes from the same pathway, which is exactly how related languages end up with cognate but distinct inflections.
 
-Agreement is exercised by the 1ENG.14 frames directly: F1's subject slot is a pronoun, so every rendered transitive clause shows the verb agreeing with its subject's cell; F2's noun subject takes third person, the bare stem.
+Agreement is exercised by the 1ENG.14 frames directly: F1's subject slot is a pronoun, so every rendered transitive clause shows the verb agreeing with its subject's cell; F2's noun subject takes third person, the bare stem. Agreement richness also licenses [1ENG.14's pro-drop parameter](./1eng-14-syntax-conditioned-sound-change.md) (≥2 living agreement cells): the verb says who acts, so the pronoun may vanish from the frame, and paradigm collapse revokes the licence the same turn it starts the rigidification clock.
 
 <a name="cycle"><h3>3.3. The life cycle: periphrasis → affix → dust → renewal</h3></a>
 
@@ -82,7 +82,7 @@ Each marked cell is a small state machine, the synthetic/analytical cycle operat
         (seeded at genesis)
               │
               ▼
-   ┌──── affixal ────┐   affix form erodes segment by segment (§3.4)
+   ┌──── affixal ────┐   the branch's own sound rules erode (or grow) the affix (§3.4)
    │                 ▼
    │               zero      category unmarked; renewal clock starts;
    │                 │       1ENG.14's rigidification driver sees a dead paradigm
@@ -100,42 +100,42 @@ Each marked cell is a small state machine, the synthetic/analytical cycle operat
 
 History entries for death, renewal and fusion carry no `drift` flag (the 2GEO.4/2LEX.1 ruling: lexical and grammatical events stay out of the sound-change accounting), but they are precisely the kind of era-texture the [1ENG.10 naming collapse](../roadmaps/mvp.md) feeds on.
 
-<a name="erosion"><h3>3.4. Affix erosion: the clock and its coupling to word order</h3></a>
+<a name="erosion"><h3>3.4. Affix erosion: the real rules, in edge-injected context</h3></a>
 
-Affixes erode by a **seeded segment-shedding clock** rather than a pass through the sound-rule transducer:
+> [!NOTE]
+> **Revised.** The first version of this spike eroded affixes with a seeded segment-shedding clock. The critique pass judged that flat (a three-segment affix of any composition died at the same rate, phonologically inert), and the decision was full realism with no backstop: affixes drift under the actual sound rules, and their lifetimes are whatever emerges.
 
+Each turn, an affix receives **the same drift rule the branch's lexicon just received**, applied through a small transducer variant:
+
+```ts
+// applyRuleToWord, with one edge open to the word and the other injected:
+// a suffix's RIGHT edge is the word boundary (post:bound rules see it naturally);
+// its LEFT context is injected as `ctx` (stem-internal, so pre:bound never fires).
+// A prefix mirrors this. The whole-word vowel floor is lifted: an affix may
+// legitimately erode to [] — that is cell death.
+export function applyRuleToAffix(ids: string[], rule: Rule, edge: "suffix" | "prefix", ctx: Phone | null): string[];
 ```
-AFFIX_EROSION_RATE = 0.15   // tuning constant; per-turn base probability of shedding one segment
 
-sheds(cell) = hashRand(seed + <fresh salt>, turn·<p> + <q>, branchId·<r> + cellIndex)
-              < AFFIX_EROSION_RATE × boundaryHeat
-```
+The injected context is the **majority stem-final phone** across the branch's verb stems (ties by phone-table order) for a suffix, majority stem-initial for a prefix: the environment the affix actually lives in, computed live, so a branch whose verbs erode to vowel-final stems starts exposing its suffixes to intervocalic lenition. Affixes thereby palatalise, voice, break, lengthen and delete exactly as words do, and the 1ENG.14 syntax gate composes on top: a suffix is verb-final material, so under SOV its boundary rules run at up to 1.5×. The order coupling the clock used to assert by formula now happens by mechanism.
 
-where `boundaryHeat` is the verb class's utterance-final share from [1ENG.14's position profiles](./1eng-14-syntax-conditioned-sound-change.md) when the cell is suffixed (its initial share when prefixed, which is lower under the same profiles: the suffixing preference's processing logic playing out). A shed removes the affix's outermost segment; an affix at zero segments is dead and the cell goes to *zero* stage.
+**Consequences, stated plainly:**
 
-This is a deliberate abstraction, flagged in the ledger: real affixes undergo the same regular sound changes as everything else, and routing affix strings through `applyRuleToWord` would need a synthetic word-boundary context that the transducer's position-local model does not cleanly provide (an affix's inner edge is stem-internal, not a boundary). The clock keeps the *dynamics* (edge material erodes first, faster in hotter positions, deterministic under seed) at a fraction of the machinery; rule-based affix phonology is the deferred upgrade (§7).
+- **Death is reachable** (deletion rules empty short affixes; `apoc` and `finalC` on suffixes, `aphaer` and the new `fortify` acting on prefixes) but **never guaranteed**: an affix no drawn rule can touch persists, and one that `break` or `paragoge` reaches can *grow*. Durable inflection is real (Latin's plural *-s* survives in Spanish after two millennia), so long-lived affixes are a feature until proven a bug.
+- **Lifetime distribution is emergent**, a function of rule draws, affix shape and position heat. Nothing in this doc claims a cycle period.
+- **The acceptance criterion lives in 2SIM.1** (the integration pacing census): 150-turn SOV runs must show grammaticalisation cycles observably turning (past-cell death and renewal actually occurring across seeds). If they never turn, the backstop question this revision closed gets reopened with data in hand.
 
-The coupling this buys: **an SOV branch's verb suffixes sit at `boundaryHeat = 1.0` and shed fastest**, so verb-final branches cycle their morphology hardest, renewing more often, throwing more fusion events into their history. Order shapes morphological tempo; morphological death, via 1ENG.14's driver, can then reshape order, each leg of the loop on its own verified evidence.
+<a name="arithmetic"><h3>3.5. What replaces the design arithmetic</h3></a>
 
-<a name="arithmetic"><h3>3.5. Design arithmetic: how fast the cycle turns</h3></a>
-
-No census is possible (the substrate does not exist to measure), but the clock's behaviour is arithmetic, not simulation. With `AFFIX_EROSION_RATE = 0.15` and a 3-segment affix:
-
-| `boundaryHeat` | Expected turns to shed 3 segments | Full cycle (+ `RENEWAL_TURNS` 6 + `FUSE_TURNS` 4) |
-|---------------|-----------------------------------|--------------------------------------------------|
-| 1.0 (SOV verb suffix) | ~20 | ~30 turns |
-| 0.4 (noun-heat reference) | ~50 | ~60 turns |
-
-A ~30-turn cycle at full heat means a 150-turn game watches an SOV branch's past tense die and be reborn several times, while a low-heat placement cycles once or twice: frequent enough to be a living mechanic, rare enough that each fusion is an event. All three constants are first-pass tuning with the usual playtest flag.
+The clock's neat ~30-turn cycle table is gone and cannot be honestly replaced by hand calculation: the affix now rides the same stochastic rule stream as the lexicon. What remains constant-tunable is the *stage machinery* around erosion: `RENEWAL_TURNS` (dead-cell wait before the new periphrasis) and `FUSE_TURNS` (periphrastic wait before fusion). Those two set the floor of a full cycle at 10 turns plus however long erosion takes, and 2SIM.1 measures the rest.
 
 ---
 
 <a name="slot"><h2>4. Where it slots in the turn loop</h2></a>
 
-Morphology lives **inside step 1 (drift)**; no new turn-loop step. After a branch's sound rule resolves, its paradigm ticks (shed rolls per marked cell, then death/renewal/fusion clock checks, in that order, cells in fixed table order). One locus, same cadence as the erosion it models, no turn-loop reordering:
+Morphology lives **inside step 1 (drift)**; no new turn-loop step. After a branch's sound rule resolves against its lexicon, the same rule applies to each affixal cell via `applyRuleToAffix`, then the stage clocks check (death, renewal, fusion, in that order, cells in fixed table order). One locus, same cadence as the erosion it models, no turn-loop reordering:
 
 ```
-1. drift                 (sound rule; then paradigm tick: shed → death → renewal → fusion)
+1. drift                 (sound rule on stems, then on affixes; then stage clocks: death → renewal → fusion)
 1.5 collisions           (2LEX.2)
 2. rename
 3. spread
@@ -147,13 +147,15 @@ Morphology lives **inside step 1 (drift)**; no new turn-loop step. After a branc
 5. fracture              (children inherit the paradigm)
 ```
 
-Untouched (player-drifted) branches tick their paradigms too: the clock models continuous wear, and a player choosing a branch's sound change does not pause its grammar. The tick is skipped for no branch and mints no randomness beyond one fresh `hashRand` salt triple (documented against the existing salt registry: drift, spread, salience, borrowing).
+Player-touched branches tick their paradigms too, with the player's chosen rule: choosing a branch's sound change does not pause its grammar, it directs it. The tick is skipped for no branch, and erosion itself mints **no randomness at all** (the rule was already drawn); the only new seeded draw is the suffix/prefix placement roll for VO branches at fusion time, one fresh `hashRand` salt documented against the existing registry (drift, spread, salience, borrowing, frame-walk, reanalysis).
 
 ---
 
 <a name="contract"><h2>5. Implementation contract</h2></a>
 
-**Changed — `src/lib/engine/lexicon.ts`**: append `finish` (index 47, class verb, field `deeds`); `CONCEPT_CLASS` and `SEMANTIC_FIELDS` totality extends to 48.
+**Changed — `src/lib/engine/lexicon.ts`**: append `finish` (index 47, class verb); `CONCEPT_CLASS` totality extends to 48 (the 2LEX.1 distance table already scores it).
+
+**Changed — `src/lib/engine/phonology.ts`**: export `applyRuleToAffix` per §3.4 (edge-injected variant of `applyRuleToWord`, vowel floor lifted, empty result allowed).
 
 **Changed — `src/lib/engine/types.ts`**
 
@@ -172,7 +174,6 @@ export interface Branch { /* + */ paradigm: Record<ParadigmCell, AffixState> }
 **New — `src/lib/engine/morphology.ts`**
 
 ```ts
-export const AFFIX_EROSION_RATE = 0.15;
 export const RENEWAL_TURNS = 6;
 export const FUSE_TURNS = 4;
 export const PATHWAY: Record<ParadigmCell, string> =
@@ -181,9 +182,15 @@ export const PATHWAY: Record<ParadigmCell, string> =
 // genesis paradigm: affixal stage, forms clipped from the source words' current forms
 export function seedParadigm(lex: Lexicon, order: WordOrder, seed: number): Record<ParadigmCell, AffixState>;
 
-// one branch-turn of paradigm evolution: shed rolls, death, renewal, fusion. Pure.
+// majority stem-final (or stem-initial) phone across the branch's verb stems; the
+// injected context for applyRuleToAffix. Ties by phone-table order.
+export function affixContext(lex: Lexicon, edge: "suffix" | "prefix"): Phone | null;
+
+// one branch-turn of paradigm evolution: apply `rule` (the branch's drawn or
+// player-chosen rule; null = no change this turn) to each affixal cell via
+// applyRuleToAffix, then death/renewal/fusion clocks. Pure.
 export function tickParadigm(
-  paradigm: Record<ParadigmCell, AffixState>, lex: Lexicon, order: WordOrder,
+  paradigm: Record<ParadigmCell, AffixState>, rule: Rule | null, lex: Lexicon, order: WordOrder,
   seed: number, turn: number, branchId: number,
 ): { paradigm: Record<ParadigmCell, AffixState>; events: HistoryEntry[] };
 
@@ -193,7 +200,7 @@ export function inflect(stem: string[], cell: ParadigmCell | null, paradigm: Rec
   { word: string[]; marker: string[] | null };
 ```
 
-**Changed — `src/lib/engine/generation.ts`**: paradigm tick appended to step 1 for every living leaf (touched or not); fracture children deep-copy `paradigm`.
+**Changed — `src/lib/engine/generation.ts`** and **`src/lib/game.svelte.ts`**: paradigm tick appended to step 1 for every living leaf, passing whichever rule acted on that branch this turn (the drawn drift rule, the player's applied rule via `apply()`, or `null` when neither); fracture children deep-copy `paradigm`.
 
 **Changed — `src/lib/engine/world.ts`**: root branch seeded via `seedParadigm` (draw positions pinned for replay goldens).
 
@@ -208,12 +215,13 @@ export function inflect(stem: string[], cell: ParadigmCell | null, paradigm: Rec
 **Testing (per repo convention):**
 
 - `seedParadigm`: affixal at genesis; forms are correct clips of source words; determinism under seed.
-- Shed roll: scales with `boundaryHeat` (SOV suffix sheds measurably faster than VSO suffix over N turns); prefix placement uses initial share; salt collides with no existing draw (registry regression).
-- Stage machine: shed to empty → `zero` same tick; renewal fires at exactly `RENEWAL_TURNS`; periphrastic marker equals the *current* source clip (a drifted source yields a different marker than genesis); fusion at `FUSE_TURNS` with correct placement.
+- `applyRuleToAffix`: `post:bound` rules fire on a suffix's outer edge and never on its inner edge; prefix mirror-case; injected context enables context-dependent rules (a voicing rule fires on a suffix-initial voiceless stop when the injected stem-final phone is a vowel); empty result returned, never floored; growth via `break`/`paragoge` possible.
+- `affixContext`: majority stem-final phone computed live; shifts when a fixture's verb stems change; phone-table tie-break.
+- Stage machine: erosion to empty → `zero` same tick; renewal fires at exactly `RENEWAL_TURNS`; periphrastic marker equals the *current* source clip (a drifted source yields a different marker than genesis); fusion at `FUSE_TURNS` with correct placement; the VO placement roll's salt collides with no existing draw (registry regression).
 - `inflect`: bare for nonpast and p3; suffix/prefix placement; periphrastic returns a separate marker; empty-affix cells render bare.
-- Inheritance: fracture children's paradigms deep-copied then independent (mutating child sheds leaves parent intact).
-- Integration: 150-turn SOV run shows ≥2 full cycles on the past cell; history contains death/renewal/fusion entries; replay byte-identical on fixed seed.
-- 1ENG.14 coupling: all-agreement-zero exposes the collapsed state the rigidification driver reads (interface test, ahead of 1ENG.21).
+- Inheritance: fracture children's paradigms deep-copied then independent (a rule eroding the child's affix leaves the parent's intact).
+- Integration: multi-seed 150-turn SOV runs show the past cell completing full cycles (death, renewal, fusion all observed); history carries the entries; replay byte-identical on fixed seed. **The pacing acceptance criterion itself lives in 2SIM.1**, which measures lifetime distributions with every mechanic active.
+- 1ENG.14 coupling: all-agreement-zero exposes the collapsed state the rigidification driver reads and revokes the pro-drop licence (interface test, ahead of 1ENG.21).
 
 ---
 
@@ -223,18 +231,20 @@ export function inflect(stem: string[], cell: ParadigmCell | null, paradigm: Rec
 |----------|--------|------|
 | The periphrasis → affix → erosion → renewal cycle | **real, twice-attested on one tense** | Romance future: *cantabo* → *cantare habeo* → *chanterai* → *aller* + inf |
 | Pathway sources (finish → past, go/have → future, pronouns → agreement) | **real, verified per pathway** | Heine & Kuteva's catalogue; Rama *-atkul-*; the pronoun-affix continuum |
-| Affix erosion as a segment-shedding clock | **abstraction, flagged** | real affixes undergo regular sound change; the transducer's position-local model has no clean stem-internal boundary, so the clock keeps the dynamics without the machinery. Rule-based affix phonology is the named upgrade (§7) |
-| Erosion speed scaled by position heat | **mechanically derived** | falls out of 1ENG.14's profiles + the suffixing preference's processing logic; no independent claim made |
+| Affixes eroding under the branch's own sound rules | **real** | regular sound change grinding inflection is the attested mechanism (*cantare habeo* → *chanterai* is itself a reduction chain); `applyRuleToAffix` is that, edge for edge |
+| Injected context = majority stem-final phone | **abstraction, flagged** | real affixes see every stem they attach to; the majority phone is the deterministic one-context stand-in |
+| No guaranteed affix death (emergent lifetimes) | **real in shape, empirically open** | durable inflection is attested (Latin *-s* in Spanish); whether cycles turn at game pace is 2SIM.1's acceptance criterion, and the backstop question reopens there if they never do |
+| Erosion speed tracking position heat | **mechanically derived** | the syntax gate applies to affix-bearing word edges; no independent claim made |
 | Zero-marked nonpast and third person | **design choice, engine-honest** | driven by which source words exist, not asserted as a typological law |
 | Genesis paradigms pre-fused | **convenience, precedented** | the 1ENG.12 move: seed structure so erosion grips from turn 0 |
 | Same-branch cognate-divergent affixes (siblings clip drifted sources) | **real in shape** | related languages carry cognate, non-identical inflections |
-| `AFFIX_EROSION_RATE`, `RENEWAL_TURNS`, `FUSE_TURNS` | **first-pass tuning** | §3.5 arithmetic sets the scale; playtest pass expected in 1ENG.20 |
+| `RENEWAL_TURNS`, `FUSE_TURNS` | **first-pass tuning** | the stage floor (§3.5); playtest pass expected in 1ENG.20, pacing measured in 2SIM.1 |
 
 ---
 
 <a name="deferred"><h2>7. Out of scope (surveyed, deferred)</h2></a>
 
-- **Rule-based affix phonology.** Affix strings passing through `applyRuleToWord` with a proper stem+affix boundary model: the honest upgrade to the shedding clock, wanted the day someone asks why an affix never palatalises. Needs the transducer to learn a morpheme boundary, which is its own design.
+- **Per-stem affix allomorphy.** `applyRuleToAffix` evolves one affix form per cell against the majority context; real affixes develop *allomorphs* per stem shape (English plural /s/~/z/~/ɪz/). Needs per-stem inflected storage, which is the doublet problem again (roadmap 2LEX.3).
 - **A future-tense cell.** The 'go' pathway is verified and its source word exists; adding `future` to the paradigm is a one-row extension of `PATHWAY` once the two-category version has playtested.
 - **The *-zi* hook.** [2LEX.1 §7](./2lex-1-homophone-collision-resolution.md) defers bleached-suffix disambiguation until affix machinery exists. After 1ENG.20 it does: a third repair arm can clip a bleached marker instead of a compound modifier. Cross-referenced there; a shared roadmap line should lift it.
 - **Irregularity and suppletion.** High-frequency verbs resisting regular paradigms (English *went*) are real and characterful; the engine has no frequency variable to drive them (the same gap 2LEX.1 noted, filled there by salience; salience-driven irregularity is a plausible future flavour).
