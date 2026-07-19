@@ -126,8 +126,8 @@
 					},
 					{
 						"id": "1ENG.14",
-						"description": "Design spike: syntax-conditioned sound change — many real sound changes are conditioned by the preceding/following *word*, not just the preceding/following phoneme (sandhi, cross-word assimilation/liaison); the engine currently has no representation of word order or utterance-level context at all (each lexicon entry is an isolated concept→word mapping). Needs its own spike to define a minimal syntax/adjacency model before any cross-word rule can be built",
-						"status": "todo",
+						"description": "Design spike: syntax-conditioned sound change — defined the grammar substrate: `CONCEPTS` grows 32→47 (appended: 8 verbs, 3 pronouns, 4 adjectives) with a `CONCEPT_CLASS` table and class-pure `SEMANTIC_FIELDS` extension, four phrase frames ordered by per-branch `WordOrder` parameters (basic SOV/SVO/VSO + AdjN/NAdj; genitive derived per Greenberg), deterministic per-class position profiles, position-scaled boundary rules (`SYNTAX_STRENGTH` multiplier via the salience-gate pattern) and a liaison-protection statistic (final consonants resist deletion before typically vowel-initial followers). Per-branch word-order drift via two verified drivers: morphological-collapse rigidification to SVO (causal direction confirmed by a 2025 entropy study) and intense-contact alignment (the Ethio-Semitic pattern). Staged contract: 1ENG.19 (substrate + conditioning), 1ENG.21 (order drift, gated on 2GEO.5 and 1ENG.20) (`docs/spikes/1eng-14-syntax-conditioned-sound-change.md`)",
+						"status": "done",
 						"dependsOn": []
 					},
 					{
@@ -152,6 +152,15 @@
 						"status": "blocked",
 						"dependsOn": [
 							"1ENG.16"
+						]
+					},
+					{
+						"id": "1ENG.19",
+						"description": "Implement the 1ENG.14 substrate and conditioning (stage A) — `CONCEPTS` 32→47 with `CONCEPT_CLASS`, the class-pure `SEMANTIC_FIELDS` extension, new `syntax.ts` (`FRAMES`, `frameOrder`, `positionProfile`, `followerVowelShare`, `syntaxMult`, `SYNTAX_STRENGTH`), `Branch.wordOrder` seeded and inherited (no drift yet), the `applyRuleToLex` syntax gate at both drift call sites and `PhrasePanel.svelte`. Breaking: required `Branch.wordOrder`, `CONCEPTS` growth shifts goldens — contract specified in the 1ENG.14 spike; sequenced after 2LEX.2 so the semantic-fields table isn't extended against a moving target",
+						"status": "blocked",
+						"dependsOn": [
+							"1ENG.14",
+							"2LEX.2"
 						]
 					}
 				]
