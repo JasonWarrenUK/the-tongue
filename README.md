@@ -8,12 +8,16 @@ A language-evolution simulator. Generate a proto-language from a seed, steer its
 
 ## What it is
 
-Each world is generated from a numeric seed: a phoneme inventory, a syllable template, a 32-word lexicon, and a 4×3 terrain map. You play as the language community — spending influence to apply sound changes, expand into adjacent regions, and hold off autonomous drift.
+Each world is generated from a numeric seed: a phoneme inventory, a syllable template, a 32-word lexicon, and a 4×3 terrain map. You play as the language community — spending influence to apply sound changes, expand into adjacent regions, and hold off autonomous drift. Seventeen sound-change rules cover both erosion (deletion, lenition, vowel shortening) and renewal (epenthesis, vowel breaking, compensatory lengthening), so a branch's phonology never grinds down to nothing and stays alive to change.
 
 At the end of each generation:
-- Untouched branches **drift** automatically (weighted toward cross-linguistically common rules)
+- Untouched branches **drift** automatically, weighted toward cross-linguistically common rules and biased by terrain (open, well-connected branches favour contact-style changes; isolated branches favour isolation-style ones)
+- Branches whose lexicon has drifted far enough from its last snapshot **enter a new naming era** (Old/Middle/Late, `Proto-` for shared ancestors)
 - Communities **spread** into adjacent free territory
-- Any branch whose territory is split by impassable terrain **fractures** into daughter languages
+- A much smaller branch sustained beside a near-identical, dominant neighbour is **assimilated**, its territory absorbed and its lineage ended
+- Any branch whose territory is split by impassable terrain **fractures** into daughter languages, each diverging from the parent via a birth drift step
+
+Terrain also shapes vocabulary: concepts salient to a branch's dominant terrain (e.g. `snow`/`path` in mountains, `fish`/`river` by water) resist drift and hold onto their older forms longer.
 
 The **mutual intelligibility matrix** tracks how far apart the family has grown, using normalised edit distance across the shared concept list as a proxy.
 
@@ -48,15 +52,16 @@ No environment variables or external services required.
 src/lib/engine/     # deterministic game logic (no Svelte)
   types.ts          # shared interfaces
   rng.ts            # mulberry32 + hashRand
-  lexicon.ts        # inventory, template, word generation
-  phonology.ts      # phone table, 10 sound-change rules, collision detection
+  lexicon.ts        # inventory, template, word generation, terrain salience
+  phonology.ts      # phone table, 17 sound-change rules, collision detection
   intelligibility.ts
   tree.ts           # branch layout + colour
-  geography.ts      # terrain, adjacency, passable components
+  geography.ts      # terrain, adjacency, passable components, isolation/assimilation
+  naming.ts         # phonotactic stems, Old/Middle/Late/Proto- era-name collapse
   world.ts          # makeWorld, freshState
-  generation.ts     # resolveGeneration (drift → spread → fracture → repool)
+  generation.ts     # resolveGeneration (drift → rename → spread → assimilation → fracture → repool)
 
 src/lib/game.svelte.ts   # reactive singleton (Svelte 5 $state / $derived)
-src/lib/components/      # presentational Svelte components
+src/lib/components/      # Map, family tree, intelligibility matrix, word table, change list, history, economy config
 src/routes/+page.svelte  # wires everything together
 ```
