@@ -1,3 +1,4 @@
+/// <reference types="bun-types" />
 /**
  * 2LEX.1 empirical census: how often do homophone collisions land during
  * autonomous play, which concept pairs collide, and do they self-heal?
@@ -120,26 +121,27 @@ console.log(`\ntop colliding concept pairs:`);
 [...pairCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15)
   .forEach(([pair, n]) => console.log(`  ${pair.padEnd(20)} ${n}`));
 
-// ── 2LEX.1 severity model: same-field chronic share under the draft grouping ──
-const FIELDS: Record<string, string[]> = {
-  landscape: ["stone", "hill", "river", "path", "snow", "water"],
-  flora: ["tree", "leaf", "root", "seed"],
-  fauna: ["fish", "bird", "dog", "wolf"],
-  body: ["hand", "eye", "ear", "tooth", "bone", "blood", "skin", "meat"],
-  sky: ["sun", "moon", "star", "sky", "rain", "wind", "day", "night"],
-  hearth: ["house", "fire"],
-};
-const fieldOf = new Map<string, string>();
-for (const [f, cs] of Object.entries(FIELDS)) for (const c of cs) fieldOf.set(c, f);
-const uncovered = episodes.filter((e) => !fieldOf.has(e.a) || !fieldOf.has(e.b));
-console.log(`\nconcepts uncovered by field table: ${uncovered.length ? "SOME MISSING" : "none (all 32 covered)"}`);
+// ── 2LEX.1 severity v2: class gate + graded semantic distance ──
+// Current engine is all nouns, so the class gate is vacuous here (every pair is
+// within-class); this measures the graded-distance tier on noun pairs only.
+// Re-run after 1ENG.19 lands the 48-concept substrate.
+const DIST: Record<string, number> = JSON.parse(
+  await Bun.file(new URL("./2lex-1-semantic-distance.json", import.meta.url).pathname).text(),
+);
+const score = (a: string, b: string): number => DIST[[a, b].sort().join("|")] ?? 0;
+const unscored = episodes.filter((e) => !([e.a, e.b].sort().join("|") in DIST));
+console.log(`\nepisodes missing a distance score: ${unscored.length ? unscored.length + " MISSING" : "none (all pairs scored)"}`);
 
-const sameField = episodes.filter((e) => fieldOf.get(e.a) === fieldOf.get(e.b));
-console.log(`same-field episodes: ${sameField.length} / ${episodes.length} (${((100 * sameField.length) / episodes.length).toFixed(1)}%)`);
-for (const N of [4, 6, 8]) {
-  // episodes that would trigger autonomous repair: same-field AND survived >= N turns
-  const fired = sameField.filter((e) => (e.died ?? TURNS) - e.born >= N);
-  console.log(`  COLLISION_TURNS=${N}: ${fired.length} autonomous repairs across ${SEEDS.length} games (${(fired.length / SEEDS.length).toFixed(1)} per 150-turn game)`);
+const BASE = 6; // COLLISION_TURNS
+for (const CUT of [0.1, 0.15, 0.2, 0.3]) {
+  const severe = episodes.filter((e) => score(e.a, e.b) >= CUT);
+  // distance-scaled threshold: closer pairs repair sooner
+  const fired = severe.filter((e) => (e.died ?? TURNS) - e.born >= Math.max(2, Math.round(BASE * (1 - score(e.a, e.b)))));
+  const chronic = severe.filter((e) => e.endedBy === "horizon").length;
+  console.log(
+    `SEVERITY_CUT=${CUT}: severe ${severe.length}/${episodes.length} (${((100 * severe.length) / episodes.length).toFixed(1)}%)` +
+    `  repairs ${fired.length} (${(fired.length / SEEDS.length).toFixed(1)}/game)  chronic-severe ${chronic}`,
+  );
 }
-const chronicSame = sameField.filter((e) => e.endedBy === "horizon").length;
-console.log(`same-field chronic (never healed): ${chronicSame}`);
+const hot = [...pairCounts.entries()].filter(([p]) => (DIST[p] ?? 0) >= 0.2).sort((x, y) => y[1] - x[1]).slice(0, 8);
+console.log(`most-colliding pairs with score >= 0.2:`, hot.map(([p, n]) => `${p}(${DIST[p]})×${n}`).join("  "));

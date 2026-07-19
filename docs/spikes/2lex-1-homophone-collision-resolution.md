@@ -14,7 +14,7 @@ description: 2LEX.1 design spike; how a homophone collision that lands during pl
 - [1. The gap, measured](#gap)
 - [2. What the research actually supports](#research)
 - [3. The mechanic](#mechanic)
-  - [3.1. Severity: the semantic-field gate](#severity)
+  - [3.1. Severity: the class gate and the graded distance table](#severity)
   - [3.2. Grace period: the pressure counter](#pressure)
   - [3.3. Repair: who yields, and what they get instead](#repair)
   - [3.4. Compound order: a per-world typological trait](#order)
@@ -48,11 +48,11 @@ Two design constraints fall straight out of the numbers. Collisions are constant
 
 Four claims underpin the mechanic; each was checked against sources (foot of doc), not asserted from memory.
 
-**Homophony avoidance is real, statistical and selective.** [Wedel, Jackson & Kaplan (2013)](https://journals.sagepub.com/doi/abs/10.1177/0023830913489096) examined attested phoneme mergers across eight languages and found merger probability is inhibited by the number of minimal pairs a contrast distinguishes, and specifically by minimal pairs that **share a syntactic category** and have **similar frequency**. Homophones the grammar can't disambiguate are the ones a language fights to avoid. *Bear*/*bare* is cheap; two nouns for farmyard animals is expensive. Our 32 concepts ([`CONCEPTS`](../../src/lib/engine/lexicon.ts)) are all nouns, so syntactic category can't do the engine's triage; **semantic field** is the analogous confusability axis and does the same work.
+**Homophony avoidance is real, statistical and selective.** [Wedel, Jackson & Kaplan (2013)](https://journals.sagepub.com/doi/abs/10.1177/0023830913489096) examined attested phoneme mergers across eight languages and found merger probability is inhibited by the number of minimal pairs a contrast distinguishes, and specifically by minimal pairs that **share a syntactic category** and have **similar frequency**. Homophones the grammar can't disambiguate are the ones a language fights to avoid. *Bear*/*bare* is cheap; two nouns for farmyard animals is expensive. The [1ENG.14](./1eng-14-syntax-conditioned-sound-change.md) substrate gives the engine word classes, so the category half of the finding is expressible directly; within a category, graded **semantic relatedness** carries the confusability axis (§3.1).
 
-**The classic repair is lexical replacement.** [Gilliéron's Gascon case](https://markstextterminal.com/2020/09/02/term-of-art-homonymic-clash/): Latin *cattus* 'cat' and *gallus* 'rooster' both regularly became *gat* precisely in the districts where *-ll-* → *-t-*, and exactly there the rooster word was replaced: *faisan* 'pheasant', *vicaire* 'curate', *pullus* derivatives. Two same-field words collided and one was re-lexified from semantic neighbours. [Dworkin's medieval Spanish case studies](https://www.semanticscholar.org/paper/Near-Homonymy,-Semantic-Overlap-and-Lexical-Loss-in-Dworkin/a7d42c42c49bcbbb3fd96908b4612afec73ae54e) document the same pattern. There is [scholarly scepticism](https://www.researchgate.net/publication/28079575_The_conflict_of_homonyms_does_it_exist) about homonymic clash as a general driver of change; Wedel's corpus statistics are the modern support for the avoidance pressure being real. Both go in the ledger (§6).
+**The classic repair is lexical replacement.** [Gilliéron's Gascon case](https://markstextterminal.com/2020/09/02/term-of-art-homonymic-clash/): Latin *cattus* 'cat' and *gallus* 'rooster' both regularly became *gat* precisely in the districts where *-ll-* → *-t-*, and exactly there the rooster word was replaced: *faisan* 'pheasant', *vicaire* 'curate', *pullus* derivatives. Two closely related words collided and one was re-lexified from semantic neighbours. [Dworkin's medieval Spanish case studies](https://www.semanticscholar.org/paper/Near-Homonymy,-Semantic-Overlap-and-Lexical-Loss-in-Dworkin/a7d42c42c49bcbbb3fd96908b4612afec73ae54e) document the same pattern. There is [scholarly scepticism](https://www.researchgate.net/publication/28079575_The_conflict_of_homonyms_does_it_exist) about homonymic clash as a general driver of change; Wedel's corpus statistics are the modern support for the avoidance pressure being real. Both go in the ledger (§6).
 
-**The systemic repair is compounding.** [Mandarin's phonological history](https://en.wikipedia.org/wiki/Historical_Chinese_phonology): erosion shrank the syllable inventory to roughly 1,200, homophony proliferated, and the lexicon responded with mass disyllabification; two-syllable compounds steadily replaced monosyllabic words until they became the majority word shape. English does the same at retail: *catfish*, *dogfish*, *wolffish* disambiguate within a field by prefixing a modifier. Compounding also feeds this engine's existing erosion/renewal cycle ([1ENG.11 spike](./1eng-11-erosion-renewal.md)): compounds are long, and long words are what erosion is for. Mandarin also grammaticalised a bleached suffix for the same job ([子 *-zi*](https://www.mandarinzest.com/blog/our-blog-1/why-do-chinese-people-add-zi-%E5%AD%90-to-words-2), 'child' → empty noun-suffix); that arm needs affix machinery the engine lacks until [1ENG.15](../roadmaps/mvp.md), so it is deferred with a named hook (§7).
+**The systemic repair is compounding.** [Mandarin's phonological history](https://en.wikipedia.org/wiki/Historical_Chinese_phonology): erosion shrank the syllable inventory to roughly 1,200, homophony proliferated, and the lexicon responded with mass disyllabification; two-syllable compounds steadily replaced monosyllabic words until they became the majority word shape. English does the same at retail: *catfish*, *dogfish*, *wolffish* disambiguate by prefixing a semantic neighbour as modifier. Compounding also feeds this engine's existing erosion/renewal cycle ([1ENG.11 spike](./1eng-11-erosion-renewal.md)): compounds are long, and long words are what erosion is for. Mandarin also grammaticalised a bleached suffix for the same job ([子 *-zi*](https://www.mandarinzest.com/blog/our-blog-1/why-do-chinese-people-add-zi-%E5%AD%90-to-words-2), 'child' → empty noun-suffix); that arm needs affix machinery the engine lacks until [1ENG.15](../roadmaps/mvp.md), so it is deferred with a named hook (§7).
 
 **Compound headedness is a per-language typological trait.** [German and Dutch are strongly right-headed](https://www.degruyter.com/document/doi/10.1515/lingvan-2018-0033/html) (modifier + head, the *catfish* shape), French and Arabic strongly left-headed (head + modifier: *timbre-poste*), English, Spanish and Italian mixed. So the engine seeds compound order per world at genesis, the same way [`genTemplate`](../../src/lib/engine/lexicon.ts) seeds syllable shape: one language family, one habit. Whether headedness couples to word order (the Greenbergian correlations, [Dryer 1992](https://www.acsu.buffalo.edu/~dryer/DryerGreenbergian.pdf)) is left for [1ENG.14](../roadmaps/mvp.md)'s syntax model to own; the correlation is noisy (English is VO yet compounds right-headed), so an independent parameter is defensible now.
 
@@ -62,58 +62,61 @@ Four claims underpin the mechanic; each was checked against sources (foot of doc
 
 Resolution has two entry paths sharing one repair toolkit. Drift-caused collisions resolve autonomously through a severity gate and a pressure counter. Player-caused collisions surface a choice at apply time. The engine picks on one path, the player on the other; the repairs themselves are identical.
 
-<a name="severity"><h3>3.1. Severity: the semantic-field gate</h3></a>
+<a name="severity"><h3>3.1. Severity: the class gate and the graded distance table</h3></a>
 
-A new data table groups the 32 concepts into six semantic fields:
+> [!NOTE]
+> **Revised.** The first version of this spike triaged collisions through six hand-drawn semantic fields. The critique pass judged that table brittle (categorical judgement calls carrying the whole repair economy), and once [1ENG.14](./1eng-14-syntax-conditioned-sound-change.md) added word classes, Wedel's finding became expressible literally. This section replaces the field model.
 
-| Field | Concepts |
-|-------|----------|
-| `landscape` | stone, hill, river, path, snow, water |
-| `flora` | tree, leaf, root, seed |
-| `fauna` | fish, bird, dog, wolf |
-| `body` | hand, eye, ear, tooth, bone, blood, skin, meat |
-| `sky` | sun, moon, star, sky, rain, wind, day, night |
-| `hearth` | house, fire |
+Severity is decided in two tiers:
 
-A collision is **severe** iff both concepts share a field. Severe collisions are the confusable ones (Wedel's same-category finding operationalised) and are the only ones the engine ever repairs. Cross-field collisions are **tolerated indefinitely** and surfaced as flavour: a branch where 'wind' and 'wolf' share a word is a real language doing a real thing, and the word table should say so rather than fix it.
+**Tier 1: the class gate.** A collision between concepts of different [`CONCEPT_CLASS`](./1eng-14-syntax-conditioned-sound-change.md) values (a *see*|*eye* homophone) is **tolerated indefinitely**: this is Wedel's actual finding, that syntax disambiguates cross-category minimal pairs, so a language keeps them cheaply. Tolerated collisions are surfaced as flavour in the word table.
 
-Under this grouping the census splits 22.4% severe / 77.6% tolerated, so the gate removes over three-quarters of the noise before the grace period sees it. The top colliding pairs sort cleanly: *sky|wind*, *path|stone* and *hill|path* trigger repair; *wind|wolf*, *house|wind* and *eye|water* become permanent character.
+**Tier 2: graded semantic relatedness.** Within a class, severity is a *score*, taken from a static data table: cosine relatedness of the pair in the [ConceptNet Numberbatch](https://github.com/commonsense/conceptnet-numberbatch) embeddings, precomputed for all 541 within-class pairs of the 48-concept substrate by [`2lex-1-semantic-distance-gen.ts`](./assets/2lex-1-semantic-distance-gen.ts) and shipped as [`2lex-1-semantic-distance.json`](./assets/2lex-1-semantic-distance.json). One constant divides the range:
+
+```
+SEVERITY_CUT = 0.2    // tuning constant; relatedness below this is tolerated indefinitely
+```
+
+Pairs scoring below the cut never repair; pairs above it repair on a clock that runs *faster the closer they are* (§3.2). The table's own top scorers are the pairs any speaker would refuse to conflate: *i|you* 0.62, *day|night* 0.56, *big|small* 0.56, *moon|sun* 0.52, *ear|eye* 0.48, *leaf|tree* 0.48. And the data overrules the old hand-drawn lines in both directions: *path|stone* (formerly same-field, maximally severe) scores 0.11 and is now tolerated, while *blood|water* (formerly cross-field, invisible) scores 0.26 and now repairs. Replacing judgement with measurement is the point of the revision.
+
+Re-running the census under this model (noun pairs only, since the census drives the current 32-noun engine; re-measure after 1ENG.19):
+
+| `SEVERITY_CUT` | Severe share | Repairs per 150-turn game | Chronic-severe caught |
+|---------------|-------------|---------------------------|----------------------|
+| 0.1 | 41.1% | 88.6 | 304 |
+| **0.2** | **13.2%** | **30.3** | **103** |
+| 0.3 | 3.6% | 9.0 | 25 |
+
+0.2 keeps the pacing of the original field model (roughly one repair per branch per five turns, the steady Mandarin current) while ranking every repair by measured confusability.
 
 <a name="pressure"><h3>3.2. Grace period: the pressure counter</h3></a>
 
 Severe collisions get a per-pair counter on the branch, mirroring [`assimilationPressure`](../../src/lib/engine/types.ts) exactly: increment each consecutive turn the pair still collides, reset (delete) the moment it heals, repair when it reaches the threshold.
 
 ```
-COLLISION_TURNS = 6    // tuning constant; consecutive colliding turns before autonomous repair
+COLLISION_TURNS = 6    // tuning constant; base grace period before autonomous repair
+
+threshold(pair) = max(2, round(COLLISION_TURNS × (1 − score(pair))))   // closer pairs repair sooner
 ```
 
-The threshold is set from the census: median heal time is 3 turns, so 6 lets the ordinary churn heal itself and touches only the stubborn tail. The sweep across candidate values, measured as autonomous repairs per 150-turn game:
-
-| `COLLISION_TURNS` | Repairs per game |
-|-------------------|------------------|
-| 4 | 55.8 |
-| 6 | **37.4** |
-| 8 | 27.1 |
-
-Every never-healing chronic pair is caught at any of these values. Roughly one repair per branch per five turns makes compounding a steady secondary current rather than a rare drama, which is the Mandarin profile: disambiguation as a continuous renewal force feeding erosion. Expect a playtest pass on this constant in 2LEX.2, as `BIAS_STRENGTH` got in 2GEO.2 and `BORROW_RATE` will get in 2GEO.5.
+The base is set from the census: median heal time is 3 turns, so 6 lets the ordinary churn heal itself and touches only the stubborn tail. The distance scaling then grades urgency by measured confusability: *moon|sun* (0.52) repairs after 3 colliding turns, *sky|wind* (0.29) after 4, a pair just over the cut waits the better part of the full 6. The floor of 2 keeps even the most catastrophic pair from repairing the turn it lands, preserving the tolerate-and-hope gamble (§3.6). The census sweep for this model is in §3.1; expect a playtest pass on both constants in 2LEX.2, as `BIAS_STRENGTH` got in 2GEO.2 and `BORROW_RATE` will get in 2GEO.5.
 
 The counter state lives on the branch (`collisionPressure: Record<string, number>`, key = sorted concept pair). Children inherit it at fracture: the community carried the ambiguity across the split. It clears on heal, on repair and for the player path on an apply-time repair.
 
 <a name="repair"><h3>3.3. Repair: who yields, and what they get instead</h3></a>
 
-**Who yields.** Wedel found similar-frequency pairs drive avoidance hardest; frequent words also keep short forms (Zipf). The engine has no frequency, but it has terrain salience, and salience is the same "importance to this community" quantity. The concept with the higher [`salienceRetention`](../../src/lib/engine/lexicon.ts) under the branch's [`dominantTerrain`](../../src/lib/engine/geography.ts) keeps the short form; the other yields and is compounded. Tie (both zero, or equal): the lower [`CONCEPTS`](../../src/lib/engine/lexicon.ts) index keeps. Mountain folk colliding *stone|path* keep *stone* short.
+**Who yields.** Wedel found similar-frequency pairs drive avoidance hardest; frequent words also keep short forms (Zipf). The engine has no frequency, but it has terrain salience, and salience is the same "importance to this community" quantity. The concept with the higher [`salienceRetention`](../../src/lib/engine/lexicon.ts) under the branch's [`dominantTerrain`](../../src/lib/engine/geography.ts) keeps the short form; the other yields and is compounded. Tie (both zero, or equal): the lower [`CONCEPTS`](../../src/lib/engine/lexicon.ts) index keeps. Mountain folk colliding *snow|rain* keep *snow* short.
 
 **The compound.** The yielding concept's new word is a modifier joined to its current form (the head):
 
-- **Modifier source:** a field-mate of the yielding concept, excluding both members of the colliding pair. This is the *catfish*/*dogfish*/*wolffish* pattern (and Swedish *flodhäst* 'river-horse'): disambiguate within the field, using the field. Zero new data beyond the field table itself.
-- **Ranking:** candidates are ordered by edit distance of their current form from the colliding form (most distinct first; maximum disambiguation per event), ties broken by lower `CONCEPTS` index. Autonomous repair always takes the top candidate; the player picks from the list (§3.6).
-- **Fallback:** if the field has no other member (the two-member `hearth` field colliding *house|fire*), the modifier comes from the branch's terrain-core concepts (`stone`-house for mountain folk, which is diegetically right), then as a last resort the lowest-index concept not in the pair.
+- **Modifier source and ranking:** same-class concepts ranked by semantic relatedness to the yielding concept (the distance table again), nearest first, excluding both members of the colliding pair; ties broken by lower `CONCEPTS` index. This is the *catfish*/*dogfish*/*wolffish* pattern (and Swedish *flodhäst* 'river-horse') stated properly: real disambiguating modifiers are semantic neighbours of the head. Autonomous repair always takes the top candidate; the player picks from the list (§3.6). Every class holds at least one candidate (the smallest, pronouns, has three members, so a colliding pair still leaves one).
+- **Fallback:** none needed beyond the ranking itself; the repair-made-collision guard below walks down the same list.
 - **Clipping:** the modifier contributes only its initial segments up to and including its first vowel, in practice ≤3 segments since onsets never exceed two consonants, echoing how real compound members reduce. The head is untouched; recognisability lives there.
 - **Repair-made collisions:** if the compound form itself collides with a third word, try the next-ranked modifier; if every candidate collides, take the top one anyway and log it. Bounded, deterministic.
 
 A compound may transiently exceed `MAX_LEN` (worst case 3 + 12 = 15 segments). This is deliberate and safe: the [`applyRuleToWord`](../../src/lib/engine/phonology.ts) ceiling only blocks *growth* (`out.length > MAX_LEN && out.length > ids.length`), so erosion rules keep firing on an oversized compound and grind it down. Compound then erode is exactly the Mandarin sequence.
 
-**History.** A repair appends `{ name: "Disambiguation", note: "'path' → stonepath (collided with 'stone')" }` with no `drift` flag, the same reasoning 2GEO.4 applied to borrows: lexical replacement is change, but it is not sound change, so it stays out of the drift accounting.
+**History.** A repair appends `{ name: "Disambiguation", note: "'moon' → skymoon (collided with 'sun')" }` with no `drift` flag, the same reasoning 2GEO.4 applied to borrows: lexical replacement is change, but it is not sound change, so it stays out of the drift accounting.
 
 <a name="order"><h3>3.4. Compound order: a per-world typological trait</h3></a>
 
@@ -136,9 +139,9 @@ This arm is **conditional on 2GEO.5 having shipped**. 2GEO.5 sits above 2LEX.2 i
 When the player applies a rule whose result creates one or more **new severe** pairs (computed by diffing severe pairs before/after, the same comparison [`collDelta`](../../src/lib/game.svelte.ts) already prices), the apply completes as normal and a repair prompt surfaces per new pair:
 
 - **Repair now:** costs `changeCost` again (a second lexical intervention, priced like one), no second overhead (the branch is already touched this turn). The player picks the modifier from the ranked candidate list (§3.3); order and clipping follow the world's trait. Pool-gated: if `pool < changeCost` the option is disabled and only tolerate remains.
-- **Tolerate:** free, no immediate effect. The pair enters the standard pressure clock (§3.2), and if it survives `COLLISION_TURNS` turns the engine repairs it autonomously with the top-ranked modifier. Tolerating is a real gamble on the 87% heal rate, with the stake being who chooses the word.
+- **Tolerate:** free, no immediate effect. The pair enters the standard pressure clock (§3.2), and if it survives its distance-scaled threshold the engine repairs it autonomously with the top-ranked modifier. Tolerating is a real gamble on the 87% heal rate, with the stake being who chooses the word, and the odds worse the closer the pair.
 
-Drift-caused collisions never prompt; the player learns of them from the log and the word table, and may only watch the clock run. Cross-field collisions never prompt anyone; they are the tolerated texture of the language.
+Drift-caused collisions never prompt; the player learns of them from the log and the word table, and may only watch the clock run. Cross-class and sub-cut collisions never prompt anyone; they are the tolerated texture of the language.
 
 ---
 
@@ -170,30 +173,30 @@ The step never mints or removes a branch and never touches territory; it edits `
 
 Everything is a pure function of already-seeded state. Autonomous repairs introduce **no new randomness at all** (deterministic argmin/argmax selection; the only nondeterminism anywhere in the mechanic is the player's own choice), so seeded replay is preserved by construction.
 
-**New — `src/lib/engine/lexicon.ts`** (beside the salience tables it mirrors)
-
-```ts
-export type SemanticField = "landscape" | "flora" | "fauna" | "body" | "sky" | "hearth";
-export const SEMANTIC_FIELDS: Record<SemanticField, string[]>;   // table in §3.1
-export function fieldOf(concept: string): SemanticField;          // total over CONCEPTS
-```
+**New data — `src/lib/engine/semantic-distance.json`**: the 541-pair table from [`docs/spikes/assets/2lex-1-semantic-distance.json`](./assets/2lex-1-semantic-distance.json), copied verbatim (Vite imports JSON natively). Regenerate only via the committed generator script; never hand-edit.
 
 **New — `src/lib/engine/collision.ts`** (new module, keeping `generation.ts` imports flat, as `borrowing.ts` does for 2GEO.5)
 
 ```ts
-export const COLLISION_TURNS = 6;   // consecutive colliding turns before autonomous repair
+export const COLLISION_TURNS = 6;   // base grace period before autonomous repair
+export const SEVERITY_CUT = 0.2;    // relatedness floor; below it a pair is tolerated forever
 
-// colliding same-field concept pairs, each sorted, list sorted; the severity gate.
+// relatedness score for a sorted pair; 0 for cross-class pairs (never in the table)
+export function pairScore(a: string, b: string): number;
+
+// distance-scaled grace period: max(2, round(COLLISION_TURNS * (1 - score)))
+export function pairThreshold(a: string, b: string): number;
+
+// colliding same-class pairs scoring >= SEVERITY_CUT, each sorted, list sorted.
 export function severePairs(lex: Lexicon): [string, string][];
 
 // which of the pair yields (is compounded): lower salienceRetention under `terrain`;
 // tie -> higher CONCEPTS index yields (lower index keeps the short form).
 export function yieldingConcept(pair: [string, string], terrain: Terrain): string;
 
-// ranked modifier candidates for the yielding concept: field-mates excluding the pair,
-// ordered by edit distance of their current form from the colliding form (desc), ties
-// by CONCEPTS index; falls back to terrain-core concepts, then lowest-index non-pair.
-export function modifierCandidates(yielding: string, pair: [string, string], lex: Lexicon, terrain: Terrain): string[];
+// ranked modifier candidates: same-class concepts by relatedness to `yielding` (nearest
+// first, distance table), excluding both pair members; ties by CONCEPTS index.
+export function modifierCandidates(yielding: string, pair: [string, string]): string[];
 
 // join modifier (clipped to its first-vowel prefix, <=3 segs) and head per the world
 // trait. Never returns a vowelless word (head keeps its vowels); may exceed MAX_LEN
@@ -218,9 +221,9 @@ export interface Branch { /* + */ collisionPressure: Record<string, number> }
 
 **Changed — `src/lib/engine/world.ts`**: seed `compoundOrder` in world genesis (one `rng()` draw, position documented so replay goldens can pin it); initialise `collisionPressure: {}` on the root branch.
 
-**Changed — `src/lib/engine/generation.ts`**: new step 1.5 per §4 (tick counters against `severePairs`, delete healed keys, repair at threshold via `resolveCollision`, log `"X disambiguated 'path' as 'stonepath'"`); fracture birth copies `collisionPressure` to children.
+**Changed — `src/lib/engine/generation.ts`**: new step 1.5 per §4 (tick counters against `severePairs`, delete healed keys, repair at each pair's `pairThreshold` via `resolveCollision`, log `"X disambiguated 'sun' as 'skysun'"`); fracture birth copies `collisionPressure` to children.
 
-**Changed — `src/lib/game.svelte.ts`**: `apply()` diffs `severePairs` before/after; new pending-repair state (queue of new severe pairs with their `modifierCandidates`), `repairCollision(modifier)` (costs `changeCost`, pool-gated, clears the pair's pressure) and `tolerateCollision()` (no-op dismiss). Word-table derived state distinguishes severe (warning styling + pressure count) from tolerated cross-field homophones (neutral badge); [2UI.1](../roadmaps/mvp.md) audits the presentation.
+**Changed — `src/lib/game.svelte.ts`**: `apply()` diffs `severePairs` before/after; new pending-repair state (queue of new severe pairs with their `modifierCandidates`), `repairCollision(modifier)` (costs `changeCost`, pool-gated, clears the pair's pressure) and `tolerateCollision()` (no-op dismiss). Word-table derived state distinguishes severe (warning styling + pressure count against its threshold) from tolerated homophones (neutral badge); [2UI.1](../roadmaps/mvp.md) audits the presentation.
 
 ⚠️ Breaking change: `World` and `Branch` gain required fields, so every constructor site must add them (`world.ts`, the fracture birth in `generation.ts`, test fixtures). Flag `feat(engine)!:` or a `BREAKING CHANGE:` footer on the 2LEX.2 commit, as 1ENG.18's `assimilationPressure` should have been flagged.
 
@@ -228,14 +231,15 @@ export interface Branch { /* + */ collisionPressure: Record<string, number> }
 
 **Testing (2LEX.2, per repo convention `module.test.ts` + `tests/fixtures/`):**
 
-- `fieldOf`: total over all 32 concepts, each in exactly one field.
-- `severePairs`: same-field pairs detected, cross-field excluded, three-way collisions decompose into sorted pairs, output order stable.
-- `yieldingConcept`: salience decides (mountain *stone|path* → *path* yields); zero-zero tie → higher index yields.
-- `modifierCandidates`: excludes both pair members; ranking by form distance with index tie-break; `hearth` exhaustion falls back to terrain-core; fallback-of-last-resort covered.
+- Distance table: 541 entries, every within-class pair present, no cross-class key; pinned spot values (*i|you* 0.6167, *moon|sun* 0.5167) guard against silent regeneration drift.
+- `severePairs`: cross-class pairs excluded; sub-cut pairs excluded; three-way collisions decompose into sorted pairs; output order stable.
+- `pairThreshold`: floor of 2 respected; *moon|sun* → 3; a just-over-cut pair → 5.
+- `yieldingConcept`: salience decides (mountain *snow|rain* → *rain* yields); zero-zero tie → higher index yields.
+- `modifierCandidates`: excludes both pair members; nearest-by-relatedness order with index tie-break; pronoun class (smallest) still yields a candidate.
 - `compoundWord`: clip ≤ first vowel; both orders; result keeps head intact; oversized compound (15 segs) still accepts erosion rules (regression on the growth-only ceiling).
 - `resolveCollision`: determinism (same inputs → same output); repair-made collision steps to next candidate; all-colliding fallback.
 - Pressure lifecycle: ticks only while colliding; heal deletes the key; repair deletes the key; fracture children inherit the parent's counters.
-- Integration: census-style run (150 turns, several seeds) with the mechanic active shows zero same-field chronic pairs at horizon while cross-field homophones persist untouched; a lone-branch world runs step 1.5 without error.
+- Integration: census-style run (150 turns, several seeds) with the mechanic active shows zero severe (score ≥ cut) chronic pairs at horizon while tolerated homophones persist untouched; a lone-branch world runs step 1.5 without error.
 - Determinism: full-game replay on a fixed seed is byte-identical, pinning the new world-gen `rng()` draw position.
 
 ---
@@ -245,25 +249,26 @@ export interface Branch { /* + */ collisionPressure: Record<string, number> }
 | Mechanic | Status | Note |
 |----------|--------|------|
 | Avoidance targets same-category, similar-frequency pairs | **real, quantified** | Wedel et al. 2013, eight-language merger corpus |
-| Semantic field as the confusability axis | **proxy, flagged** | the real finding is syntactic category; an all-noun lexicon has none, so field stands in |
+| Cross-class collisions tolerated | **real** | Wedel's same-category finding applied literally, via the 1ENG.14 class table |
+| Distributional relatedness as the confusability score | **proxy, flagged** | the real axis is contextual confusability; Numberbatch cosine relatedness stands in, with provenance in the committed generator |
 | Homonymic clash repaired by replacement | **real, classically attested; contested as a general driver** | Gilliéron's *gat*; the sceptical literature is noted, Wedel supplies the statistical backbone |
 | Compounding as systemic homophony response | **real** | Mandarin disyllabification; *catfish* at retail |
 | Salience as the frequency proxy for who keeps the short form | **proxy, flagged** | real axis is usage frequency (Zipf); salience is the engine's importance variable |
 | Per-world compound headedness | **real** | German right-headed, French left-headed; seeded 50/50 as a free parameter |
-| Modifier from field-mates, distance-ranked | **abstraction** | real modifier choice is semantic and idiosyncratic; distance-ranking is a legible deterministic stand-in |
+| Modifier as nearest semantic neighbour | **abstraction** | real modifier choice is semantic and idiosyncratic; nearest-by-relatedness is the legible deterministic version of it |
 | Grace period before repair | **real in spirit** | real repairs take generations; the census-tuned clock (6 turns) is a game-scale abstraction |
-| `COLLISION_TURNS`, clip length, 50/50 order seed | **first-pass tuning** | expect a playtest pass in 2LEX.2 |
+| `COLLISION_TURNS`, `SEVERITY_CUT`, clip length, 50/50 order seed | **first-pass tuning** | expect a playtest pass in 2LEX.2 |
 
 ---
 
 <a name="deferred"><h2>7. Out of scope (surveyed, deferred)</h2></a>
 
 - **Bleached-suffix disambiguation (the *-zi* arm).** Mandarin's other repair: a grammaticalised empty suffix (子 'child' → noun-forming *-zi*) that disyllabifies without semantic content. Needs affix machinery; [1ENG.15](../roadmaps/mvp.md)'s inflectional-paradigm model is the prerequisite. When 1ENG.15 lands, this becomes a third repair strategy behind the same `resolveCollision` interface, and the two spikes should cross-reference.
-- **Coordinate near-synonym compounds.** Mandarin 道路 'way-road': two near-synonyms compounded. Needs synonym storage the `LexEntry` model lacks; the same doublet limitation 2GEO.4 §7 deferred. One roadmap line should eventually lift both.
+- **Coordinate near-synonym compounds.** Mandarin 道路 'way-road': two near-synonyms compounded. Needs synonym storage the `LexEntry` model lacks; the same doublet limitation 2GEO.4 §7 deferred. The multi-form lexical-entry spike (roadmap 2LEX.3) is the line that lifts both.
 - **Headedness drift and word-order coupling.** Compound order flipping over a branch's history, or keying off a word-order parameter via the Greenbergian correlations, belongs to [1ENG.14](../roadmaps/mvp.md)'s syntax model. The per-world constant is the honest MVP.
 - **Semantic shift as repair.** Real languages sometimes resolve a clash by letting one meaning migrate ('corn' narrowing per region) rather than re-forming the word. The engine's fixed concept list has no meaning space to migrate in; noted as beyond the current model, not worth a roadmap line yet.
 - **Reduplication.** Attested widely as word formation, but not specifically as a homophone repair in the sources surveyed; excluded rather than speculated on.
-- **Narrative surfacing of tolerated homophones.** A log line when a cross-field pair becomes chronic ("in Kasti, 'wind' and 'wolf' are one word") would be cheap flavour; left to 2UI.1's audit rather than specced here.
+- **Narrative surfacing of tolerated homophones.** A log line when a tolerated pair becomes chronic ("in Kasti, 'wind' and 'wolf' are one word") would be cheap flavour; left to 2UI.1's audit rather than specced here.
 
 ---
 
@@ -272,6 +277,9 @@ export interface Branch { /* + */ collisionPressure: Record<string, number> }
 Functional load and homophony avoidance:
 - Wedel, Jackson & Kaplan (2013), *Functional Load and the Lexicon* — <https://journals.sagepub.com/doi/abs/10.1177/0023830913489096>
 - Wedel, Kaplan & Jackson (2013), *High functional load inhibits phonological contrast loss: a corpus study* — <https://www.researchgate.net/publication/236919624_High_functional_load_inhibits_phonological_contrast_loss_A_corpus_study>
+
+Semantic-distance table provenance:
+- ConceptNet Numberbatch 19.08 (English) — <https://github.com/commonsense/conceptnet-numberbatch>; generation pipeline committed at [`assets/2lex-1-semantic-distance-gen.ts`](./assets/2lex-1-semantic-distance-gen.ts)
 
 Homonymic clash and therapeutic replacement:
 - Gilliéron's *gat* case, homonymic clash — <https://markstextterminal.com/2020/09/02/term-of-art-homonymic-clash/> · <https://www.oxfordreference.com/view/10.1093/acref/9780199675128.001.0001/acref-9780199675128-e-1502>
