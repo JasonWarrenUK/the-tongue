@@ -132,14 +132,14 @@
 					},
 					{
 						"id": "1ENG.15",
-						"description": "Design spike: morphological renewal (agreement/tense) — noun-verb agreement and grammatical tense marking are a major real-world source of the vocabulary/sound variety that keeps a language's phonology alive (paradigms, inflectional affixes); named but explicitly out-of-scope in the 1ENG.11 spike (§8) as belonging with 2GEO.4/borrowing. Needs a spike to define a minimal inflectional-paradigm model before implementation",
-						"status": "todo",
+						"description": "Design spike: morphological renewal (agreement/tense) — specified a per-branch inflectional paradigm running the twice-attested synthetic/analytical cycle (Latin cantabo → cantare habeo → chanterai → aller + infinitive): past tense (source: `finish`, amending the substrate to 48 concepts) and 1sg/2/1pl agreement (sources: the pronouns), affixes born as clips of the source words' current per-branch forms (sibling branches mint cognate but distinct inflections), placed per word order + the suffixing preference, eroding on a seeded segment-shedding clock scaled by 1ENG.14's position heat (~30-turn full cycle at SOV verb heat) and renewing periphrastically on death. Exports the collapsed-agreement state 1ENG.14's rigidification driver reads. Build-ready contract for 1ENG.20 (`docs/spikes/1eng-15-morphological-renewal.md`)",
+						"status": "done",
 						"dependsOn": []
 					},
 					{
 						"id": "1ENG.16",
 						"description": "Research spike: survey Zompist conlang tools ([SCA](https://www.zompist.com/sca2.html), [Gen](https://www.zompist.com/gen.html), [Phono](https://www.zompist.com/phono.html), [GGG](https://www.zompist.com/ggg.html), [GTG](https://www.zompist.com/gtg.html), [MG](https://www.zompist.com/mg.html)) for mechanisms and approaches applicable to our own engine — sound-change rule notation and batch application (SCA), procedural word/name generation (Gen), phonology description conventions (Phono), and general conlanging methodology (GGG, GTG, MG); produce a build-ready contract for 1ENG.17 identifying which findings are worth adopting",
-						"status": "blocked",
+						"status": "todo",
 						"dependsOn": [
 							"1ENG.13",
 							"1ENG.14",
@@ -156,11 +156,30 @@
 					},
 					{
 						"id": "1ENG.19",
-						"description": "Implement the 1ENG.14 substrate and conditioning (stage A) — `CONCEPTS` 32→47 with `CONCEPT_CLASS`, the class-pure `SEMANTIC_FIELDS` extension, new `syntax.ts` (`FRAMES`, `frameOrder`, `positionProfile`, `followerVowelShare`, `syntaxMult`, `SYNTAX_STRENGTH`), `Branch.wordOrder` seeded and inherited (no drift yet), the `applyRuleToLex` syntax gate at both drift call sites and `PhrasePanel.svelte`. Breaking: required `Branch.wordOrder`, `CONCEPTS` growth shifts goldens — contract specified in the 1ENG.14 spike; sequenced after 2LEX.2 so the semantic-fields table isn't extended against a moving target",
+						"description": "Implement the 1ENG.14 substrate and conditioning (stage A) — `CONCEPTS` 32→48 (incl. the `finish` amendment from the 1ENG.15 spike) with `CONCEPT_CLASS`, the class-pure `SEMANTIC_FIELDS` extension, new `syntax.ts` (`FRAMES`, `frameOrder`, `positionProfile`, `followerVowelShare`, `syntaxMult`, `SYNTAX_STRENGTH`), `Branch.wordOrder` seeded and inherited (no drift yet), the `applyRuleToLex` syntax gate at both drift call sites and `PhrasePanel.svelte`. Breaking: required `Branch.wordOrder`, `CONCEPTS` growth shifts goldens — contract specified in the 1ENG.14 spike; sequenced after 2LEX.2 so the semantic-fields table isn't extended against a moving target",
 						"status": "blocked",
 						"dependsOn": [
 							"1ENG.14",
 							"2LEX.2"
+						]
+					},
+					{
+						"id": "1ENG.20",
+						"description": "Implement the 1ENG.15 paradigm model — new `morphology.ts` (`seedParadigm`, `tickParadigm`, `inflect`, `PATHWAY`, `AFFIX_EROSION_RATE`/`RENEWAL_TURNS`/`FUSE_TURNS`), `Branch.paradigm` (breaking: required field), the paradigm tick inside drift (step 1), genesis seeding in `world.ts`, fracture deep-copy inheritance and the PhrasePanel/paradigm-chip rendering — contract specified in the 1ENG.15 spike",
+						"status": "blocked",
+						"dependsOn": [
+							"1ENG.15",
+							"1ENG.19"
+						]
+					},
+					{
+						"id": "1ENG.21",
+						"description": "Implement 1ENG.14 stage B: per-branch word-order drift — new turn-loop step 3.75 with the morphological-collapse rigidification driver (reads 1ENG.20's paradigm state; `ORDER_TURNS` pressure clock) and the intense-contact alignment driver (reads 2GEO.5's `pairContact`; `ORDER_CONTACT_CUT`), `Branch.orderPressure`/`orderContactPressure` and UI warnings mirroring fracture/assimilation — contract specified in the 1ENG.14 spike",
+						"status": "blocked",
+						"dependsOn": [
+							"1ENG.19",
+							"1ENG.20",
+							"2GEO.5"
 						]
 					}
 				]

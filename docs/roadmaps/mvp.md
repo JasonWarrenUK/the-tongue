@@ -33,10 +33,12 @@ A seeded, deterministic language-evolution simulator: sound-change rules drift a
 - [x] **1UI.4** — Main route wiring all components together (`+page.svelte`)
 - [x] **1ENG.13** — Compensatory lengthening — split into `compleng` (medial coda in a cluster, `V _ C`, e.g. kast→kaːt) and `complengFinal` (word-final coda, `V _ #`, e.g. tas→taː), mirroring the epenth/paragoge medial/final split; both fire on the coda and use a new `Rule.lengthensPrev` flag so `applyRuleToWord` reaches back and lengthens the vowel it already emitted — the 1ENG.11 spike §8 claim that `Seg[]` already supported this was inaccurate (corrected in the spike doc)
 - [x] **1ENG.14** — Design spike: syntax-conditioned sound change — defined the grammar substrate: `CONCEPTS` grows 32→47 (appended: 8 verbs, 3 pronouns, 4 adjectives) with a `CONCEPT_CLASS` table and class-pure `SEMANTIC_FIELDS` extension, four phrase frames ordered by per-branch `WordOrder` parameters (basic SOV/SVO/VSO + AdjN/NAdj; genitive derived per Greenberg), deterministic per-class position profiles, position-scaled boundary rules (`SYNTAX_STRENGTH` multiplier via the salience-gate pattern) and a liaison-protection statistic (final consonants resist deletion before typically vowel-initial followers). Per-branch word-order drift via two verified drivers: morphological-collapse rigidification to SVO (causal direction confirmed by a 2025 entropy study) and intense-contact alignment (the Ethio-Semitic pattern). Staged contract: 1ENG.19 (substrate + conditioning), 1ENG.21 (order drift, gated on 2GEO.5 and 1ENG.20) (`docs/spikes/1eng-14-syntax-conditioned-sound-change.md`)
-- [ ] **1ENG.15** — Design spike: morphological renewal (agreement/tense) — noun-verb agreement and grammatical tense marking are a major real-world source of the vocabulary/sound variety that keeps a language's phonology alive (paradigms, inflectional affixes); named but explicitly out-of-scope in the 1ENG.11 spike (§8) as belonging with 2GEO.4/borrowing. Needs a spike to define a minimal inflectional-paradigm model before implementation
-- [ ] **1ENG.16** — Research spike: survey Zompist conlang tools ([SCA](https://www.zompist.com/sca2.html), [Gen](https://www.zompist.com/gen.html), [Phono](https://www.zompist.com/phono.html), [GGG](https://www.zompist.com/ggg.html), [GTG](https://www.zompist.com/gtg.html), [MG](https://www.zompist.com/mg.html)) for mechanisms and approaches applicable to our own engine — sound-change rule notation and batch application (SCA), procedural word/name generation (Gen), phonology description conventions (Phono), and general conlanging methodology (GGG, GTG, MG); produce a build-ready contract for 1ENG.17 identifying which findings are worth adopting _(blocked — depends on 1ENG.13, 1ENG.14, 1ENG.15)_
+- [x] **1ENG.15** — Design spike: morphological renewal (agreement/tense) — specified a per-branch inflectional paradigm running the twice-attested synthetic/analytical cycle (Latin cantabo → cantare habeo → chanterai → aller + infinitive): past tense (source: `finish`, amending the substrate to 48 concepts) and 1sg/2/1pl agreement (sources: the pronouns), affixes born as clips of the source words' current per-branch forms (sibling branches mint cognate but distinct inflections), placed per word order + the suffixing preference, eroding on a seeded segment-shedding clock scaled by 1ENG.14's position heat (~30-turn full cycle at SOV verb heat) and renewing periphrastically on death. Exports the collapsed-agreement state 1ENG.14's rigidification driver reads. Build-ready contract for 1ENG.20 (`docs/spikes/1eng-15-morphological-renewal.md`)
+- [ ] **1ENG.16** — Research spike: survey Zompist conlang tools ([SCA](https://www.zompist.com/sca2.html), [Gen](https://www.zompist.com/gen.html), [Phono](https://www.zompist.com/phono.html), [GGG](https://www.zompist.com/ggg.html), [GTG](https://www.zompist.com/gtg.html), [MG](https://www.zompist.com/mg.html)) for mechanisms and approaches applicable to our own engine — sound-change rule notation and batch application (SCA), procedural word/name generation (Gen), phonology description conventions (Phono), and general conlanging methodology (GGG, GTG, MG); produce a build-ready contract for 1ENG.17 identifying which findings are worth adopting _(depends on 1ENG.13, 1ENG.14, 1ENG.15)_
 - [ ] **1ENG.17** — Implement chosen improvements from the Zompist tools survey *(placeholder — depends on 1ENG.16)* _(blocked — depends on 1ENG.16)_
-- [ ] **1ENG.19** — Implement the 1ENG.14 substrate and conditioning (stage A) — `CONCEPTS` 32→47 with `CONCEPT_CLASS`, the class-pure `SEMANTIC_FIELDS` extension, new `syntax.ts` (`FRAMES`, `frameOrder`, `positionProfile`, `followerVowelShare`, `syntaxMult`, `SYNTAX_STRENGTH`), `Branch.wordOrder` seeded and inherited (no drift yet), the `applyRuleToLex` syntax gate at both drift call sites and `PhrasePanel.svelte`. Breaking: required `Branch.wordOrder`, `CONCEPTS` growth shifts goldens — contract specified in the 1ENG.14 spike; sequenced after 2LEX.2 so the semantic-fields table isn't extended against a moving target _(blocked — depends on 1ENG.14, 2LEX.2)_
+- [ ] **1ENG.19** — Implement the 1ENG.14 substrate and conditioning (stage A) — `CONCEPTS` 32→48 (incl. the `finish` amendment from the 1ENG.15 spike) with `CONCEPT_CLASS`, the class-pure `SEMANTIC_FIELDS` extension, new `syntax.ts` (`FRAMES`, `frameOrder`, `positionProfile`, `followerVowelShare`, `syntaxMult`, `SYNTAX_STRENGTH`), `Branch.wordOrder` seeded and inherited (no drift yet), the `applyRuleToLex` syntax gate at both drift call sites and `PhrasePanel.svelte`. Breaking: required `Branch.wordOrder`, `CONCEPTS` growth shifts goldens — contract specified in the 1ENG.14 spike; sequenced after 2LEX.2 so the semantic-fields table isn't extended against a moving target _(blocked — depends on 1ENG.14, 2LEX.2)_
+- [ ] **1ENG.20** — Implement the 1ENG.15 paradigm model — new `morphology.ts` (`seedParadigm`, `tickParadigm`, `inflect`, `PATHWAY`, `AFFIX_EROSION_RATE`/`RENEWAL_TURNS`/`FUSE_TURNS`), `Branch.paradigm` (breaking: required field), the paradigm tick inside drift (step 1), genesis seeding in `world.ts`, fracture deep-copy inheritance and the PhrasePanel/paradigm-chip rendering — contract specified in the 1ENG.15 spike _(blocked — depends on 1ENG.15, 1ENG.19)_
+- [ ] **1ENG.21** — Implement 1ENG.14 stage B: per-branch word-order drift — new turn-loop step 3.75 with the morphological-collapse rigidification driver (reads 1ENG.20's paradigm state; `ORDER_TURNS` pressure clock) and the intense-contact alignment driver (reads 2GEO.5's `pairContact`; `ORDER_CONTACT_CUT`), `Branch.orderPressure`/`orderContactPressure` and UI warnings mirroring fracture/assimilation — contract specified in the 1ENG.14 spike _(blocked — depends on 1ENG.19, 1ENG.20, 2GEO.5)_
 
 ---
 
@@ -111,6 +113,8 @@ graph LR
 	1ENG.16["1ENG.16: Research spike: survey Zompist conlang…"]
 	1ENG.17["1ENG.17: Implement chosen improvements from the…"]
 	1ENG.19["1ENG.19: Implement the 1ENG.14 substrate and co…"]
+	1ENG.20["1ENG.20: Implement the 1ENG.15 paradigm model —…"]
+	1ENG.21["1ENG.21: Implement 1ENG.14 stage B: per-branch…"]
 	2GEO.1["2GEO.1: Design spike: terrain→sound-change bias…"]
 	2GEO.2["2GEO.2: Implement terrain-biased rule weighting…"]
 	2GEO.3["2GEO.3: Implement biome-driven vocabulary resis…"]
@@ -137,6 +141,11 @@ graph LR
 	1ENG.16 --> 1ENG.17
 	1ENG.14 --> 1ENG.19
 	2LEX.2 --> 1ENG.19
+	1ENG.15 --> 1ENG.20
+	1ENG.19 --> 1ENG.20
+	1ENG.19 --> 1ENG.21
+	1ENG.20 --> 1ENG.21
+	2GEO.5 --> 1ENG.21
 	2GEO.1 --> 2GEO.2
 	2GEO.1 --> 2GEO.3
 	2GEO.2 --> 2GEO.4
@@ -161,8 +170,8 @@ graph LR
 	1ENG.12 --> M1
 	1ENG.17 --> M1
 	1ENG.18 --> M1
-	1ENG.19 --> M1
 	1ENG.2 --> M1
+	1ENG.21 --> M1
 	1ENG.3 --> M1
 	1ENG.4 --> M1
 	1ENG.5 --> M1
@@ -175,9 +184,9 @@ graph LR
 	1UI.4 --> M1
 	2UI.2 --> M2
 	3SHR.1 --> M3
-	class 1ENG.15,2GEO.5,3PER.1 todo
-	class 1ENG.16,1ENG.17,1ENG.19,2GLY.1,2GLY.2,2GLY.3,2GLY.4,2LEX.2,2STK.1,2STK.2,2UI.1,2UI.2,3SHR.1 blocked
-	class 1ENG.1,1ENG.10,1ENG.11,1ENG.12,1ENG.13,1ENG.14,1ENG.18,1ENG.2,1ENG.3,1ENG.4,1ENG.5,1ENG.6,1ENG.7,1ENG.8,1ENG.9,1UI.1,1UI.2,1UI.3,1UI.4,2GEO.1,2GEO.2,2GEO.3,2GEO.4,2LEX.1 done
+	class 1ENG.16,2GEO.5,3PER.1 todo
+	class 1ENG.17,1ENG.19,1ENG.20,1ENG.21,2GLY.1,2GLY.2,2GLY.3,2GLY.4,2LEX.2,2STK.1,2STK.2,2UI.1,2UI.2,3SHR.1 blocked
+	class 1ENG.1,1ENG.10,1ENG.11,1ENG.12,1ENG.13,1ENG.14,1ENG.15,1ENG.18,1ENG.2,1ENG.3,1ENG.4,1ENG.5,1ENG.6,1ENG.7,1ENG.8,1ENG.9,1UI.1,1UI.2,1UI.3,1UI.4,2GEO.1,2GEO.2,2GEO.3,2GEO.4,2LEX.1 done
 ```
 
 ---

@@ -1,6 +1,6 @@
 # The Tongue MVP: Roadmap Overview
 
-**40 tasks across 3 milestones.** Files: `.claude/roadmaps.json` (machine-readable), `docs/roadmaps/mvp.md` (full task list with Mermaid dependency diagram).
+**42 tasks across 3 milestones.** Files: `.claude/roadmaps.json` (machine-readable), `docs/roadmaps/mvp.md` (full task list with Mermaid dependency diagram).
 
 > Migrated from the old simple-format `docs/roadmaps/mvp.md` via `roadmap-migrate`. This overview is a stub synthesised from the milestone goals in the source document; the narrative sections below need fleshing out with the actual reasoning behind the phase structure.
 
