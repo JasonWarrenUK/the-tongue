@@ -174,6 +174,30 @@ export function applyRuleToWord(ids: string[], rule: Rule): { ids: string[]; cha
   if (out.length > MAX_LEN && out.length > ids.length) return { ids, changed: false };               // ceiling
   return { ids: out, changed };
 }
+
+// 2GEO.4/2GEO.5 — one leftmost edit from `a` toward `b`: substitute the first
+// differing segment; if `a` is a prefix of `b`, append b's next segment; if `a` is
+// longer, delete `a`'s first surplus segment. Deterministic (no RNG), and one call
+// strictly raises formSimilarity(a,b) unless already equal. Respects the same word
+// invariants applyRuleToWord enforces: never deletes the word's last remaining vowel,
+// never grows past MAX_LEN (2geo-4 spike §3.4).
+export function stepToward(a: string[], b: string[]): string[] {
+  const n = Math.min(a.length, b.length);
+  let i = 0;
+  while (i < n && a[i] === b[i]) i++;
+  if (i < n) { const out = [...a]; out[i] = b[i]; return out; } // substitute first divergence
+  if (a.length < b.length) { // a is a prefix of b: append its next segment
+    if (a.length >= MAX_LEN) return a;
+    return [...a, b[a.length]];
+  }
+  if (a.length > b.length) { // a overruns b: delete the first surplus segment
+    const cut = b.length;
+    const remaining = a.filter((_, idx) => idx !== cut);
+    if (!remaining.some((id) => BY_ID[id].type === "V")) return a; // would empty the vowel floor
+    return remaining;
+  }
+  return a; // identical
+}
 // 2GEO.3 Axis B — physical terrain sets per-concept salience (2geo-1 spike §4).
 // Optional context: when supplied, a word that would change is scaled by
 // (1 - salienceRetention(concept, terrain)) via a deterministic per-word roll,

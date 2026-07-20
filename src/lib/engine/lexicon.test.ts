@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { CONCEPTS, salienceRetention } from "./lexicon";
+import { CONCEPTS, salienceRetention, borrowableConcepts } from "./lexicon";
 import type { Terrain } from "./types";
 
 const TERRAINS: Terrain[] = ["plain", "hill", "mountain", "water"];
@@ -43,5 +43,34 @@ describe("salienceRetention", () => {
         expect(r).toBeLessThan(1);
       }
     }
+  });
+});
+
+describe("borrowableConcepts", () => {
+  test("water terrain includes fish, river, water", () => {
+    const b = borrowableConcepts("water");
+    expect(b).toContain("fish");
+    expect(b).toContain("river");
+    expect(b).toContain("water");
+  });
+
+  test("environment-neutral basics are excluded under every terrain", () => {
+    const basics = ["eye", "tooth", "sun", "ear", "hand"];
+    for (const terrain of TERRAINS) {
+      const b = borrowableConcepts(terrain);
+      for (const concept of basics) expect(b).not.toContain(concept);
+    }
+  });
+
+  test("every returned concept has non-zero salience retention on that terrain", () => {
+    for (const terrain of TERRAINS) {
+      for (const concept of borrowableConcepts(terrain)) {
+        expect(salienceRetention(concept, terrain)).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  test("hill mirrors mountain (same salience source)", () => {
+    expect(borrowableConcepts("hill").sort()).toEqual(borrowableConcepts("mountain").sort());
   });
 });
