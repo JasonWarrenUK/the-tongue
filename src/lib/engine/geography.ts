@@ -110,6 +110,30 @@ export function neighborsOf(branchId: number, territory: number[], edges: Edge[]
   return [...found];
 }
 
+// contact(A,B) ∈ [0,1]: passable A–B border edges as a share of A's TOTAL border edges
+// (passable + impassable). 0 when A has no border edges, or none of them reach B. Same
+// border-edge walk as isolationScore/neighborsOf, specialised to a target neighbour.
+// Asymmetric in (A,B): the denominator is A's own border, so a small branch feels a
+// large neighbour more than vice versa — the pair-local contact throttle 2GEO.5's
+// borrowing mechanic uses (2geo-4 spike §3.3), as opposed to isolationScore's blend
+// across all neighbours.
+export function pairContact(
+  aId: number, bId: number, aTerritory: number[], edges: Edge[], owner: Record<number, number>
+): number {
+  if (aTerritory.length === 0) return 0;
+  let total = 0, toB = 0;
+  edges.forEach((e) => {
+    const aOwned = owner[e.a] === aId, bOwned = owner[e.b] === aId;
+    if (!aOwned && !bOwned) return;
+    if (aOwned && bOwned) return; // internal edge, not a border
+    const otherOwner = aOwned ? owner[e.b] : owner[e.a];
+    if (otherOwner === undefined || otherOwner === aId) return;
+    total++;
+    if (e.passable && otherOwner === bId) toB++;
+  });
+  return total === 0 ? 0 : toB / total;
+}
+
 // Language-shift/assimilation death constants — shared between the engine step
 // (generation.ts) and the live UI warning check (game.svelte.ts), which is why the
 // selection logic lives here rather than duplicated in both call sites.
