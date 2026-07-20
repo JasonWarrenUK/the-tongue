@@ -1,13 +1,14 @@
 import { hashRand } from "./rng";
 import { driftRule, applyRuleToLex } from "./phonology";
-import { ownerMap, freeAdjacentFor, passableComponents, basePool, isolationScore, dominantTerrain, dominantAssimilator, ASSIM_TURNS } from "./geography";
+import { ownerMap, freeAdjacentFor, passableComponents, basePool, isolationScore, dominantTerrain, dominantAssimilator, neighborsOf, ASSIM_TURNS } from "./geography";
 import { leavesOf, isLeaf, childrenOf } from "./tree";
 import { inventoryOf, genStem, RENAME_CUT } from "./naming";
 import { intelligibility } from "./intelligibility";
+import { resolveBorrow } from "./borrowing";
 import type { Anchor, Branch, GameState, HistoryEntry, Lexicon } from "./types";
 
 // One generation resolves: autonomous drift → rename check → passive spread →
-// assimilation death → geographic fracture → repool.
+// lexical borrowing → assimilation death → geographic fracture → repool.
 export function resolveGeneration(s: GameState): GameState {
   const seed = s.world.seed, turn = s.turn, adj = s.world.adj, log: string[] = [];
   const branches: Record<number, Branch> = {};
@@ -57,6 +58,27 @@ export function resolveGeneration(s: GameState): GameState {
       }
     }
   });
+
+  // 3.5 lexical borrowing: bordering living neighbours converge (2GEO.4). Directional,
+  //     per ordered pair, contact-throttled. Salient concepts resist drift (step 1) yet
+  //     are the ones that cross borders here — the real Wanderwort profile. Runs after
+  //     spread (owner map is final for this turn) and before assimilation (a doomed
+  //     branch's salient words can still cross into its absorber first). Guarded like
+  //     assimilation: a lone/boxed-in branch has no neighbour to borrow from.
+  if (leavesOf(branches).length > 1) {
+    leavesOf(branches).forEach((A) => {
+      neighborsOf(A.id, A.territory, s.world.edges, owner).forEach((bId) => {
+        const B = branches[bId]; if (!B) return;
+        const res = resolveBorrow(branches[A.id], B, s.world.edges, owner, seed, turn);
+        if (!res) return;
+        const lex = branches[A.id].lex.map((e) =>
+          e.concept === res.concept ? { ...e, word: res.word } : e);
+        branches[A.id] = { ...branches[A.id], lex,
+          history: [...branches[A.id].history, { name: "Borrowing", note: `borrowed '${res.concept}' from ${B.name}` }] };
+        log.push(`${A.name} borrowed '${res.concept}' from ${B.name}`);
+      });
+    });
+  }
 
   // 4. language-shift/assimilation death: a much smaller branch bordering a
   //    near-identical dominant neighbour, sustained over ASSIM_TURNS turns, stops

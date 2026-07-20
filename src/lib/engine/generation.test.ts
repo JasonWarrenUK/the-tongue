@@ -1,6 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import { resolveGeneration } from "./generation";
 import { RENAME_CUT } from "./naming";
+import { intelligibility } from "./intelligibility";
 import type { GameState, Lexicon, Branch, Adjacency, Edge } from "./types";
 
 // 1ENG.9/1ENG.10 — fracture divergence-at-birth + lineage-continuation + rename. These
@@ -247,5 +248,95 @@ describe("1ENG.10 divergence-threshold rename", () => {
     }
     const a = run(), b = run();
     expect(a.branches).toEqual(b.branches);
+  });
+});
+
+describe("2GEO.5 lexical borrowing (step 3.5)", () => {
+  // Two single-region branches sharing one passable "water" border edge — contact(A,B)
+  // = contact(B,A) = 1, so borrowing fires readily every turn it's eligible. "fish" is
+  // water-salient (borrowable); the pair starts maximally divergent on it so
+  // convergence is observable over turns. spreadEvery is set far beyond the turn count
+  // so passive spread (and the fracture it could feed) never interferes.
+  const BORROW_LEX_A: Lexicon = [
+    { concept: "fish", word: ["t", "a", "p"] },
+    { concept: "eye", word: ["k", "o"] }, // never-salient control: should stay untouched by borrowing
+  ];
+  const BORROW_LEX_B: Lexicon = [
+    { concept: "fish", word: ["m", "u", "s"] },
+    { concept: "eye", word: ["p", "e"] },
+  ];
+
+  function borrowState(edges: Edge[]): GameState {
+    const adj: Adjacency = { 0: [], 1: [] };
+    edges.forEach((e) => {
+      adj[e.a].push({ to: e.b, passable: e.passable, cost: e.cost });
+      adj[e.b].push({ to: e.a, passable: e.passable, cost: e.cost });
+    });
+    const mk = (id: number, territory: number[], lex: Lexicon): Branch => ({
+      id, name: id === 0 ? "Aenic" : "Boran", parentId: null, depth: 0, splitIndex: 0, history: [],
+      lex: lex.map((e) => ({ concept: e.concept, word: [...e.word] })),
+      territory, pressure: 0, anchors: birthAnchor(lex), assimilationPressure: 0,
+    });
+    return {
+      world: { seed: 3, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0 },
+      branches: { 0: mk(0, [0], BORROW_LEX_A), 1: mk(1, [1], BORROW_LEX_B) },
+      rootId: 0, selectedId: 0,
+      nextId: 2, turn: 0,
+      settings: { pool: 10, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
+      pool: 10, touched: { 0: true, 1: true }, log: [],
+    };
+  }
+
+  test("a bordering pair shows rising intelligibility on the borrowed concept over turns", () => {
+    const edges: Edge[] = [{ a: 0, b: 1, passable: true, cost: 1, name: "water" }];
+    let s = borrowState(edges);
+    const before = intelligibility(s.branches[0].lex, s.branches[1].lex);
+    for (let i = 0; i < 6; i++) s = resolveGeneration({ ...s, touched: { 0: true, 1: true } });
+    const after = intelligibility(s.branches[0].lex, s.branches[1].lex);
+    expect(after).toBeGreaterThan(before);
+  });
+
+  test("a walled (impassable-border) pair shows no borrowing convergence", () => {
+    const edges: Edge[] = [{ a: 0, b: 1, passable: false, cost: 3, name: "mountain" }];
+    let s = borrowState(edges);
+    const before = JSON.stringify(s.branches[0].lex);
+    for (let i = 0; i < 6; i++) s = resolveGeneration({ ...s, touched: { 0: true, 1: true } });
+    // "eye" (never-eligible) must be untouched regardless; with an impassable border,
+    // "fish" must be untouched too since neighborsOf never returns branch 1.
+    expect(JSON.stringify(s.branches[0].lex.find((e) => e.concept === "fish"))).toBe(
+      JSON.stringify(BORROW_LEX_A.find((e) => e.concept === "fish")),
+    );
+    expect(before).toBeTruthy(); // sanity: before-snapshot was taken
+  });
+
+  test("a single-leaf world runs the loop unchanged (borrow step skipped, no throw)", () => {
+    const { adj, edges } = lineAdjacency();
+    const branch: Branch = {
+      id: 0, name: "Aenic", parentId: null, depth: 0, splitIndex: 0, history: [],
+      lex: BORROW_LEX_A.map((e) => ({ concept: e.concept, word: [...e.word] })),
+      territory: [0], pressure: 0, anchors: birthAnchor(BORROW_LEX_A), assimilationPressure: 0,
+    };
+    const s: GameState = {
+      world: { seed: 3, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1, 2, 3].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0 },
+      branches: { 0: branch }, rootId: 0, selectedId: 0,
+      nextId: 1, turn: 0,
+      settings: { pool: 999, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
+      pool: 999, touched: { 0: true }, log: [],
+    };
+    expect(() => resolveGeneration(s)).not.toThrow();
+    const out = resolveGeneration(s);
+    expect(out.log.some((l) => l.includes("borrowed"))).toBe(false);
+  });
+
+  test("determinism: same seed+state → identical borrowing outcome across turns", () => {
+    const edges: Edge[] = [{ a: 0, b: 1, passable: true, cost: 1, name: "water" }];
+    function run(): GameState {
+      let s = borrowState(edges);
+      for (let i = 0; i < 6; i++) s = resolveGeneration({ ...s, touched: { 0: true, 1: true } });
+      return s;
+    }
+    const a = run(), b = run();
+    expect(a.branches).toEqual(b.branches);
+    expect(a.log).toEqual(b.log);
   });
 });
