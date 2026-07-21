@@ -1,6 +1,7 @@
 import { describe, test, expect } from "bun:test";
-import { driftRule, biasedMult, firingRules, applyRuleToLex, applyRuleToWord, RULE_BY_ID, RULES, MAX_LEN } from "./phonology";
+import { driftRule, biasedMult, firingRules, applyRuleToLex, applyRuleToWord, RULE_BY_ID, RULES, MAX_LEN, stepToward, BY_ID } from "./phonology";
 import { hashRand } from "./rng";
+import { formSimilarity } from "./intelligibility";
 import type { Lexicon } from "./types";
 
 // Mixed lexicon: some words end in a mid vowel (fires both apoc [deletion] and
@@ -410,5 +411,55 @@ describe("driftRule null guard (1ENG.12)", () => {
     const EMPTY: Lexicon = [];
     expect(() => driftRule(EMPTY, 1, 1, 1, 0.5)).not.toThrow();
     expect(driftRule(EMPTY, 1, 1, 1, 0.5)).toBeNull();
+  });
+});
+
+describe("stepToward", () => {
+  test("substitutes the first differing segment", () => {
+    expect(stepToward(["t", "a", "p"], ["k", "a", "p"])).toEqual(["k", "a", "p"]);
+  });
+
+  test("appends b's next segment when a is a strict prefix of b", () => {
+    expect(stepToward(["t", "a"], ["t", "a", "p"])).toEqual(["t", "a", "p"]);
+  });
+
+  test("deletes a's first surplus segment when a is longer than b", () => {
+    expect(stepToward(["t", "a", "p", "a"], ["t", "a"])).toEqual(["t", "a", "a"]);
+  });
+
+  test("identical inputs are returned unchanged", () => {
+    const w = ["t", "a", "p"];
+    expect(stepToward(w, w)).toEqual(w);
+  });
+
+  test("strictly raises formSimilarity unless already equal", () => {
+    const cases: [string[], string[]][] = [
+      [["t", "a", "p"], ["k", "o", "s"]],
+      [["t", "a"], ["t", "a", "p", "e"]],
+      [["t", "a", "p", "a", "s"], ["t", "a"]],
+      [["m", "a", "t"], ["m", "u", "t"]],
+    ];
+    for (const [a, b] of cases) {
+      const before = formSimilarity(a, b);
+      const after = formSimilarity(stepToward(a, b), b);
+      expect(after).toBeGreaterThan(before);
+    }
+  });
+
+  test("never returns a vowelless word, even when the only remaining vowel is the surplus segment", () => {
+    // a = ["p", "t", "a"] (surplus prefix "p","t", one vowel "a"); b = ["p", "t"] (no
+    // vowel at all) — deleting a's first surplus segment ("p", index 0) would still
+    // leave "t","a", which has a vowel, so this should proceed. Construct instead a
+    // case where the ONLY vowel sits at the cut index.
+    const a = ["p", "a", "t"]; // vowel is at index 1
+    const b = ["p"];           // b.length = 1, so cut index = 1 -> would delete the vowel
+    const out = stepToward(a, b);
+    expect(out.some((id) => BY_ID[id].type === "V")).toBe(true);
+  });
+
+  test("never exceeds MAX_LEN when appending", () => {
+    const a = Array.from({ length: MAX_LEN }, () => "t");
+    const b = [...a, "a"];
+    expect(stepToward(a, b).length).toBeLessThanOrEqual(MAX_LEN);
   });
 });
