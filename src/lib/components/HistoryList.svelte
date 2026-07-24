@@ -11,8 +11,8 @@
         {#if i === splitIndex && splitIndex > 0}<li class="text-muted my-1" style="font-size:10px">── split ──</li>{/if}
         <li class="text-xs flex gap-2 items-baseline">
           <span class="text-muted tabular-nums">{i + 1}.</span>
-          <span class={i < splitIndex ? "text-muted" : h.drift ? "text-muted italic" : "text-fg"}>
-            {#if h.drift}<span class="text-warn not-italic mr-1">⤳</span>{/if}{h.name}
+          <span class={i < splitIndex ? "text-muted" : h.drift || h.borrow ? "text-muted italic" : "text-fg"}>
+            {#if h.drift}<span class="text-warn not-italic mr-1">⤳</span>{:else if h.borrow}<span class="text-positive not-italic mr-1">⇄</span>{/if}{h.name}
           </span>
           <span class="font-mono text-muted">{h.note}</span>
         </li>

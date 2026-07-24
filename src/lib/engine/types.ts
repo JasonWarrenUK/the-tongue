@@ -54,7 +54,7 @@ export interface World {
   seed: number; inv: Inventory; tmpl: Template; lex: Lexicon;
   regions: Region[]; edges: Edge[]; adj: Adjacency; start: number;
 }
-export interface HistoryEntry { name: string; note: string; drift?: boolean }
+export interface HistoryEntry { name: string; note: string; drift?: boolean; borrow?: boolean }
 // 1ENG.10 rename mechanic: a frozen lexicon snapshot marking a divergence-threshold
 // rename. The anchor chain is flat and lives on the branch that keeps drifting under
 // it — renames never spawn a new branch id, only fracture does. `driftFromPrev` (1 -

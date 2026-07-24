@@ -11,14 +11,20 @@ function lev(a: string[], b: string[]): number {
   }
   return d[m][n];
 }
+// normalised edit-distance similarity of two forms ∈ [0,1]; 1 = identical. Factored
+// out of intelligibility (2GEO.4 spike §5) so the borrowing mechanic (2GEO.5) can rank
+// per-concept divergence without duplicating this metric.
+export function formSimilarity(a: string[], b: string[]): number {
+  const mx = Math.max(a.length, b.length) || 1;
+  return 1 - lev(a, b) / mx;
+}
 // proxy: normalised edit distance over the shared concept skeleton, not a real comprehension test
 export function intelligibility(lexA: Lexicon, lexB: Lexicon): number {
   const mapB = Object.fromEntries(lexB.map((e) => [e.concept, e.word]));
   let s = 0, n = 0;
   lexA.forEach((e) => {
     const wb = mapB[e.concept]; if (!wb) return;
-    const mx = Math.max(e.word.length, wb.length) || 1;
-    s += 1 - lev(e.word, wb) / mx; n++;
+    s += formSimilarity(e.word, wb); n++;
   });
   return n ? s / n : 1;
 }

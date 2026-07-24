@@ -55,3 +55,23 @@ export const terrainPlurality = {
   edges: [e(0, 1, true, "plain"), e(0, 2, true, "plain"), e(0, 3, false, "mountain")] as Edge[],
   owner: { 0: 0, 1: 1, 2: 2, 3: 3 },
 };
+
+// pairContact fixtures (2GEO.5) —branch 0's entire border is with branch 1.
+export const wholeBorderOneNeighbour = {
+  edges: [e(0, 1, true, "plain"), e(0, 4, true, "plain")] as Edge[],
+  owner: { 0: 0, 1: 1, 4: 1 },
+};
+
+// Branch 0 borders branch 1 on one of several passable edges (a sliver of a wide
+// frontier); branches 2 and 3 make up the rest of branch 0's border.
+export const slivBorderOneNeighbour = {
+  edges: [e(0, 1, true, "plain"), e(0, 2, true, "plain"), e(0, 3, true, "plain"), e(0, 4, true, "plain")] as Edge[],
+  owner: { 0: 0, 1: 1, 2: 2, 3: 2, 4: 2 },
+};
+
+// Asymmetric border sizes: branch 0 (small) borders branch 1 (large) on its only edge,
+// so contact(0,1) = 1; branch 1 has many other neighbours too, so contact(1,0) is small.
+export const asymmetricBorder = {
+  edges: [e(0, 1, true, "plain"), e(1, 2, true, "plain"), e(1, 3, true, "plain"), e(1, 4, true, "plain")] as Edge[],
+  owner: { 0: 0, 1: 1, 2: 2, 3: 3, 4: 4 },
+};

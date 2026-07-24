@@ -27,6 +27,14 @@ export function salienceRetention(concept: string, terrain: Terrain): number {
   return 0;
 }
 
+// 2GEO.4/2GEO.5 — concepts a lender is eligible to lend: salient to ITS OWN dominant
+// terrain (non-zero retention). Environment-neutral basics (eye, tooth, sun...) have
+// zero salience under every terrain, so they're never borrowable — matching Tadmor's
+// WOLD finding that basic vocabulary resists borrowing (2geo-4 spike §2, §3.1).
+export function borrowableConcepts(lenderTerrain: Terrain): string[] {
+  return CONCEPTS.filter((c) => salienceRetention(c, lenderTerrain) > 0);
+}
+
 // 1ENG.12 renewal phones (1eng-11 spike §4.4) — seeded into starting inventories, not
 // only produced by drift, so a fresh world can already have complexity for erosion
 // (smooth/shorten) to grip from turn 0.
