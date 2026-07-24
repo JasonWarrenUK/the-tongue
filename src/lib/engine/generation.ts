@@ -74,7 +74,7 @@ export function resolveGeneration(s: GameState): GameState {
         const lex = branches[A.id].lex.map((e) =>
           e.concept === res.concept ? { ...e, word: res.word } : e);
         branches[A.id] = { ...branches[A.id], lex,
-          history: [...branches[A.id].history, { name: "Borrowing", note: `borrowed '${res.concept}' from ${B.name}` }] };
+          history: [...branches[A.id].history, { name: "Borrowing", note: `borrowed '${res.concept}' from ${B.name}`, borrow: true }] };
         log.push(`${A.name} borrowed '${res.concept}' from ${B.name}`);
       });
     });
