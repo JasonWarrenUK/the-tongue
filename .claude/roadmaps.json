@@ -223,9 +223,31 @@
 					{
 						"id": "2GEO.5",
 						"description": "Implement the neighbour-borrowing mechanic — new `borrowing.ts` (`resolveBorrow`, `BORROW_RATE`, `BORROW_FAITHFUL_CUT`), `pairContact` in `geography.ts`, `formSimilarity` factored out of `intelligibility.ts`, `borrowableConcepts`/`stepToward` beside the salience helpers, and a new turn-loop step 3.5 in `generation.ts` (after spread, before assimilation). No new randomness beyond a fresh `hashRand` salt; seeded replay preserved — contract specified in the 2GEO.4 spike",
-						"status": "todo",
+						"status": "done",
 						"dependsOn": [
 							"2GEO.4"
+						]
+					},
+					{
+						"id": "2GEO.6",
+						"description": "Design spike: seeded generational world events — a small table of events (a pass opens/freezes via an edge-passability flip, a plague empties a region, a prestige court arises and becomes a preferred borrowing source) that create fracture and contact pressure on demand instead of leaving the map static once free territory runs out (design-analysis §6, \"a world that pushes back\", cheap tier)",
+						"status": "todo",
+						"dependsOn": []
+					},
+					{
+						"id": "2GEO.7",
+						"description": "Implement seeded world events *(placeholder — depends on 2GEO.6)*",
+						"status": "blocked",
+						"dependsOn": [
+							"2GEO.6"
+						]
+					},
+					{
+						"id": "2GEO.8",
+						"description": "Design spike: rival language family — a second, autonomous seeded language family competing across the map, giving expansion an opponent, assimilation a genuine threat, and borrowing a direction (substrate/superstrate). Design-analysis §6 flags this as the biggest single swing in scope and recommends not attempting it until the stakes layer (ambitions/contact events) has proven out; deliberately not paired with an implementation task yet",
+						"status": "blocked",
+						"dependsOn": [
+							"2STK.2"
 						]
 					},
 					{
@@ -236,8 +258,8 @@
 					},
 					{
 						"id": "2STK.1",
-						"description": "Design spike: rule-choice stakes mechanic (resource trade-offs vs directional goals vs prerequisite chains)",
-						"status": "blocked",
+						"description": "Design spike: rule-choice stakes mechanic (resource trade-offs vs directional goals vs prerequisite chains). Design-analysis candidate answer to evaluate: drift momentum (applying a rule tilts that branch's future autonomous drift toward its category, capped and decaying, feeding `biasedMult`/`driftRule`) plus seeded ambitions (three per world, scored at a fixed horizon, computable from existing state incl. the anchor chain) plus intelligibility-as-a-live-resource contact events (seeded per-generation contact between bordering branches, success odds = mutual intelligibility via `hashRand`, the missing convergent incentive) — explicitly recommends skipping prerequisite chains (wrong fantasy: turns phonology into a tech tree)",
+						"status": "todo",
 						"dependsOn": [
 							"2GEO.2",
 							"2GEO.5"
@@ -245,7 +267,7 @@
 					},
 					{
 						"id": "2STK.2",
-						"description": "Implement chosen rule-stakes mechanic",
+						"description": "Implement chosen rule-stakes mechanic — if 2STK.1 settles on the design-analysis's proposed answer, this covers all three: drift momentum, ambitions, and intelligibility-as-a-live-resource contact events",
 						"status": "blocked",
 						"dependsOn": [
 							"2STK.1"
@@ -287,7 +309,7 @@
 					{
 						"id": "2LEX.2",
 						"description": "Implement the homophone-collision resolution mechanic — new `collision.ts` (`pairScore`, `pairThreshold`, `severePairs`, `yieldingConcept`, `modifierCandidates`, `compoundWord`, `resolveCollision`, `COLLISION_TURNS`, `SEVERITY_CUT`), the Numberbatch distance table copied to `src/lib/engine/semantic-distance.json`, `World.compoundOrder` + `Branch.collisionPressure` (breaking: required fields), turn-loop step 1.5 in `generation.ts` and the apply-time repair prompt in `game.svelte.ts`. Severity = class gate + graded relatedness with distance-scaled thresholds; no new randomness beyond one world-gen draw — contract specified in the revised 2LEX.1 spike; the borrowing arm consumes 2GEO.5's exports",
-						"status": "blocked",
+						"status": "todo",
 						"dependsOn": [
 							"2LEX.1",
 							"2GEO.5"
@@ -305,6 +327,22 @@
 						"status": "blocked",
 						"dependsOn": [
 							"2LEX.3"
+						]
+					},
+					{
+						"id": "2LEX.5",
+						"description": "Design spike: archive / loss with residue — a dead branch's frozen final lexicon becomes spendable: living branches pay influence to revive a dead relative's word, resolving a homophone collision or purely for flavour (the learned-borrowing/Cornish-revival move). Explicitly waits on 2LEX.2 so collisions give it a mechanical reason to exist, not just flavour (design-analysis §8)",
+						"status": "blocked",
+						"dependsOn": [
+							"2LEX.2"
+						]
+					},
+					{
+						"id": "2LEX.6",
+						"description": "Implement archive / loss with residue *(placeholder — depends on 2LEX.5)*",
+						"status": "blocked",
+						"dependsOn": [
+							"2LEX.5"
 						]
 					},
 					{
@@ -326,6 +364,14 @@
 						]
 					},
 					{
+						"id": "2UI.3",
+						"description": "Retire the economy config panel from the player-facing surface (keep behind a dev flag); replace with difficulty presets once the economy purchases real consequences via the stakes mechanic (design-analysis roadmap edit 3)",
+						"status": "blocked",
+						"dependsOn": [
+							"2STK.2"
+						]
+					},
+					{
 						"id": "2SIM.1",
 						"description": "Integration pacing census — re-run the census harness with every mechanic active (borrowing, collision repair, syntax gating, paradigms): combined event density per branch-turn, collision dynamics at 48 concepts under the class-gate + distance model, affix lifetime distribution with the explicit acceptance criterion that grammaticalisation cycles observably turn (else the 1ENG.15 backstop question reopens with data in hand), and a tuning pass across the constant family (`COLLISION_TURNS`, `SEVERITY_CUT`, `BORROW_RATE`, `SYNTAX_STRENGTH`, `FRAME_WALK`, `ORDER_*`)",
 						"status": "blocked",
@@ -333,6 +379,51 @@
 							"2GEO.5",
 							"2LEX.2",
 							"1ENG.20"
+						]
+					},
+					{
+						"id": "2NAR.1",
+						"description": "Design spike: the seed text — a fixed proverb composed from six to eight lexicon concepts at world gen, rendered per branch every generation by looking up each concept's current form; pure display over existing state, no new simulation machinery. Shown on branch selection, side by side at fracture events, and proposed as the shareable image for Milestone 3 (design-analysis §1)",
+						"status": "todo",
+						"dependsOn": []
+					},
+					{
+						"id": "2NAR.2",
+						"description": "Implement the seed text *(placeholder — depends on 2NAR.1)*. Deepens for free once 1ENG.19's word order lands (the text would inherit real syntax), a non-blocking enrichment rather than a prerequisite",
+						"status": "blocked",
+						"dependsOn": [
+							"2NAR.1"
+						],
+						"softDependsOn": [
+							"1ENG.19"
+						]
+					},
+					{
+						"id": "2NAR.3",
+						"description": "Design spike: the chronicle — replace the one-line end-of-turn log with a generated chronicle narrating each resolution in era-named prose (fracture, assimilation, borrowing); doubles as the run's exportable history (design-analysis §7)",
+						"status": "todo",
+						"dependsOn": []
+					},
+					{
+						"id": "2NAR.4",
+						"description": "Implement the chronicle *(placeholder — depends on 2NAR.3)*",
+						"status": "blocked",
+						"dependsOn": [
+							"2NAR.3"
+						]
+					},
+					{
+						"id": "2MAP.1",
+						"description": "Design spike: living toponymy — regions named on first claim from a compound of two terrain-salient concepts in the claiming branch's current forms; the name is stored as word ids and drifts under that branch's subsequent sound changes like any other lexicon entry, flagged out of the intelligibility calculation. Old names survive conquest as fossils under the new owner's pronunciation (design-analysis §5)",
+						"status": "todo",
+						"dependsOn": []
+					},
+					{
+						"id": "2MAP.2",
+						"description": "Implement living toponymy *(placeholder — depends on 2MAP.1)*",
+						"status": "blocked",
+						"dependsOn": [
+							"2MAP.1"
 						]
 					}
 				]
