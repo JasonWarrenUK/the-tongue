@@ -55,6 +55,7 @@ function fractureState(lex: Lexicon = MIXED_LEX): GameState {
     nextId: 1, turn: 0,
     settings: { pool: 10, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
     pool: 10, touched: { 0: true }, log: [],
+    focusId: 0, mourning: null, pendingFocusChoice: null, ended: false,
   };
 }
 
@@ -161,6 +162,27 @@ describe("1ENG.10 lineage-continuation fracture", () => {
     expect(kid.history.length).toBe(kid.splitIndex);
   });
 
+  // 2STK.2 §2.2 — when the FOCAL branch is the one that fractures, resolveGeneration
+  // queues a reassignment choice instead of silently deciding for the player. Focus
+  // provisionally stays on the continuing lineage (same id), never moved by the
+  // resolver itself.
+  test("fracture of the focal branch queues a focus choice naming the born fragment(s)", () => {
+    const s = fractureState();
+    const out = resolveGeneration({ ...s, focusId: 0 });
+    expect(out.pendingFocusChoice?.kind).toBe("fracture");
+    if (out.pendingFocusChoice?.kind === "fracture") {
+      const kid = childrenOf(out, 0)[0];
+      expect(out.pendingFocusChoice.bornIds).toEqual([kid.id]);
+    }
+    expect(out.focusId).toBe(0); // unchanged by the pure resolver
+  });
+
+  test("fracture of a non-focal branch never queues a focus choice", () => {
+    const s = fractureState();
+    const out = resolveGeneration({ ...s, focusId: 999 }); // no branch owns this id in this fixture
+    expect(out.pendingFocusChoice).toBeNull();
+  });
+
   test("multi-parent same-generation split: two leaves fracturing in one turn each get a correct post-split owner map", () => {
     // Two independent line segments, each split by an impassable middle edge, owned
     // by two different starting branches. Regions 0-3 for branch 0 (as above), and a
@@ -191,6 +213,7 @@ describe("1ENG.10 lineage-continuation fracture", () => {
       nextId: 2, turn: 0,
       settings: { pool: 10, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
       pool: 10, touched: { 0: true, 1: true }, log: [],
+      focusId: 0, mourning: null, pendingFocusChoice: null, ended: false,
     };
 
     const out = resolveGeneration(s);
@@ -224,6 +247,7 @@ describe("1ENG.10 divergence-threshold rename", () => {
       nextId: 1, turn: 0,
       settings: { pool: 999, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
       pool: 999, touched: {}, log: [],
+      focusId: 0, mourning: null, pendingFocusChoice: null, ended: false,
     };
   }
 
@@ -284,6 +308,7 @@ describe("2GEO.5 lexical borrowing (step 3.5)", () => {
       nextId: 2, turn: 0,
       settings: { pool: 10, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
       pool: 10, touched: { 0: true, 1: true }, log: [],
+      focusId: 0, mourning: null, pendingFocusChoice: null, ended: false,
     };
   }
 
@@ -322,6 +347,7 @@ describe("2GEO.5 lexical borrowing (step 3.5)", () => {
       nextId: 1, turn: 0,
       settings: { pool: 999, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
       pool: 999, touched: { 0: true }, log: [],
+      focusId: 0, mourning: null, pendingFocusChoice: null, ended: false,
     };
     expect(() => resolveGeneration(s)).not.toThrow();
     const out = resolveGeneration(s);

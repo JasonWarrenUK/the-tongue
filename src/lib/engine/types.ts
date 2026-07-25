@@ -76,10 +76,32 @@ export interface Branch {
 export interface Settings {
   pool: number; growth: number; overhead: number; changeCost: number; spreadEvery: number;
 }
+// 2STK.2: a living branch ranked as a succession candidate for a dead focal branch,
+// closeness measured by the same kinship-dominant blendDistance reachMult uses —
+// see stakes.ts.
+export interface HeirCandidate { id: number; name: string; blendDistance: number; mourningMult: number }
+// 2STK.2 §2.2/§2.3: a focus decision queued by resolveGeneration for game.svelte.ts
+// to surface between turns, exactly like the existing assimilation warning — the
+// engine stays a pure state -> state function, the dialog is a UI-side pause on
+// this field, never a mid-resolution branch.
+export type PendingFocusChoice =
+  | { kind: "fracture"; bornIds: number[] }
+  | { kind: "succession"; heirs: HeirCandidate[] };
+
 export interface GameState {
   world: World; branches: Record<number, Branch>; rootId: number; selectedId: number;
   nextId: number; turn: number; settings: Settings;
   pool: number; touched: Record<number, boolean>; log: string[];
+  // 2STK.2: the self. Moves only at forced moments (fracture of the focal branch,
+  // its death) — see stakes.ts and the §2 spike section for why voluntary refocus
+  // is deliberately absent.
+  focusId: number;
+  // 2STK.2 §2.3: hoarse-voice succession penalty, an extra reachMult factor scaled
+  // by the inherited heir's distance from the deceased self, ticking down to null.
+  mourning: { untilTurn: number; mult: number } | null;
+  pendingFocusChoice: PendingFocusChoice | null;
+  // 2STK.2 §2.3: the silence ending fired — the game's single formal ending.
+  ended: boolean;
 }
 export interface FreeRegion { region: number; cost: number; passable: boolean }
 export interface Candidate { rule: Rule; fires: number; collDelta: number }

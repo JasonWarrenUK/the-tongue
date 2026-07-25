@@ -5,7 +5,8 @@ import { leavesOf, isLeaf, childrenOf } from "./tree";
 import { inventoryOf, genStem, RENAME_CUT } from "./naming";
 import { intelligibility } from "./intelligibility";
 import { resolveBorrow } from "./borrowing";
-import type { Anchor, Branch, GameState, HistoryEntry, Lexicon } from "./types";
+import { heirCandidates } from "./stakes";
+import type { Anchor, Branch, GameState, HistoryEntry, Lexicon, PendingFocusChoice } from "./types";
 
 // One generation resolves: autonomous drift → rename check → passive spread →
 // lexical borrowing → assimilation death → geographic fracture → repool.
@@ -13,6 +14,10 @@ export function resolveGeneration(s: GameState): GameState {
   const seed = s.world.seed, turn = s.turn, adj = s.world.adj, log: string[] = [];
   const branches: Record<number, Branch> = {};
   Object.values(s.branches).forEach((b) => (branches[b.id] = { ...b, territory: [...b.territory], history: [...b.history] }));
+  // 2STK.2: at most one focus decision queues per turn (a branch that fractured
+  // still owns its largest component, so it can't also be emptied by assimilation
+  // the same pass) — the UI pauses on this exactly like the existing log/warnings.
+  let pendingFocusChoice: PendingFocusChoice | null = null;
 
   // 1. drift untouched leaves (terrain-biased: 2GEO.2 — see 2geo-1-terrain-sound-change spike)
   const owner = ownerMap(branches);
@@ -104,6 +109,13 @@ export function resolveGeneration(s: GameState): GameState {
       b.territory.forEach((r) => (owner[r] = absorber.id));
       branches[L.id] = { ...b, territory: [], assimilationPressure: 0 };
       log.push(`${b.name} assimilated into ${absorber.name}`);
+      // 2STK.2 §2.3: the self just died. Not a new pressure counter — the focal
+      // branch's death IS this same assimilation trigger. Queue succession; focusId
+      // itself moves only once the player (or silence) resolves the dialog.
+      if (L.id === s.focusId) {
+        const heirs = heirCandidates(b, { ...s, branches });
+        pendingFocusChoice = { kind: "succession", heirs };
+      }
     });
   }
 
@@ -157,6 +169,11 @@ export function resolveGeneration(s: GameState): GameState {
         branches[id] = { ...child, lex, history: entry ? [...child.history, entry] : child.history };
       });
       if (names.length) log.push(`${parent.name} fractured → ${names.join(", ")}`);
+      // 2STK.2 §2.2: the self just split. Focus provisionally stays on the
+      // continuing lineage (same id as the parent — no reassignment needed for
+      // that case), but the player gets a free reassignment to any born fragment
+      // before their next turn's actions.
+      if (L.id === s.focusId && born.length) pendingFocusChoice = { kind: "fracture", bornIds: [...born] };
     }
   });
 
@@ -166,5 +183,7 @@ export function resolveGeneration(s: GameState): GameState {
     if (kids.length) selectedId = kids[0].id;
     else { const living = leavesOf(branches); if (living.length) selectedId = living[0].id; }
   }
-  return { ...s, branches, nextId, turn: turn + 1, pool: basePool(branches, s.settings), touched: {}, selectedId, log };
+  // 2STK.2: mourning ticks down toward expiry alongside every other per-turn clock.
+  const mourning = s.mourning && turn + 1 >= s.mourning.untilTurn ? null : s.mourning;
+  return { ...s, branches, nextId, turn: turn + 1, pool: basePool(branches, s.settings), touched: {}, selectedId, log, mourning, pendingFocusChoice: pendingFocusChoice ?? s.pendingFocusChoice };
 }
