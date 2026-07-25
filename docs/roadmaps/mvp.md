@@ -6,7 +6,7 @@ description: The Tongue — seeded language-evolution simulator, from core engin
 
 A seeded, deterministic language-evolution simulator: sound-change rules drift a lexicon across autonomously drifting, spreading and fracturing branches, tracked through a mutual-intelligibility matrix. Milestone 1 (Core Simulator) is nearly complete; Milestone 2 (Depth & Legibility) is queued behind a chain of design spikes; Milestone 3 (Persistence & Sharing) is a deliberately deferred stub.
 
-**Critical path:** `2GEO.5 → 2STK.1 → 2STK.2 → 2GLY.1 → {2GLY.2, 2GLY.3} → 2GLY.4 → 2UI.1 → 2UI.2` — the longest unblocked chain through Milestone 2, gating the onboarding pass on stakes, glyphs and the homophone-resolution mechanic.
+**Critical path:** `2GEO.5 → 2STK.1 → 2STK.2 → 2STK.6 → 2GLY.1 → {2GLY.2, 2GLY.3} → 2GLY.4 → 2UI.1 → 2UI.2` — the longest unblocked chain through Milestone 2, gating the onboarding pass on stakes, glyphs and the homophone-resolution mechanic. (The stakes implementation is split across `2STK.2`–`2STK.6` per the [2stk-1 spike](../spikes/2stk-1-rule-choice-stakes.md); `2STK.6` is the chain's sink because the economy sweeps need identity, momentum and contact landed first.)
 
 **Priority call (design-analysis, "three roadmap edits"):** the seed text (`2NAR.1`/`2NAR.2`) and the chronicle (`2NAR.3`/`2NAR.4`) sit off the critical path above but are recommended ahead of the glyph chain (`2GLY.*`) in build order — both are cheap, pure-presentation features over already-shipped state, delivering more theme per week than four tasks of glyph spectacle. Not a structural dependency; a sequencing preference only.
 
@@ -55,11 +55,15 @@ A seeded, deterministic language-evolution simulator: sound-change rules drift a
 - [x] **2GEO.5** — Implement the neighbour-borrowing mechanic — new `borrowing.ts` (`resolveBorrow`, `BORROW_RATE`, `BORROW_FAITHFUL_CUT`), `pairContact` in `geography.ts`, `formSimilarity` factored out of `intelligibility.ts`, `borrowableConcepts`/`stepToward` beside the salience helpers, and a new turn-loop step 3.5 in `generation.ts` (after spread, before assimilation). No new randomness beyond a fresh `hashRand` salt; seeded replay preserved — contract specified in the 2GEO.4 spike
 - [ ] **2GEO.6** — Design spike: seeded generational world events — a small table of events (a pass opens/freezes via an edge-passability flip, a plague empties a region, a prestige court arises and becomes a preferred borrowing source) that create fracture and contact pressure on demand instead of leaving the map static once free territory runs out (design-analysis §6, "a world that pushes back", cheap tier)
 - [ ] **2GEO.7** — Implement seeded world events *(placeholder — depends on 2GEO.6)* _(blocked — depends on 2GEO.6)_
-- [ ] **2GEO.8** — Design spike: rival language family — a second, autonomous seeded language family competing across the map, giving expansion an opponent, assimilation a genuine threat, and borrowing a direction (substrate/superstrate). Design-analysis §6 flags this as the biggest single swing in scope and recommends not attempting it until the stakes layer (ambitions/contact events) has proven out; deliberately not paired with an implementation task yet _(blocked — depends on 2STK.2)_
+- [ ] **2GEO.8** — Design spike: rival language family — a second, autonomous seeded language family competing across the map, giving expansion an opponent, assimilation a genuine threat, and borrowing a direction (substrate/superstrate). Design-analysis §6 flags this as the biggest single swing in scope and recommends not attempting it until the stakes layer (ambitions/contact events) has proven out; deliberately not paired with an implementation task yet _(blocked — depends on 2STK.4, 2STK.5)_
 - [x] **2LEX.1** — Design spike: homophone-collision resolution — measured collision dynamics in autonomous play (98% of branch-turns carry a live collision; 87% self-heal, median 3 turns; a 13% chronic tail never heals), then specified a severity × persistence mechanic: a six-field semantic grouping of `CONCEPTS` gates severity (same-field = confusable, operationalising Wedel's functional-load finding; cross-field homophones tolerated indefinitely and surfaced as flavour), a per-pair pressure counter (`COLLISION_TURNS` = 6, census-tuned) triggers autonomous repair, and repair compounds the less terrain-salient concept with a clipped field-mate modifier (the catfish pattern) under a per-world `compoundOrder` headedness trait — plus a Gilliéron-style borrowed-replacement arm gated on 2GEO.5 and a player choice-at-apply-time path (repair at `changeCost` or tolerate into the pressure clock). Full build-ready contract for 2LEX.2 (`docs/spikes/2lex-1-homophone-collision-resolution.md`) **Revised in the critique pass:** the six-field grouping was replaced by a class gate (via 1ENG.14's `CONCEPT_CLASS`) plus a graded Numberbatch semantic-distance table (`SEVERITY_CUT` = 0.2, distance-scaled thresholds, nearest-neighbour modifiers; census re-run: 13.2% severe, 30.3 repairs/game)
-- [ ] **2STK.1** — Design spike: rule-choice stakes mechanic (resource trade-offs vs directional goals vs prerequisite chains). Design-analysis candidate answer to evaluate: drift momentum (applying a rule tilts that branch's future autonomous drift toward its category, capped and decaying, feeding `biasedMult`/`driftRule`) plus seeded ambitions (three per world, scored at a fixed horizon, computable from existing state incl. the anchor chain) plus intelligibility-as-a-live-resource contact events (seeded per-generation contact between bordering branches, success odds = mutual intelligibility via `hashRand`, the missing convergent incentive) — explicitly recommends skipping prerequisite chains (wrong fantasy: turns phonology into a tech tree) _(depends on 2GEO.2, 2GEO.5)_
-- [ ] **2STK.2** — Implement chosen rule-stakes mechanic — if 2STK.1 settles on the design-analysis's proposed answer, this covers all three: drift momentum, ambitions, and intelligibility-as-a-live-resource contact events _(blocked — depends on 2STK.1)_
-- [ ] **2GLY.1** — Design spike: glyph mutation ruleset — shape-drift grammar + phoneme→glyph reassignment rules, referencing real script lineages (e.g. Phoenician → Greek → Etruscan → Latin) _(blocked — depends on 2STK.2)_
+- [x] **2STK.1** — Design spike: rule-choice stakes mechanic (resource trade-offs vs directional goals vs prerequisite chains). Design-analysis candidate answer to evaluate: drift momentum (applying a rule tilts that branch's future autonomous drift toward its category, capped and decaying, feeding `biasedMult`/`driftRule`) plus seeded ambitions (three per world, scored at a fixed horizon, computable from existing state incl. the anchor chain) plus intelligibility-as-a-live-resource contact events (seeded per-generation contact between bordering branches, success odds = mutual intelligibility via `hashRand`, the missing convergent incentive) — explicitly recommends skipping prerequisite chains (wrong fantasy: turns phonology into a tech tree)
+- [ ] **2STK.2** — Implement focal identity & reach ([2stk-1 spike](../spikes/2stk-1-rule-choice-stakes.md) §2) — `GameState.focusId`, kinship-dominant `blendDistance`/`reachMult` (capped multiplier, never a gate), fracture focus choice, succession dialog (≤3 ranked heirs, per-candidate penalties shown, silence always electable), hoarse-voice mourning multiplier, and the silence ending (the game's single formal ending) _(depends on 2STK.1)_
+- [ ] **2STK.3** — Implement drift momentum (2stk-1 spike §3) — `Branch.momentum` per `RuleCategory`, player-weighted accrual (drift at half), per-turn decay, `momentumMult` joining `biasedMult` in `driftRule` (naturalness stays dominant), momentum shown in the rule picker _(depends on 2STK.1)_
+- [ ] **2STK.4** — Implement ambitions & lock-in (2stk-1 spike §4) — `World.ambitions` via constrained tension draw, live-condition evaluation each repool, natural deadlines only, lock-in grading and freezing the record, goal-driven → sandbox phase flag, starter roster (self-referencing ambitions need focusId; roster items reading momentum/contact state activate as 2STK.3/2STK.5 land) _(blocked — depends on 2STK.1, 2STK.2)_
+- [ ] **2STK.5** — Implement contact events & trade routes (2stk-1 spike §5) — one seeded event per generation between bordering branches, odds = mutual intelligibility, pure roll with pre-resolution preview, typed failure consequences, `CONTACT_YIELD` income, and trade routes gating `resolveBorrow` (⚠️ behaviour change to shipped 2GEO.5: borrowing now requires an open route) _(depends on 2STK.1)_
+- [ ] **2STK.6** — Implement the treasury-and-laboratory economy (2stk-1 spike §6) — steepened size-scaled rule costs (`SIZE_COST` on `overheadFor`), isolation-scaled extra drift rate, stacked cost-multiplier cap (`COST_CAP`), the scarcity-guarantee sweep, and re-verification of the 1ENG.11 ossification sweeps under momentum and rate caps _(blocked — depends on 2STK.1, 2STK.2, 2STK.3, 2STK.5)_
+- [ ] **2GLY.1** — Design spike: glyph mutation ruleset — shape-drift grammar + phoneme→glyph reassignment rules, referencing real script lineages (e.g. Phoenician → Greek → Etruscan → Latin) _(blocked — depends on 2STK.4, 2STK.6)_
 - [ ] **2GLY.2** — Implement per-generation glyph shape drift (independent stylistic mutation) _(blocked — depends on 2GLY.1)_
 - [ ] **2GLY.3** — Implement phoneme→glyph reassignment logic, tied to phone split/merge/deletion from phonology rules _(blocked — depends on 2GLY.1)_
 - [ ] **2GLY.4** — Build glyph rendering component (branch-level script display) _(blocked — depends on 2GLY.2, 2GLY.3)_
@@ -68,9 +72,9 @@ A seeded, deterministic language-evolution simulator: sound-change rules drift a
 - [ ] **2LEX.4** — Implement multi-form lexical entries *(placeholder — depends on 2LEX.3)* _(blocked — depends on 2LEX.3)_
 - [ ] **2LEX.5** — Design spike: archive / loss with residue — a dead branch's frozen final lexicon becomes spendable: living branches pay influence to revive a dead relative's word, resolving a homophone collision or purely for flavour (the learned-borrowing/Cornish-revival move). Explicitly waits on 2LEX.2 so collisions give it a mechanical reason to exist, not just flavour (design-analysis §8) _(blocked — depends on 2LEX.2)_
 - [ ] **2LEX.6** — Implement archive / loss with residue *(placeholder — depends on 2LEX.5)* _(blocked — depends on 2LEX.5)_
-- [ ] **2UI.1** — UI completeness audit across all components — existing panels plus new biome/stakes/glyph/lexicon data — verify every player-facing decision has a legible data source _(blocked — depends on 2STK.2, 2GLY.4, 2LEX.2)_
+- [ ] **2UI.1** — UI completeness audit across all components — existing panels plus new biome/stakes/glyph/lexicon data — verify every player-facing decision has a legible data source _(blocked — depends on 2STK.4, 2STK.6, 2GLY.4, 2LEX.2)_
 - [ ] **2UI.2** — Build onboarding — inline explainers, full tutorial mode, and a UI layout rethink, informed by the audit findings _(blocked — depends on 2UI.1)_
-- [ ] **2UI.3** — Retire the economy config panel from the player-facing surface (keep behind a dev flag); replace with difficulty presets once the economy purchases real consequences via the stakes mechanic (design-analysis roadmap edit 3) _(blocked — depends on 2STK.2)_
+- [ ] **2UI.3** — Retire the economy config panel from the player-facing surface (keep behind a dev flag); replace with difficulty presets once the economy purchases real consequences via the stakes mechanic (design-analysis roadmap edit 3) _(blocked — depends on 2STK.6)_
 - [ ] **2SIM.1** — Integration pacing census — re-run the census harness with every mechanic active (borrowing, collision repair, syntax gating, paradigms): combined event density per branch-turn, collision dynamics at 48 concepts under the class-gate + distance model, affix lifetime distribution with the explicit acceptance criterion that grammaticalisation cycles observably turn (else the 1ENG.15 backstop question reopens with data in hand), and a tuning pass across the constant family (`COLLISION_TURNS`, `SEVERITY_CUT`, `BORROW_RATE`, `SYNTAX_STRENGTH`, `FRAME_WALK`, `ORDER_*`) _(blocked — depends on 2GEO.5, 2LEX.2, 1ENG.20)_
 - [ ] **2NAR.1** — Design spike: the seed text — a fixed proverb composed from six to eight lexicon concepts at world gen, rendered per branch every generation by looking up each concept's current form; pure display over existing state, no new simulation machinery. Shown on branch selection, side by side at fracture events, and proposed as the shareable image for Milestone 3 (design-analysis §1)
 - [ ] **2NAR.2** — Implement the seed text *(placeholder — depends on 2NAR.1)*. Deepens for free once 1ENG.19's word order lands (the text would inherit real syntax), a non-blocking enrichment rather than a prerequisite _(blocked — depends on 2NAR.1)_
@@ -135,8 +139,12 @@ graph LR
 	2GEO.7["2GEO.7: Implement seeded world events *(placeho…"]
 	2LEX.1["2LEX.1: Design spike: homophone-collision resol…"]
 	2STK.1["2STK.1: Design spike: rule-choice stakes mechan…"]
-	2STK.2["2STK.2: Implement chosen rule-stakes mechanic —…"]
+	2STK.2["2STK.2: Implement focal identity & reach (2stk-…"]
+	2STK.3["2STK.3: Implement drift momentum (2stk-1 spike…"]
+	2STK.4["2STK.4: Implement ambitions & lock-in (2stk-1 s…"]
+	2STK.5["2STK.5: Implement contact events & trade routes…"]
 	2GEO.8["2GEO.8: Design spike: rival language family — a…"]
+	2STK.6["2STK.6: Implement the treasury-and-laboratory e…"]
 	2GLY.1["2GLY.1: Design spike: glyph mutation ruleset —…"]
 	2GLY.2["2GLY.2: Implement per-generation glyph shape dr…"]
 	2GLY.3["2GLY.3: Implement phoneme→glyph reassignment lo…"]
@@ -202,11 +210,22 @@ graph LR
 	2GEO.7 --> M2
 	2LEX.1 --> 2LEX.2
 	2STK.1 --> 2STK.2
-	2STK.2 --> 2GEO.8
-	2STK.2 --> 2GLY.1
-	2STK.2 --> 2UI.1
-	2STK.2 --> 2UI.3
+	2STK.1 --> 2STK.3
+	2STK.1 --> 2STK.4
+	2STK.1 --> 2STK.5
+	2STK.1 --> 2STK.6
+	2STK.2 --> 2STK.4
+	2STK.2 --> 2STK.6
+	2STK.3 --> 2STK.6
+	2STK.4 --> 2GEO.8
+	2STK.4 --> 2GLY.1
+	2STK.4 --> 2UI.1
+	2STK.5 --> 2GEO.8
+	2STK.5 --> 2STK.6
 	2GEO.8 --> M2
+	2STK.6 --> 2GLY.1
+	2STK.6 --> 2UI.1
+	2STK.6 --> 2UI.3
 	2GLY.1 --> 2GLY.2
 	2GLY.1 --> 2GLY.3
 	2GLY.2 --> 2GLY.4
@@ -238,9 +257,9 @@ graph LR
 	2MAP.2 --> M2
 	3PER.1 --> 3SHR.1
 	3SHR.1 --> M3
-	class 1ENG.16,2GEO.6,2LEX.2,2LEX.3,2MAP.1,2NAR.1,2NAR.3,2STK.1,3PER.1 todo
-	class 1ENG.17,1ENG.19,1ENG.20,1ENG.21,2GEO.7,2GEO.8,2GLY.1,2GLY.2,2GLY.3,2GLY.4,2LEX.4,2LEX.5,2LEX.6,2MAP.2,2NAR.2,2NAR.4,2SIM.1,2STK.2,2UI.1,2UI.2,2UI.3,3SHR.1 blocked
-	class 1ENG.1,1ENG.10,1ENG.11,1ENG.12,1ENG.13,1ENG.14,1ENG.15,1ENG.18,1ENG.2,1ENG.3,1ENG.4,1ENG.5,1ENG.6,1ENG.7,1ENG.8,1ENG.9,1UI.1,1UI.2,1UI.3,1UI.4,2GEO.1,2GEO.2,2GEO.3,2GEO.4,2GEO.5,2LEX.1 done
+	class 1ENG.16,2GEO.6,2LEX.2,2LEX.3,2MAP.1,2NAR.1,2NAR.3,2STK.2,2STK.3,2STK.5,3PER.1 todo
+	class 1ENG.17,1ENG.19,1ENG.20,1ENG.21,2GEO.7,2GEO.8,2GLY.1,2GLY.2,2GLY.3,2GLY.4,2LEX.4,2LEX.5,2LEX.6,2MAP.2,2NAR.2,2NAR.4,2SIM.1,2STK.4,2STK.6,2UI.1,2UI.2,2UI.3,3SHR.1 blocked
+	class 1ENG.1,1ENG.10,1ENG.11,1ENG.12,1ENG.13,1ENG.14,1ENG.15,1ENG.18,1ENG.2,1ENG.3,1ENG.4,1ENG.5,1ENG.6,1ENG.7,1ENG.8,1ENG.9,1UI.1,1UI.2,1UI.3,1UI.4,2GEO.1,2GEO.2,2GEO.3,2GEO.4,2GEO.5,2LEX.1,2STK.1 done
 ```
 
 ---
