@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Tongue · Eight Recommendations</title>
+<style>
+  :root{
+    --bg:#0e1014; --surface:#171a21; --surface2:#1f232d; --border:#2a2e38;
+    --fg:#d6d9e0; --muted:#8a90a0; --accent:#56b4a8; --warn:#d4924e;
+    --positive:#7bc47f; --bad:#c96a6a;
+    --aenic:#6a9bd8; --boran:#c98a5a; --miral:#9a7fd1;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--bg); color:var(--fg);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    font-size:15px; line-height:1.55; padding:20px 14px 48px;
+  }
+  .wrap{max-width:820px; margin:0 auto;}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+  header.page{border-bottom:1px solid var(--border); padding-bottom:18px; margin-bottom:26px;}
+  header.page h1{font-size:22px; font-weight:650; color:var(--accent); letter-spacing:.2px;}
+  header.page p{color:var(--muted); font-size:13.5px; margin-top:6px; max-width:60ch;}
+  .card{
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    padding:18px 16px 16px; margin-bottom:26px;
+  }
+  .card-head{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;}
+  .num{
+    flex:none; width:26px; height:26px; border-radius:8px; background:var(--surface2);
+    color:var(--accent); font-weight:700; font-size:13px;
+    display:flex; align-items:center; justify-content:center; align-self:center;
+  }
+  .card h2{font-size:16.5px; font-weight:650;}
+  .chips{display:flex; gap:6px; margin-left:auto;}
+  .chip{
+    font-size:10.5px; letter-spacing:.4px; text-transform:uppercase;
+    border:1px solid var(--border); border-radius:99px; padding:2px 9px; color:var(--muted);
+  }
+  .chip.hi{color:var(--positive); border-color:rgba(123,196,127,.4);}
+  .chip.med{color:var(--warn); border-color:rgba(212,146,78,.4);}
+  .pitch{color:var(--muted); font-size:13.5px; margin:8px 0 14px; max-width:66ch;}
+  .pitch b{color:var(--fg); font-weight:600;}
+  .ba{display:grid; grid-template-columns:1fr; gap:12px;}
+  @media(min-width:660px){.ba{grid-template-columns:1fr 1fr;}}
+  .panel{
+    background:var(--bg); border:1px solid var(--border); border-radius:10px;
+    padding:12px; display:flex; flex-direction:column; gap:10px;
+  }
+  .panel.after{border-color:rgba(86,180,168,.45);}
+  .tag{font-size:10.5px; letter-spacing:1.2px; text-transform:uppercase; font-weight:700;}
+  .panel.before .tag{color:var(--muted);}
+  .panel.after .tag{color:var(--accent);}
+  .cap{font-size:12px; color:var(--muted); font-style:italic; margin-top:auto; padding-top:6px;}
+
+  /* mock UI fragments */
+  .mock{background:var(--surface); border:1px solid var(--border); border-radius:8px; overflow:hidden;}
+  .rowline{
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    padding:6px 10px; border-top:1px solid var(--border); font-size:13px;
+  }
+  .rowline:first-child{border-top:none;}
+  .rowline .form{color:var(--fg);}
+  .rowline .concept{color:var(--muted);}
+  .arrow{color:var(--muted);}
+  .old{color:var(--muted); text-decoration:line-through;}
+  .new{color:var(--accent);}
+  .dot{color:var(--warn);}
+
+  .proverb{padding:10px 12px;}
+  .proverb .who{font-size:11px; letter-spacing:.6px; text-transform:uppercase; font-weight:700; margin-bottom:2px;}
+  .proverb .line{font-size:15px;}
+  .proverb .gloss{font-size:11.5px; color:var(--muted); font-style:italic;}
+  .pv{border-top:1px solid var(--border); padding:8px 12px;}
+  .pv:first-child{border-top:none; padding-top:10px;}
+  .aenic{color:var(--aenic);} .boran{color:var(--boran);} .miral{color:var(--miral);}
+
+  .ambition{padding:9px 11px; border-top:1px solid var(--border);}
+  .ambition:first-child{border-top:none;}
+  .ambition .name{font-size:12px; font-weight:700; letter-spacing:.8px; color:var(--fg);}
+  .ambition .want{font-size:12.5px; color:var(--muted); margin:2px 0 6px;}
+  .bar{height:6px; border-radius:99px; background:var(--surface2); overflow:hidden;}
+  .bar i{display:block; height:100%; background:var(--accent);}
+  .bar.warm i{background:var(--warn);}
+  .ambition .stat{font-size:11px; color:var(--muted); margin-top:4px;}
+
+  .rule{padding:8px 10px; border-top:1px solid var(--border); font-size:13px;}
+  .rule:first-child{border-top:none;}
+  .rule .top{display:flex; justify-content:space-between; gap:8px; align-items:center;}
+  .rule .name{font-weight:600; font-size:12.5px;}
+  .btn{
+    font-size:11px; background:var(--accent); color:#08221f; font-weight:700;
+    border-radius:5px; padding:2px 8px; white-space:nowrap;
+  }
+  .rule .note{color:var(--muted); font-size:11.5px;}
+  .mom{display:flex; align-items:center; gap:8px; margin-top:5px; font-size:11px; color:var(--muted);}
+  .mom .bar{flex:1; max-width:110px;}
+
+  table.matrix{border-collapse:collapse; font-size:12px; margin:8px auto;}
+  table.matrix th,table.matrix td{padding:4px 9px; text-align:center; font-weight:400;}
+  table.matrix th{color:var(--muted); font-weight:500;}
+  .v-hi{color:var(--positive);} .v-mid{color:var(--accent);} .v-lo{color:var(--warn);}
+
+  .event{padding:10px 12px; border-top:1px solid var(--border); font-size:13px;}
+  .event:first-child{border-top:none;}
+  .event .kind{font-size:11px; letter-spacing:.8px; text-transform:uppercase; font-weight:700; color:var(--warn); margin-bottom:2px;}
+  .event .kind.good{color:var(--positive);}
+  .event .kind.contact{color:var(--accent);}
+  .event .body{color:var(--fg);}
+  .event .sub{color:var(--muted); font-size:12px; margin-top:3px;}
+
+  .mapmock{padding:14px 10px; display:flex; flex-direction:column; gap:14px; align-items:center;}
+  .maprow{display:flex; gap:0; align-items:flex-start;}
+  .node{display:flex; flex-direction:column; align-items:center; width:74px;}
+  .circle{
+    width:30px; height:30px; border-radius:50%; display:flex; align-items:center;
+    justify-content:center; font-weight:700; font-size:12px; color:#0b0d11;
+  }
+  .c-a{background:var(--aenic);} .c-b{background:var(--boran);}
+  .c-free{background:var(--surface2); color:var(--muted); font-weight:400;}
+  .place{font-size:11px; margin-top:4px;}
+  .place small{display:block; color:var(--muted); font-size:10px; font-style:italic;}
+  .link{height:2px; background:var(--border); width:44px; margin-top:14px;}
+  .link.barrier{background:none; border-top:2px dashed var(--bad); }
+
+  .chron{padding:12px 14px; font-family:Georgia,"Times New Roman",serif; font-size:14.5px; line-height:1.65;}
+  .chron .gen{color:var(--accent); font-variant:small-caps; letter-spacing:1px;}
+
+  .tree{padding:12px; font-size:13px;}
+  .tree .tnode{display:flex; align-items:center; gap:8px; padding:3px 0;}
+  .tree .sw{width:10px; height:10px; border-radius:3px; flex:none;}
+  .dead{color:var(--muted);}
+  .indent{margin-left:22px;}
+
+  .archive{padding:10px 12px;}
+  .archive .head{font-size:11px; letter-spacing:.8px; text-transform:uppercase; font-weight:700; color:var(--miral); margin-bottom:6px;}
+  .relic{display:flex; justify-content:space-between; align-items:center; gap:8px; padding:5px 0; border-top:1px solid var(--border); font-size:13px;}
+
+  footer.road{
+    border-top:1px solid var(--border); margin-top:8px; padding-top:18px;
+  }
+  footer.road h3{font-size:13px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin-bottom:12px;}
+  .edit{
+    background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent);
+    border-radius:8px; padding:10px 12px; margin-bottom:10px; font-size:13.5px;
+  }
+  .edit b{color:var(--accent); font-weight:650;}
+  .edit span{color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="page">
+  <h1>The Tongue · Eight Recommendations</h1>
+  <p>From the game-design analysis: each mechanic shown as the game today (before) against a mocked-up version with the mechanic in place (after). Ordered by theme delivered per unit of engineering. Branch names and word forms are illustrative, in the game's own phonology.</p>
+</header>
+
+<!-- 1 · SEED TEXT -->
+<section class="card">
+  <div class="card-head">
+    <div class="num">1</div><h2>The seed text</h2>
+    <div class="chips"><span class="chip hi">Impact: high</span><span class="chip hi">Effort: trivial</span></div>
+  </div>
+  <p class="pitch">A fixed proverb composed from lexicon concepts at world gen, rendered per branch every generation. Pure display code over existing state; the one artefact that tells the whole story at a glance.</p>
+  <div class="ba">
+    <div class="panel before">
+      <span class="tag">Before</span>
+      <div class="mock mono">
+        <div class="rowline"><span class="concept">water</span><span class="form">moka</span></div>
+        <div class="rowline"><span class="concept">path</span><span class="form">tila</span></div>
+        <div class="rowline"><span class="concept">stone</span><span class="form">kesu</span></div>
+        <div class="rowline"><span class="concept">snow</span><span class="form">nauta</span></div>
+      </div>
+      <p class="cap">32 rows of mutating strings. The story is in there somewhere; the spreadsheet view of a poem.</p>
+    </div>
+    <div class="panel after">
+      <span class="tag">After</span>
+      <div class="mock">
+        <div class="pv proverb"><div class="who" style="color:var(--muted)">Root speech · gen 1</div>
+          <div class="line mono">moka tila, kesu nauta</div>
+          <div class="gloss">"Water finds the path; stone remembers the snow."</div></div>
+        <div class="pv proverb"><div class="who aenic">Aenic · gen 24</div>
+          <div class="line mono">moɣa dila, ɣesu nauda</div></div>
+        <div class="pv proverb"><div class="who boran">Boran · gen 24</div>
+          <div class="line mono">mua til, kesuo naita</div></div>
+      </div>
+      <p class="cap">Same sentence, three mouths. Shown on branch select, side by side at fractures; the natural share image.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 2 · AMBITIONS -->
+<section class="card">
+  <div class="card-head">
+    <div class="num">2</div><h2>Ambitions</h2>
+    <div class="chips"><span class="chip hi">Impact: high</span><span class="chip hi">Effort: small</span></div>
+  </div>
+  <p class="pitch">Three seeded, optional goals scored at a fixed horizon (generation 30). Every one computable from state the engine already stores, anchors included. Gives sessions a shape and the player a want.</p>
+  <div class="ba">
+    <div class="panel before">
+      <span class="tag">Before</span>
+      <div class="mock">
+        <div class="rowline"><span style="color:var(--accent);font-weight:600">Generation 12</span><span class="concept">Influence 6/14</span><span class="btn" style="background:var(--surface2);color:var(--fg)">End generation ⟳</span></div>
+      </div>
+      <p class="cap">No horizon, no failure, no score. Turn 12 is identical in kind to turn 112.</p>
+    </div>
+    <div class="panel after">
+      <span class="tag">After</span>
+      <div class="mock">
+        <div class="ambition"><div class="name">BABEL</div><div class="want">Five living tongues, no pair above 30% mutual</div>
+          <div class="bar"><i style="width:60%"></i></div><div class="stat">3 of 5 · worst pair 41%</div></div>
+        <div class="ambition"><div class="name">THE LONG TONGUE</div><div class="want">One branch still ≥60% intelligible with its birth speech at the horizon</div>
+          <div class="bar warm"><i style="width:71%"></i></div><div class="stat">Aenic holds at 71% · drifting</div></div>
+        <div class="ambition"><div class="name">OZYMANDIAS</div><div class="want">A Proto- ancestor with three living descendants</div>
+          <div class="bar"><i style="width:66%"></i></div><div class="stat">Proto-Aeno-Boran · 2 of 3</div></div>
+      </div>
+      <p class="cap">Achievements more than victory: the sandbox survives underneath. Age ends at generation 30.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 3 · DRIFT MOMENTUM -->
+<section class="card">
+  <div class="card-head">
+    <div class="num">3</div><h2>Drift momentum</h2>
+    <div class="chips"><span class="chip hi">Impact: high</span><span class="chip hi">Effort: small</span></div>
+  </div>
+  <p class="pitch">Applying a rule tilts that branch's future autonomous drift towards its category (capped ×2, decaying each turn). The core verb becomes an investment; branches acquire characters. Proposed answer to the 2STK.1 stakes spike.</p>
+  <div class="ba">
+    <div class="panel before">
+      <span class="tag">Before</span>
+      <div class="mock">
+        <div class="rule"><div class="top"><span class="name">Intervocalic voicing</span><span class="btn">Apply · 2</span></div>
+          <div class="note mono">voiceless stop → voiced / V _ V</div></div>
+        <div class="rule"><div class="top"><span class="name">Apocope</span><span class="btn">Apply · 2</span></div>
+          <div class="note mono">vowel → ∅ / _ #</div></div>
+      </div>
+      <p class="cap">A menu of equivalent one-off edits: your pick versus the RNG's, nothing more.</p>
+    </div>
+    <div class="panel after">
+      <span class="tag">After</span>
+      <div class="mock">
+        <div class="rule"><div class="top"><span class="name">Intervocalic voicing</span><span class="btn">Apply · 2</span></div>
+          <div class="note mono">voiceless stop → voiced / V _ V</div>
+          <div class="mom">lenition momentum <span class="bar"><i style="width:80%"></i></span> ×1.6</div></div>
+        <div class="rule"><div class="top"><span class="name">Apocope</span><span class="btn">Apply · 2</span></div>
+          <div class="note mono">vowel → ∅ / _ #</div>
+          <div class="mom">deletion momentum <span class="bar"><i style="width:35%"></i></span> ×0.9</div></div>
+        <div class="rule" style="background:var(--surface2)"><span class="note"><span class="aenic" style="font-weight:600">Aenic</span> · the tongue that softens — lenition-tilted for 4 more generations</span></div>
+      </div>
+      <p class="cap">Sapir's drift as a mechanic. You steer the current; the RNG only floats on it.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 4 · CONTACT EVENTS -->
+<section class="card">
+  <div class="card-head">
+    <div class="num">4</div><h2>Intelligibility as a live resource</h2>
+    <div class="chips"><span class="chip hi">Impact: high</span><span class="chip med">Effort: medium</span></div>
+  </div>
+  <p class="pitch">One seeded contact event per generation between bordering branches; success odds equal their mutual intelligibility. The matrix becomes a board state under management, and the game gains its missing convergent incentive.</p>
+  <div class="ba">
+    <div class="panel before">
+      <span class="tag">Before</span>
+      <div class="mock">
+        <table class="matrix mono">
+          <tr><th></th><th class="aenic">Aenic</th><th class="boran">Boran</th><th class="miral">Miral</th></tr>
+          <tr><th class="aenic">Aenic</th><td>—</td><td class="v-mid">62</td><td class="v-lo">28</td></tr>
+          <tr><th class="boran">Boran</th><td class="v-mid">62</td><td>—</td><td class="v-mid">41</td></tr>
+          <tr><th class="miral">Miral</th><td class="v-lo">28</td><td class="v-mid">41</td><td>—</td></tr>
+        </table>
+      </div>
+      <p class="cap">The most thematic readout in the game, and nothing consumes it. A wall chart.</p>
+    </div>
+    <div class="panel after">
+      <span class="tag">After</span>
+      <div class="mock">
+        <div class="event"><div class="kind contact">Contact · trade</div>
+          <div class="body"><span class="aenic">Aenic</span> traders reach the <span class="boran">Boran</span> valley · mutual 62%</div>
+          <div class="sub">Success pays +3 influence · failure feeds Boran's assimilation pressure</div></div>
+        <div class="event"><div class="kind good">Resolved</div>
+          <div class="body">The bargain holds: the coast road stays open <span class="v-hi">+3</span></div>
+          <div class="sub">Keep the dialect chain connected, or let it snap and eat the failures.</div></div>
+      </div>
+      <p class="cap">Deterministic (hashRand-rolled), so replays and shared seeds still hold.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 5 · TOPONYMY -->
+<section class="card">
+  <div class="card-head">
+    <div class="num">5</div><h2>Living toponymy</h2>
+    <div class="chips"><span class="chip hi">Impact: high</span><span class="chip med">Effort: medium</span></div>
+  </div>
+  <p class="pitch">Regions are named on first claim, compounded from the owner's terrain-salient words, then drift under sound change like any other word. Old names survive conquest as fossils under new pronunciation: every -chester and -thorpe in England is this mechanic.</p>
+  <div class="ba">
+    <div class="panel before">
+      <span class="tag">Before</span>
+      <div class="mock mapmock">
+        <div class="maprow">
+          <div class="node"><div class="circle c-a">A</div></div><div class="link"></div>
+          <div class="node"><div class="circle c-a">A</div></div><div class="link barrier"></div>
+          <div class="node"><div class="circle c-b">B</div></div>
+        </div>
+        <div class="maprow">
+          <div class="node"><div class="circle c-b">B</div></div><div class="link"></div>
+          <div class="node"><div class="circle c-free">·</div></div>
+        </div>
+      </div>
+      <p class="cap">Twelve circles and an initial. Between fractures, the map is a coloured legend for the tree.</p>
+    </div>
+    <div class="panel after">
+      <span class="tag">After</span>
+      <div class="mock mapmock">
+        <div class="maprow">
+          <div class="node"><div class="circle c-a">A</div><div class="place mono">Naukes<small>snow-stone</small></div></div><div class="link"></div>
+          <div class="node"><div class="circle c-a">A</div><div class="place mono">Moatil<small>water-path</small></div></div><div class="link barrier"></div>
+          <div class="node"><div class="circle c-b">B</div><div class="place mono">Keʃrau<small>stone-wind</small></div></div>
+        </div>
+        <div class="maprow">
+          <div class="node"><div class="circle c-b">B</div><div class="place mono">Nouɣes<small>Aenic fossil: Naukes</small></div></div><div class="link"></div>
+          <div class="node"><div class="circle c-free">·</div><div class="place" style="color:var(--muted)">unnamed</div></div>
+        </div>
+      </div>
+      <p class="cap">Boran took an Aenic valley and kept the name, in its own mouth. The map becomes a linguistic landscape.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 6 · WORLD PUSHBACK -->
+<section class="card">
+  <div class="card-head">
+    <div class="num">6</div><h2>A world that pushes back</h2>
+    <div class="chips"><span class="chip med">Impact: high</span><span class="chip med">Effort: medium → large</span></div>
+  </div>
+  <p class="pitch">Cheap tier: seeded generational events, chiefly edge-passability flips (a pass opens or freezes), which create fracture and contact on demand. Expensive tier, later: a rival autonomous family giving expansion an opponent and borrowing a direction.</p>
+  <div class="ba">
+    <div class="panel before">
+      <span class="tag">Before</span>
+      <div class="mock">
+        <div class="rowline"><span class="concept">last gen: Aenic drifted (apocope) · Boran spread</span></div>
+      </div>
+      <p class="cap">Static edges, no rivals. Once free land runs out, half the verb set dies and the world goes quiet.</p>
+    </div>
+    <div class="panel after">
+      <span class="tag">After</span>
+      <div class="mock">
+        <div class="event"><div class="kind">❄ The high pass freezes</div>
+          <div class="body">The road between <span class="mono">Naukes</span> and <span class="mono">Moatil</span> closes.</div>
+          <div class="sub"><span class="aenic">Aenic</span> will fracture at generation's end unless it abandons the far valley.</div></div>
+        <div class="event"><div class="kind good">☼ A court rises at Moatil</div>
+          <div class="body"><span class="boran">Boran</span> speech gains prestige.</div>
+          <div class="sub">Neighbours begin borrowing from it; its words spread along the trade roads.</div></div>
+      </div>
+      <p class="cap">One boolean flip per event, and the map starts generating drama instead of storing it.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 7 · CHRONICLE -->
+<section class="card">
+  <div class="card-head">
+    <div class="num">7</div><h2>The chronicle</h2>
+    <div class="chips"><span class="chip med">Impact: medium</span><span class="chip hi">Effort: small</span></div>
+  </div>
+  <p class="pitch">The end-of-turn log becomes narrated, era-named prose. Fracture and assimilation are the most consequential events in the simulation; at present they surface as one grey line. Doubles as the run's exportable history.</p>
+  <div class="ba">
+    <div class="panel before">
+      <span class="tag">Before</span>
+      <div class="mock">
+        <div class="rowline"><span class="concept mono" style="font-size:12px">last gen: Boran fractured → Kielan · Aenic assimilated into Boran</span></div>
+      </div>
+      <p class="cap">Two civilisational catastrophes, one line of grey text, gone on the next click.</p>
+    </div>
+    <div class="panel after">
+      <span class="tag">After</span>
+      <div class="mock">
+        <div class="chron"><span class="gen">Generation 12.</span> In the mountains the speech of <span class="boran">Boran</span> broke in two; the northern tongue, now called <span style="color:var(--positive)">Kielan</span>, took to softening its stops. And <span class="aenic">Old Aenic</span> was heard no more, though its words remain on the map at <span class="mono">Nouɣes</span>.</div>
+      </div>
+      <p class="cap">A string-template module, and the simulation's existing richness finally becomes audible.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 8 · ARCHIVE -->
+<section class="card">
+  <div class="card-head">
+    <div class="num">8</div><h2>Loss with residue</h2>
+    <div class="chips"><span class="chip med">Impact: medium</span><span class="chip med">Effort: medium</span></div>
+  </div>
+  <p class="pitch">A dead branch's final lexicon is already frozen in the tree; let living branches spend influence to revive a dead relative's word, the learned-borrowing move (Latin into Romance, the Cornish revival). Waits on 2LEX.2 so collisions give it a mechanical reason to exist.</p>
+  <div class="ba">
+    <div class="panel before">
+      <span class="tag">Before</span>
+      <div class="mock tree">
+        <div class="tnode"><span class="sw" style="background:var(--miral);opacity:.4"></span><span class="dead">† Old Miral · died gen 18</span></div>
+        <div class="tnode indent"><span class="sw" style="background:var(--boran)"></span><span class="boran">Boran · 5 regions</span></div>
+        <div class="tnode indent"><span class="sw" style="background:var(--aenic)"></span><span class="aenic">Aenic · 3 regions</span></div>
+      </div>
+      <p class="cap">Death recolours a node. Nothing is lost that you valued, so nothing was really at stake.</p>
+    </div>
+    <div class="panel after">
+      <span class="tag">After</span>
+      <div class="mock archive">
+        <div class="head">Archive of Miral · died gen 18</div>
+        <div class="relic"><span><span class="mono">nesa</span> <span style="color:var(--muted)">· fish</span></span><span class="btn">Revive into Boran · 3</span></div>
+        <div class="relic" style="border-top:1px solid var(--border)"><span style="color:var(--muted);font-size:12px">Resolves the collision: <span class="mono">keʃi</span> currently means both <i>fish</i> and <i>meat</i> <span class="dot">●</span></span></div>
+      </div>
+      <p class="cap">Death leaves a corpus behind, and one more reason to care which branches die.</p>
+    </div>
+  </div>
+</section>
+
+<footer class="road">
+  <h3>Three roadmap edits</h3>
+  <div class="edit"><b>Unblock 2STK.1 now.</b> <span>The stakes spike is the most important unstarted task in the project; its dependency on the borrowing implementation (2GEO.5) is soft. Momentum + ambitions is the proposed answer.</span></div>
+  <div class="edit"><b>Seed text and chronicle before glyphs.</b> <span>2GLY is four tasks of spectacle that will land far better inside a game that already has stakes; these two deliver more theme per week.</span></div>
+  <div class="edit"><b>Retire the economy panel from the player surface.</b> <span>Keep it behind a dev flag; replace with difficulty presets once the economy purchases consequences.</span></div>
+</footer>
+
+</div>
+</body>
+</html>

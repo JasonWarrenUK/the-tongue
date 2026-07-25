@@ -247,7 +247,8 @@
 						"description": "Design spike: rival language family — a second, autonomous seeded language family competing across the map, giving expansion an opponent, assimilation a genuine threat, and borrowing a direction (substrate/superstrate). Design-analysis §6 flags this as the biggest single swing in scope and recommends not attempting it until the stakes layer (ambitions/contact events) has proven out; deliberately not paired with an implementation task yet",
 						"status": "blocked",
 						"dependsOn": [
-							"2STK.2"
+							"2STK.4",
+							"2STK.5"
 						]
 					},
 					{
@@ -259,7 +260,7 @@
 					{
 						"id": "2STK.1",
 						"description": "Design spike: rule-choice stakes mechanic (resource trade-offs vs directional goals vs prerequisite chains). Design-analysis candidate answer to evaluate: drift momentum (applying a rule tilts that branch's future autonomous drift toward its category, capped and decaying, feeding `biasedMult`/`driftRule`) plus seeded ambitions (three per world, scored at a fixed horizon, computable from existing state incl. the anchor chain) plus intelligibility-as-a-live-resource contact events (seeded per-generation contact between bordering branches, success odds = mutual intelligibility via `hashRand`, the missing convergent incentive) — explicitly recommends skipping prerequisite chains (wrong fantasy: turns phonology into a tech tree)",
-						"status": "todo",
+						"status": "done",
 						"dependsOn": [
 							"2GEO.2",
 							"2GEO.5"
@@ -267,10 +268,46 @@
 					},
 					{
 						"id": "2STK.2",
-						"description": "Implement chosen rule-stakes mechanic — if 2STK.1 settles on the design-analysis's proposed answer, this covers all three: drift momentum, ambitions, and intelligibility-as-a-live-resource contact events",
-						"status": "blocked",
+						"description": "Implement focal identity & reach (2stk-1 spike §2) — `GameState.focusId`, kinship-dominant `blendDistance`/`reachMult` (capped multiplier, never a gate), fracture focus choice, succession dialog (≤3 ranked heirs, per-candidate penalties shown, silence always electable), hoarse-voice mourning multiplier, and the silence ending (the game's single formal ending)",
+						"status": "todo",
 						"dependsOn": [
 							"2STK.1"
+						]
+					},
+					{
+						"id": "2STK.3",
+						"description": "Implement drift momentum (2stk-1 spike §3) — `Branch.momentum` per `RuleCategory`, player-weighted accrual (drift at half), per-turn decay, `momentumMult` joining `biasedMult` in `driftRule` (naturalness stays dominant), momentum shown in the rule picker",
+						"status": "todo",
+						"dependsOn": [
+							"2STK.1"
+						]
+					},
+					{
+						"id": "2STK.4",
+						"description": "Implement ambitions & lock-in (2stk-1 spike §4) — `World.ambitions` via constrained tension draw, live-condition evaluation each repool, natural deadlines only, lock-in grading and freezing the record, goal-driven → sandbox phase flag, starter roster (self-referencing ambitions need focusId; roster items reading momentum/contact state activate as 2STK.3/2STK.5 land)",
+						"status": "blocked",
+						"dependsOn": [
+							"2STK.1",
+							"2STK.2"
+						]
+					},
+					{
+						"id": "2STK.5",
+						"description": "Implement contact events & trade routes (2stk-1 spike §5) — one seeded event per generation between bordering branches, odds = mutual intelligibility, pure roll with pre-resolution preview, typed failure consequences, `CONTACT_YIELD` income, and trade routes gating `resolveBorrow` (⚠️ behaviour change to shipped 2GEO.5: borrowing now requires an open route)",
+						"status": "todo",
+						"dependsOn": [
+							"2STK.1"
+						]
+					},
+					{
+						"id": "2STK.6",
+						"description": "Implement the treasury-and-laboratory economy (2stk-1 spike §6) — steepened size-scaled rule costs (`SIZE_COST` on `overheadFor`), isolation-scaled extra drift rate, stacked cost-multiplier cap (`COST_CAP`), the scarcity-guarantee sweep, and re-verification of the 1ENG.11 ossification sweeps under momentum and rate caps",
+						"status": "blocked",
+						"dependsOn": [
+							"2STK.1",
+							"2STK.2",
+							"2STK.3",
+							"2STK.5"
 						]
 					},
 					{
@@ -278,7 +315,8 @@
 						"description": "Design spike: glyph mutation ruleset — shape-drift grammar + phoneme→glyph reassignment rules, referencing real script lineages (e.g. Phoenician → Greek → Etruscan → Latin)",
 						"status": "blocked",
 						"dependsOn": [
-							"2STK.2"
+							"2STK.4",
+							"2STK.6"
 						]
 					},
 					{
@@ -350,7 +388,8 @@
 						"description": "UI completeness audit across all components — existing panels plus new biome/stakes/glyph/lexicon data — verify every player-facing decision has a legible data source",
 						"status": "blocked",
 						"dependsOn": [
-							"2STK.2",
+							"2STK.4",
+							"2STK.6",
 							"2GLY.4",
 							"2LEX.2"
 						]
@@ -368,7 +407,7 @@
 						"description": "Retire the economy config panel from the player-facing surface (keep behind a dev flag); replace with difficulty presets once the economy purchases real consequences via the stakes mechanic (design-analysis roadmap edit 3)",
 						"status": "blocked",
 						"dependsOn": [
-							"2STK.2"
+							"2STK.6"
 						]
 					},
 					{
