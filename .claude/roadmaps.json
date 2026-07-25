@@ -268,8 +268,8 @@
 					},
 					{
 						"id": "2STK.2",
-						"description": "Implement focal identity & reach (2stk-1 spike §2) — `GameState.focusId`, kinship-dominant `blendDistance`/`reachMult` (capped multiplier, never a gate), fracture focus choice, succession dialog (≤3 ranked heirs, per-candidate penalties shown, silence always electable), hoarse-voice mourning multiplier, and the silence ending (the game's single formal ending)",
-						"status": "todo",
+						"description": "Implement focal identity & reach (2stk-1 spike §2) — `GameState.focusId`, kinship-dominant `blendDistance`/`reachMult` (capped multiplier, never a gate), fracture focus choice, succession dialog (≤3 ranked heirs, per-candidate penalties shown, silence always electable), hoarse-voice mourning multiplier, and the silence ending (the game's single formal ending). New `stakes.ts` (`blendDistance`, `reachMult`, `mourningMult`, `heirCandidates`), `kinshipDistance` (`tree.ts`, LCA over `parentId` chains), breaking `GameState` fields (`focusId`, `mourning`, `pendingFocusChoice`, `ended`), focus-death/fracture-focus detection in `generation.ts` (focus death is the existing assimilation trigger emptying the focal branch's territory, not a new pressure counter), reach-priced `apply`/`expandInto` in `game.svelte.ts`, and the first modal/dialog pattern in the codebase (`FocusDialog.svelte`, `SilenceScreen.svelte`)",
+						"status": "done",
 						"dependsOn": [
 							"2STK.1"
 						]
