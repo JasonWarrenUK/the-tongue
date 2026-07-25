@@ -1,7 +1,7 @@
 <script lang="ts">
   import { intelligibility } from "$lib/engine/intelligibility";
   import type { Branch } from "$lib/engine/types";
-  let { leaves }: { leaves: Branch[] } = $props();
+  let { leaves, displayNames }: { leaves: Branch[]; displayNames: Record<number, string> } = $props();
   const ls = $derived(leaves.slice().sort((a, b) => a.id - b.id));
   const colour = (v: number) =>
     v >= 0.7 ? "var(--color-positive)" : v >= 0.4 ? "var(--color-accent)" : "var(--color-warn)";
@@ -12,11 +12,11 @@
 {:else}
   <div class="overflow-x-auto">
     <table class="text-xs border-collapse">
-      <thead><tr><th class="p-1"></th>{#each ls as b}<th class="p-1 text-muted font-normal">{b.name}</th>{/each}</tr></thead>
+      <thead><tr><th class="p-1"></th>{#each ls as b}<th class="p-1 text-muted font-normal">{displayNames[b.id] ?? b.name}</th>{/each}</tr></thead>
       <tbody>
         {#each ls as a}
           <tr>
-            <td class="p-1 text-muted pr-2">{a.name}</td>
+            <td class="p-1 text-muted pr-2">{displayNames[a.id] ?? a.name}</td>
             {#each ls as b}
               {#if a.id === b.id}
                 <td class="p-1 text-center text-muted">—</td>
