@@ -12,13 +12,14 @@
   import HistoryList from "$lib/components/HistoryList.svelte";
   import FocusDialog from "$lib/components/FocusDialog.svelte";
   import SilenceScreen from "$lib/components/SilenceScreen.svelte";
+  import { MOURN_TURNS } from "$lib/engine/stakes";
 </script>
 
 <div class="w-full min-h-screen bg-bg text-fg p-5 font-sans text-sm">
   <div class="max-w-5xl mx-auto">
     {#if game.pendingFocus}
       <FocusDialog choice={game.pendingFocus} focusId={game.st.focusId} branches={game.st.branches}
-        displayNames={game.displayNames} onfracture={(id) => game.chooseFracture(id)}
+        displayNames={game.displayNames} mournTurns={MOURN_TURNS} onfracture={(id) => game.chooseFracture(id)}
         onsuccessor={(id) => game.chooseSuccessor(id)} onsilence={() => game.electSilence()} />
     {/if}
     {#if game.ended}

@@ -2,9 +2,13 @@
   let { turn, onnew }: { turn: number; onnew: () => void } = $props();
 </script>
 
-<div class="sticky top-0 z-10 bg-warn/10 border border-warn/40 rounded-lg px-4 py-3 mb-4 flex items-center justify-between">
-  <p class="text-warn text-sm">The Tongue has fallen silent · generation {turn} · chronicle closed</p>
-  <button onclick={onnew} class="shrink-0 px-3 py-1 rounded text-xs font-medium bg-accent text-on-accent hover:bg-accent/80">
-    Begin a new world
-  </button>
+<!-- full overlay, matching FocusDialog's weight — the run is over, not just paused,
+     so the rest of the page (map, tree, rule list) must stop reading as live/clickable. -->
+<div class="fixed inset-0 z-20 bg-bg/80 flex items-center justify-center p-4">
+  <div class="bg-surface rounded-lg border border-warn/40 p-4 max-w-sm w-full space-y-3 text-center">
+    <p class="text-warn text-sm">The Tongue has fallen silent · generation {turn} · chronicle closed</p>
+    <button onclick={onnew} class="px-3 py-1 rounded text-xs font-medium bg-accent text-on-accent hover:bg-accent/80">
+      Begin a new world
+    </button>
+  </div>
 </div>

@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { Branch, PendingFocusChoice } from "$lib/engine/types";
-  let { choice, focusId, branches, displayNames, onfracture, onsuccessor, onsilence }:
+  let { choice, focusId, branches, displayNames, mournTurns, onfracture, onsuccessor, onsilence }:
     { choice: PendingFocusChoice; focusId: number; branches: Record<number, Branch>;
-      displayNames: Record<number, string>;
+      displayNames: Record<number, string>; mournTurns: number;
       onfracture: (id: number) => void; onsuccessor: (id: number) => void; onsilence: () => void } = $props();
 </script>
 
@@ -33,7 +33,7 @@
           <button onclick={() => onsuccessor(h.id)}
             class="w-full text-left px-3 py-2 rounded bg-surface-2 hover:bg-muted/20 text-fg">
             <span class="font-medium text-xs">{displayNames[h.id] ?? branches[h.id].name}</span>
-            <span class="block text-muted text-xs">distance {h.blendDistance.toFixed(2)} · hoarse voice ×{h.mourningMult.toFixed(2)} for 5 gens</span>
+            <span class="block text-muted text-xs">distance {h.blendDistance.toFixed(2)} · hoarse voice ×{h.mourningMult.toFixed(2)} for {mournTurns} gens</span>
           </button>
         {/each}
         {#if !choice.heirs.length}
