@@ -117,6 +117,14 @@ export const eventDensityPolicy: CollapsePolicy = (anchors) => {
 };
 
 export interface EraName { text: string; bucket: EraBucket["label"] | "tip" }
+// 2NAR.x family-tree fix: eraLabels' entries widened with the historyIndex range each
+// stage "owns" on the branch's own history timeline — the range a fracturing child's
+// splitIndex is compared against to find which specific era-node it forked from
+// (generation.ts sets both Branch.splitIndex and Anchor.historyIndex from the same
+// `parent.history.length` counter, so the two are directly comparable). loIndex is
+// inclusive, hiIndex exclusive; the terminal stage (living tip, or a dead lineage's
+// Late stage) owns everything after its lower bound, hence +Infinity.
+export interface EraStage extends EraName { loIndex: number; hiIndex: number }
 
 // Tree context needed to resolve Proto-vs-Old and Late-vs-Modern, both of which depend
 // on facts the branch itself doesn't carry (whether it still has a living descendant,
@@ -126,10 +134,12 @@ export interface EraContext {
   protoBlend: string | null; // pre-resolved "Proto-Xo-Y" if this node qualifies (see protoBlendFor)
 }
 
-// eraLabels: the perspective-collapse entrypoint. Returns the ordered display names for
-// a branch's history, oldest -> newest, ending with the live tip's name (bare stem) if
-// `ctx.alive`. Pure function of (branch, ctx, policy) — safe to call every render.
-export function eraLabels(branch: Branch, ctx: EraContext, policy: CollapsePolicy = eventDensityPolicy): EraName[] {
+// eraStages: the perspective-collapse entrypoint. Returns the ordered display stages for
+// a branch's history, oldest -> newest, ending with the live tip's stage (bare stem) if
+// `ctx.alive`, each carrying the historyIndex range it owns. Pure function of (branch,
+// ctx, policy) — safe to call every render. eraLabels (below) is a thin projection of
+// this for callers that only need the text/bucket, not the attachment ranges.
+export function eraStages(branch: Branch, ctx: EraContext, policy: CollapsePolicy = eventDensityPolicy): EraStage[] {
   // A branch is always born with one implicit birth anchor (generation.ts/world.ts).
   // A living lineage that hasn't renamed SINCE birth has no named stages yet — it's
   // still just itself, shown bare — so the birth-only anchor is not display-worthy on
@@ -145,17 +155,39 @@ export function eraLabels(branch: Branch, ctx: EraContext, policy: CollapsePolic
   // itself, appended after this map, is what carries "Modern"/bare).
   const middleCount = buckets.reduce((n, b, i) => n + (i > 0 && !(b.label === "late" && !ctx.alive) ? 1 : 0), 0);
   let middleSeen = 0;
-  const out: EraName[] = buckets.map((b, i) => {
+  // An anchor freezing at historyIndex H snapshots the era that ENDED at H, so a
+  // bucket owns history from the previous bucket's last anchor up to (exclusive) its
+  // own last anchor — track the running upper bound so consecutive stages partition
+  // the index line contiguously and exhaustively (attachStageIndex relies on this).
+  let prevHi = 0;
+  const out: EraStage[] = buckets.map((b, i) => {
     const isOldest = i === 0;
-    if (isOldest && ctx.protoBlend) return { text: ctx.protoBlend, bucket: "old" };
-    if (isOldest) return { text: `Old ${branch.name}`, bucket: "old" };
-    if (b.label === "late" && !ctx.alive) return { text: `Late ${branch.name}`, bucket: "late" };
+    // The birth anchor is sliced off `named` above (for a living branch), so the
+    // oldest bucket's range must still start at 0 so a child that split before any
+    // anchor had even frozen falls inside the "Old" stage rather than under-shooting it.
+    const loIndex = isOldest ? 0 : prevHi;
+    // A living branch's last bucket hands over to the tip stage (appended below) at
+    // its own last-anchor historyIndex; only a dead lineage's last bucket (no tip
+    // follows) owns everything onward, hence +Infinity.
+    const isLastBucket = i === buckets.length - 1;
+    const hiIndex = isLastBucket && !ctx.alive ? Infinity : b.anchors[b.anchors.length - 1].historyIndex;
+    prevHi = hiIndex;
+    if (isOldest && ctx.protoBlend) return { text: ctx.protoBlend, bucket: "old", loIndex, hiIndex };
+    if (isOldest) return { text: `Old ${branch.name}`, bucket: "old", loIndex, hiIndex };
+    if (b.label === "late" && !ctx.alive) return { text: `Late ${branch.name}`, bucket: "late", loIndex, hiIndex };
     middleSeen++;
     const ordinal = middleCount > 1 ? ` (${middleSeen}/${middleCount})` : "";
-    return { text: `Middle ${branch.name}${ordinal}`, bucket: "middle" };
+    return { text: `Middle ${branch.name}${ordinal}`, bucket: "middle", loIndex, hiIndex };
   });
-  if (ctx.alive) out.push({ text: branch.name, bucket: "tip" });
+  if (ctx.alive) {
+    const loIndex = out.length ? out[out.length - 1].hiIndex : 0;
+    out.push({ text: branch.name, bucket: "tip", loIndex, hiIndex: Infinity });
+  }
   return out;
+}
+
+export function eraLabels(branch: Branch, ctx: EraContext, policy: CollapsePolicy = eventDensityPolicy): EraName[] {
+  return eraStages(branch, ctx, policy).map((s) => ({ text: s.text, bucket: s.bucket }));
 }
 
 // Convenience: the single name a UI node should show for a branch RIGHT NOW (its

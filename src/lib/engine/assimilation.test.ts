@@ -46,7 +46,11 @@ function smallVsLarge(opts: { smallLex?: Lexicon; smallTerritory?: number[]; lar
     territory: smallTerritory, pressure: 0, anchors: birthAnchor(smallLex), assimilationPressure: 0,
   };
   const large: Branch = {
-    id: 1, name: "Large", parentId: null, depth: 0, splitIndex: 0, history: [],
+    // 2STK.2: parentId links to `small` (rather than a second null root) so the
+    // fixture is a single connected tree — kinshipDistance/heirCandidates need a
+    // real lineage to rank against, exactly as the engine always produces (siblings
+    // are always fracture-born from a common ancestor, never two unrelated roots).
+    id: 1, name: "Large", parentId: 0, depth: 1, splitIndex: 0, history: [],
     lex: LEX.map((e) => ({ concept: e.concept, word: [...e.word] })),
     territory: largeTerritory, pressure: 0, anchors: birthAnchor(LEX), assimilationPressure: 0,
   };
@@ -58,6 +62,7 @@ function smallVsLarge(opts: { smallLex?: Lexicon; smallTerritory?: number[]; lar
     // the assimilation step; both branches touched so drift never fires either.
     settings: { pool: 999, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
     pool: 999, touched: { 0: true, 1: true }, log: [],
+    focusId: 1, mourning: null, pendingFocusChoice: null, ended: false,
   };
 }
 
@@ -155,6 +160,7 @@ describe("assimilation: safety guard", () => {
       branches: { 0: lone }, rootId: 0, selectedId: 0, nextId: 1, turn: 0,
       settings: { pool: 999, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
       pool: 999, touched: { 0: true }, log: [],
+      focusId: 0, mourning: null, pendingFocusChoice: null, ended: false,
     };
     const out = runTurns(s, ASSIM_TURNS + 5);
     expect(out.branches[0].territory).toEqual([0]);
@@ -168,5 +174,29 @@ describe("assimilation: determinism", () => {
     const b = runTurns(smallVsLarge(), ASSIM_TURNS + 2);
     expect(a.branches).toEqual(b.branches);
     expect(a.log).toEqual(b.log);
+  });
+});
+
+// 2STK.2 §2.3 — focus death is not a new pressure counter; it's the existing
+// assimilation trigger emptying the FOCAL branch's territory specifically.
+describe("2STK.2 focus death queues succession", () => {
+  test("the focal branch's own assimilation queues a succession choice with living heirs", () => {
+    const s = smallVsLarge();
+    const out = runTurns({ ...s, focusId: 0 }, ASSIM_TURNS);
+    expect(out.branches[0].territory).toEqual([]); // sanity: died as expected
+    expect(out.pendingFocusChoice?.kind).toBe("succession");
+    if (out.pendingFocusChoice?.kind === "succession") {
+      expect(out.pendingFocusChoice.heirs.map((h) => h.id)).toContain(1);
+    }
+    // focusId itself does not move inside the pure resolver — only the player's
+    // (or silence's) choice does that.
+    expect(out.focusId).toBe(0);
+  });
+
+  test("a non-focal branch's assimilation never queues a focus decision", () => {
+    const s = smallVsLarge();
+    const out = runTurns({ ...s, focusId: 1 }, ASSIM_TURNS);
+    expect(out.branches[0].territory).toEqual([]);
+    expect(out.pendingFocusChoice).toBeNull();
   });
 });

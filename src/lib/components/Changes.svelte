@@ -1,19 +1,24 @@
 <script lang="ts">
   import type { Candidate } from "$lib/engine/types";
-  let { candidates, preview, stepCost, overheadDue, pool, onpreview, onapply }:
+  let { candidates, preview, stepCost, overheadDue, pool, reach, isFocal, onpreview, onapply }:
     { candidates: Candidate[]; preview: string | null; stepCost: number; overheadDue: number; pool: number;
+      reach: number; isFocal: boolean;
       onpreview: (id: string | null) => void; onapply: (id: string) => void } = $props();
 </script>
 
 <div>
   <div class="flex items-center justify-between mb-2">
     <h2 class="text-xs uppercase tracking-wide text-muted">Available changes</h2>
-    {#if overheadDue > 0}<span class="text-xs text-muted">first change here +{overheadDue} overhead</span>{/if}
+    <span class="flex items-center gap-2">
+      {#if !isFocal}<span class="text-xs text-warn">reach ×{reach.toFixed(1)}</span>{/if}
+      {#if overheadDue > 0}<span class="text-xs text-muted">first change here +{overheadDue} overhead</span>{/if}
+    </span>
   </div>
   <div class="space-y-2">
     {#each candidates as { rule, fires, collDelta } (rule.id)}
       {@const afford = stepCost <= pool}
       <div role="button" tabindex="0" onmouseenter={() => onpreview(rule.id)} onmouseleave={() => onpreview(null)} onclick={() => onpreview(rule.id)}
+        onkeydown={(ev) => { if ((ev.key === "Enter" || ev.key === " ") && ev.target === ev.currentTarget) { ev.preventDefault(); onpreview(rule.id); } }}
         class="rounded-md px-2.5 py-1.5 cursor-pointer border transition-colors {preview === rule.id ? 'border-accent bg-surface' : 'border-border bg-surface hover:border-muted'}">
         <div class="flex items-center justify-between gap-2">
           <span class="text-fg font-medium text-xs">{rule.name}</span>

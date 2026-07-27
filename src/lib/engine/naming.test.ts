@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { inventoryOf, genStem, blendStems, eraLabels, eventDensityPolicy, protoBlendFor, RENAME_CUT, STAGE_CUT } from "./naming";
+import { inventoryOf, genStem, blendStems, eraLabels, eraStages, eventDensityPolicy, protoBlendFor, RENAME_CUT, STAGE_CUT } from "./naming";
 import { BY_ID } from "./phonology";
 import type { Anchor, Branch, Lexicon } from "./types";
 
@@ -120,6 +120,52 @@ describe("naming: eraLabels perspective-collapse", () => {
     const buckets = eventDensityPolicy(anchors);
     const highDriftIncluded = buckets.some((b) => b.anchors.some((a) => a.driftFromPrev === 0.9) && b.anchors.length <= 3);
     expect(highDriftIncluded).toBe(true);
+  });
+});
+
+describe("naming: eraStages historyIndex ranges (family-tree fork-attachment)", () => {
+  test("a living lineage with no renames: the single tip stage owns [0, +Infinity)", () => {
+    const b = mkBranch({ anchors: [anchor(0, 0)] }); // birth anchor only, historyIndex 0
+    const stages = eraStages(b, { alive: true, protoBlend: null });
+    expect(stages).toEqual([{ text: "Aenic", bucket: "tip", loIndex: 0, hiIndex: Infinity }]);
+  });
+
+  test("a living lineage with renames: oldest stage's loIndex is forced to 0 despite the birth anchor being sliced off", () => {
+    // anchors at historyIndex 0 (birth, sliced off since alive), 10, 20 — the surviving
+    // "named" anchors start at historyIndex 10, but a child that split at, say,
+    // historyIndex 3 (before ANY anchor froze) must still land in the oldest stage.
+    const b = mkBranch({ anchors: [anchor(0, 0), anchor(0.6, 10), anchor(0.5, 20)] });
+    const stages = eraStages(b, { alive: true, protoBlend: null });
+    expect(stages[0].loIndex).toBe(0);
+    // ranges are contiguous: each stage's hiIndex is the next stage's loIndex.
+    for (let i = 1; i < stages.length; i++) expect(stages[i].loIndex).toBe(stages[i - 1].hiIndex);
+    // the terminal (tip) stage's hiIndex is unbounded.
+    expect(stages[stages.length - 1].hiIndex).toBe(Infinity);
+  });
+
+  test("each stage's range ends at its OWN last anchor, not the next stage's first", () => {
+    // Regression: anchors at historyIndex 0 (birth), 10, 20 must partition as
+    // Old [0,10) / Middle [10,20) / tip [20,∞) — the buggy arithmetic gave Old [0,20)
+    // and a zero-width Middle [20,20), so a child that split during the Middle era
+    // (e.g. splitIndex 15) attached to the Old node in the family tree.
+    const b = mkBranch({ anchors: [anchor(0, 0), anchor(0.6, 10), anchor(0.5, 20)] });
+    const stages = eraStages(b, { alive: true, protoBlend: null });
+    expect(stages.map((s) => [s.loIndex, s.hiIndex])).toEqual([[0, 10], [10, 20], [20, Infinity]]);
+  });
+
+  test("a dead lineage's terminal (Late) stage also owns an unbounded upper range", () => {
+    const b = mkBranch({ anchors: [anchor(0, 0), anchor(0.6, 10)] });
+    const stages = eraStages(b, { alive: false, protoBlend: null });
+    expect(stages[stages.length - 1].bucket).toBe("late");
+    expect(stages[stages.length - 1].hiIndex).toBe(Infinity);
+  });
+
+  test("eraLabels is a lossless projection of eraStages (text/bucket only, ranges dropped)", () => {
+    const b = mkBranch({ anchors: [anchor(0, 0), anchor(0.6, 10), anchor(0.5, 20)] });
+    const ctx = { alive: true, protoBlend: null };
+    const stages = eraStages(b, ctx);
+    const labels = eraLabels(b, ctx);
+    expect(labels).toEqual(stages.map((s) => ({ text: s.text, bucket: s.bucket })));
   });
 });
 

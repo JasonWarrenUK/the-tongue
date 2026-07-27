@@ -30,7 +30,8 @@
       {@const clickable = own !== undefined || (exp && afford)}
       <g transform={`translate(${pos[r.id].x},${pos[r.id].y})`} style="cursor:{clickable ? 'pointer' : 'default'}"
         role="button" tabindex="0"
-        onclick={() => { if (own !== undefined) onselect(own); else if (exp && afford) onexpand(r.id); }}>
+        onclick={() => { if (own !== undefined) onselect(own); else if (exp && afford) onexpand(r.id); }}
+        onkeydown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); if (own !== undefined) onselect(own); else if (exp && afford) onexpand(r.id); } }}>
         <circle r={R} fill={own !== undefined ? branchColor(own) : "var(--color-surface-2)"}
           stroke={isSel ? "var(--color-accent)" : exp ? (afford ? "var(--color-accent)" : "var(--color-muted)") : "var(--color-bg)"}
           stroke-width={isSel ? 3 : exp ? 2 : 1} stroke-dasharray={exp ? "3 2" : "0"}
