@@ -99,9 +99,15 @@ export function buildEraLayout(
       if (i > 0) edges.push({ from: `${id}:${i - 1}`, to: key });
     });
 
-    const kids = childrenOf(branches, id).sort((a, b) => a.id - b.id);
-    const doKid = (k: Branch) => {
-      const stageIdx = stages.length ? attachStageIndex(stages, k.splitIndex) : 0;
+    // Chronological fan-out: children ordered by the stage they forked from (then by
+    // splitIndex, then id), NOT by branch id — a branch born late but forked from an
+    // early era must sit beside its era-mates, not beyond younger siblings' subtrees,
+    // or its attach edge crosses the whole family (the "Old Ruram past Middle Talen"
+    // layout complaint).
+    const kids = childrenOf(branches, id)
+      .map((k) => ({ k, stageIdx: stages.length ? attachStageIndex(stages, k.splitIndex) : 0 }))
+      .sort((a, b) => a.stageIdx - b.stageIdx || a.k.splitIndex - b.k.splitIndex || a.k.id - b.k.id);
+    const doKid = ({ k, stageIdx }: { k: Branch; stageIdx: number }) => {
       rec(k.id, baseRow + stageIdx + 1);
       if (stages.length) edges.push({ from: `${id}:${stageIdx}`, to: `${k.id}:0` });
     };

@@ -37,13 +37,15 @@
         <MapView world={game.st.world} branches={game.st.branches} selectedId={game.st.selectedId}
           pool={game.st.pool} onselect={(id) => game.selectBranch(id)} onexpand={(r) => game.expandInto(r)} />
       </Panel>
-      <Panel title="Family tree">
-        <FamilyTree branches={game.st.branches} selectedId={game.st.selectedId} focusId={game.st.focusId}
-          touched={game.st.touched} eraGraph={game.eraGraph} onselect={(id) => game.selectBranch(id)} />
-      </Panel>
+      <Panel title="Mutual intelligibility"><IntelMatrix leaves={game.leaves} displayNames={game.displayNames} /></Panel>
     </div>
 
-    <div class="mt-4"><Panel title="Mutual intelligibility"><IntelMatrix leaves={game.leaves} displayNames={game.displayNames} /></Panel></div>
+    <!-- the tree grows a column per branch and a row per era — it needs the full page
+         width far sooner than the map or the matrix do. -->
+    <div class="mt-4"><Panel title="Family tree">
+      <FamilyTree branches={game.st.branches} selectedId={game.st.selectedId} focusId={game.st.focusId}
+        touched={game.st.touched} eraGraph={game.eraGraph} onselect={(id) => game.selectBranch(id)} />
+    </Panel></div>
 
     <div class="grid md:grid-cols-5 gap-5 mt-4 items-start">
       <div class="md:col-span-3 sticky top-2 z-10 bg-bg self-start">

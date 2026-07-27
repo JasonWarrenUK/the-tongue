@@ -158,6 +158,25 @@ describe("buildEraLayout: columns", () => {
     expect(colOf(0)).not.toBe(colOf(1));
   });
 
+  test("siblings lay out in fork order, not id order (late-spawned early fork sits left)", () => {
+    // Regression: kids were sorted by id, so a branch created late in the game but
+    // forked from the parent's OLD era landed to the right of younger-era siblings,
+    // its attach edge crossing their whole subtree ("Old Ruram past Middle Talen").
+    const root = mkBranch({ anchors: [anchor(0, 0), anchor(0.6, 10), anchor(0.5, 20)] });
+    const midFork: Branch = mkBranch({ id: 1, name: "MidFork", parentId: 0, depth: 1, splitIndex: 15, anchors: [anchor(0, 15)] });
+    const earlyFork: Branch = mkBranch({ id: 2, name: "EarlyFork", parentId: 0, depth: 1, splitIndex: 3, anchors: [anchor(0, 3)] });
+    const branches = { 0: root, 1: midFork, 2: earlyFork };
+    const stagesByBranch = {
+      0: eraStages(root, { alive: true, protoBlend: null }),
+      1: eraStages(midFork, { alive: true, protoBlend: null }),
+      2: eraStages(earlyFork, { alive: true, protoBlend: null }),
+    };
+    const layout = buildEraLayout(branches, 0, stagesByBranch);
+    // early fork (id 2) left of the trunk, mid fork (id 1) right of it.
+    expect(layout.pos["2:0"].col).toBeLessThan(layout.pos["0:0"].col);
+    expect(layout.pos["0:0"].col).toBeLessThan(layout.pos["1:0"].col);
+  });
+
   test("sibling branches get distinct columns", () => {
     const root = mkBranch({ anchors: [anchor(0, 0)] });
     const a: Branch = mkBranch({ id: 1, name: "A", parentId: 0, depth: 1, splitIndex: 0, anchors: [anchor(0, 0)] });
