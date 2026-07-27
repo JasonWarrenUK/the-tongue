@@ -285,7 +285,7 @@
 					{
 						"id": "2STK.4",
 						"description": "Implement ambitions & lock-in (2stk-1 spike §4) — `World.ambitions` via constrained tension draw, live-condition evaluation each repool, natural deadlines only, lock-in grading and freezing the record, goal-driven → sandbox phase flag, starter roster (self-referencing ambitions need focusId; roster items reading momentum/contact state activate as 2STK.3/2STK.5 land)",
-						"status": "blocked",
+						"status": "todo",
 						"dependsOn": [
 							"2STK.1",
 							"2STK.2"
