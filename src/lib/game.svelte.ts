@@ -6,8 +6,10 @@ import { ownerMap, freeAdjacentFor, passableComponents, basePool, overheadFor, d
 import { displayName, eraStages, protoBlendFor } from "./engine/naming";
 import { buildEraLayout } from "./engine/tree";
 import { reachMult, COST_CAP, MOURN_TURNS } from "./engine/stakes";
+import { resolveContact } from "./engine/contact";
 import type { GameState, Settings, Candidate } from "./engine/types";
 import type { EraStage } from "./engine/naming";
+import type { ContactResult } from "./engine/contact";
 
 class Game {
   seed = $state(1985);
@@ -53,6 +55,23 @@ class Game {
   focal = $derived(this.st.branches[this.st.focusId]);
   pendingFocus = $derived(this.st.pendingFocusChoice);
   ended = $derived(this.st.ended);
+  // 2STK.5 §5: the pending contact event, previewed BEFORE end-of-turn resolution
+  // (the spike's visibility constraint). Live-recomputed against current state
+  // exactly like `assimilatingInto` above, never stored on GameState — it tracks the
+  // player's actions as they act. Caveat, surfaced honestly in the UI copy:
+  // resolveGeneration calls resolveContact at step 3.25 with the POST-spread owner
+  // map and POST-drift lexicons, so the odds shift slightly and (if this turn's
+  // spread changes the border topology) the pair itself can move. The pair is picked
+  // by index into a canonically-sorted pair list precisely so a stable border set
+  // gives a stable pick — see contact.ts borderingPairs.
+  pendingContact = $derived.by<ContactResult | null>(() =>
+    resolveContact(this.st, ownerMap(this.st.branches)));
+  // open trade routes as a "loId:hiId" key set, for the matrix's route marker.
+  openRoutes = $derived.by<Set<string>>(() => {
+    const out = new Set<string>();
+    Object.entries(this.st.routes).forEach(([k, until]) => { if (this.st.turn < until) out.add(k); });
+    return out;
+  });
   // 1ENG.10: one computed display name per branch — the perspective-collapsed era name
   // (bare stem for a living tip, Old/Middle/Late/Proto- for a dead ancestor). Built
   // once per render pass since protoBlendFor needs the branch's live descendant leaves,

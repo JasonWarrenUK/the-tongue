@@ -30,7 +30,13 @@
       onload={() => game.loadWorld(game.seed)} onnew={() => game.loadWorld(Math.floor(Math.random() * 99999))} />
 
     <ControlBar turn={game.st.turn} pool={game.st.pool} base={game.st.settings.pool}
-      willDrift={game.willDrift} log={game.st.log} onend={() => game.endTurn()} ontogglecfg={() => (game.showCfg = !game.showCfg)} />
+      willDrift={game.willDrift} log={game.st.log}
+      contact={game.pendingContact}
+      contactNames={game.pendingContact
+        ? [game.displayNames[game.pendingContact.aId] ?? game.st.branches[game.pendingContact.aId].name,
+           game.displayNames[game.pendingContact.bId] ?? game.st.branches[game.pendingContact.bId].name]
+        : null}
+      onend={() => game.endTurn()} ontogglecfg={() => (game.showCfg = !game.showCfg)} />
     {#if game.showCfg}<EconomyCfg settings={game.st.settings} onchange={(k, v) => game.setCfg(k, v)} />{/if}
 
     <div class="grid lg:grid-cols-2 gap-4 mt-4">
@@ -38,7 +44,7 @@
         <MapView world={game.st.world} branches={game.st.branches} selectedId={game.st.selectedId}
           pool={game.st.pool} onselect={(id) => game.selectBranch(id)} onexpand={(r) => game.expandInto(r)} />
       </Panel>
-      <Panel title="Mutual intelligibility"><IntelMatrix leaves={game.leaves} displayNames={game.displayNames} /></Panel>
+      <Panel title="Mutual intelligibility"><IntelMatrix leaves={game.leaves} displayNames={game.displayNames} openRoutes={game.openRoutes} /></Panel>
     </div>
 
     <!-- the tree grows a column per branch and a row per era — it needs the full page
