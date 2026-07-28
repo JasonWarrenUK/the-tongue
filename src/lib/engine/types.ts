@@ -42,6 +42,11 @@ export interface LexEntry { concept: string; word: string[] }
 export type Lexicon = LexEntry[];
 
 export type Terrain = "plain" | "hill" | "mountain" | "water";
+// 2LEX.2 (2lex-1 spike §3.4): per-world compound headedness for collision-repair
+// compounds — modFirst gives stone-path (Germanic/Sinitic), headFirst gives
+// path-stone (Romance/Celtic). One language family, one habit; seeded once at
+// world genesis (world.ts) and shared by every branch in it.
+export type CompoundOrder = "modFirst" | "headFirst";
 export interface Region { id: number; x: number; y: number }
 export interface Edge { a: number; b: number; passable: boolean; cost: number; name?: Terrain }
 export interface AdjEntry { to: number; passable: boolean; cost: number }
@@ -53,6 +58,8 @@ export interface Template { onset: "req" | "opt"; coda: "none" | "opt"; clusters
 export interface World {
   seed: number; inv: Inventory; tmpl: Template; lex: Lexicon;
   regions: Region[]; edges: Edge[]; adj: Adjacency; start: number;
+  // 2LEX.2: compound headedness, seeded once at genesis (see CompoundOrder above).
+  compoundOrder: CompoundOrder;
 }
 export interface HistoryEntry { name: string; note: string; drift?: boolean; borrow?: boolean }
 // 1ENG.10 rename mechanic: a frozen lexicon snapshot marking a divergence-threshold
@@ -72,6 +79,12 @@ export interface Branch {
   // near-identical neighbour (see generation.ts). Resets to 0 the moment the trigger
   // stops holding; reaching the threshold empties `territory`, killing the branch.
   assimilationPressure: number;
+  // 2LEX.2 (2lex-1 spike §3.2): per-pair grace-period counter for severe homophone
+  // collisions, key = sorted "concept|concept". Increments each consecutive turn the
+  // pair still collides (generation.ts step 1.5); deleted the moment it heals, repairs,
+  // or either concept stops being severe. Children inherit it whole at fracture — the
+  // community carried the ambiguity across the split.
+  collisionPressure: Record<string, number>;
 }
 export interface Settings {
   pool: number; growth: number; overhead: number; changeCost: number; spreadEvery: number;
