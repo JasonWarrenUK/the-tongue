@@ -3,6 +3,30 @@ import type { Inventory, Template, Lexicon, Terrain } from "./types";
 
 export const CONCEPTS = ["water","fire","stone","tree","leaf","root","seed","fish","bird","dog","wolf","hand","eye","ear","tooth","bone","blood","skin","meat","sun","moon","star","sky","rain","wind","hill","river","path","house","night","day","snow"];
 
+// 2LEX.2 word classes (1ENG.14's grammar substrate), introduced early for the
+// collision-severity class gate (2lex-1 spike §3.1: same-class collisions are the
+// ones a language actually fights to avoid — Wedel et al. 2013). Covers the full
+// 48-concept substrate 1ENG.19 will grow CONCEPTS into; the 16 non-noun entries are
+// inert until then (every current CONCEPTS entry is a noun). Must stay in lockstep
+// with the CLASSES map in docs/spikes/assets/2lex-1-semantic-distance-gen.ts, which
+// generated the shipped semantic-distance.json from exactly this grouping.
+export type ConceptClass = "noun" | "verb" | "pronoun" | "adjective";
+const CLASS_MEMBERS: Record<ConceptClass, string[]> = {
+  noun: CONCEPTS,
+  verb: ["eat", "drink", "see", "sleep", "die", "give", "go", "say", "finish"],
+  pronoun: ["i", "you", "we"],
+  adjective: ["big", "small", "new", "old"],
+};
+export const CONCEPT_CLASS: Record<string, ConceptClass> = Object.fromEntries(
+  Object.entries(CLASS_MEMBERS).flatMap(([cls, words]) => words.map((w) => [w, cls as ConceptClass])),
+);
+// Canonical order over the FULL 48-concept substrate (noun/verb/pronoun/adjective,
+// same order as CLASS_MEMBERS/the distance-table generator's CLASSES), for collision.ts
+// to enumerate/tie-break candidates across every class rather than just CONCEPTS' 32
+// nouns — matters today only for the currently-inert verb/pronoun/adjective classes,
+// but must be right now so 1ENG.19 doesn't inherit a silent gap.
+export const SUBSTRATE_ORDER: string[] = Object.values(CLASS_MEMBERS).flat();
+
 // 2GEO.3 Axis B — physical terrain sets per-concept salience; salient concepts
 // resist drift/loss. Graded: core-salient 0.5, secondary 0.25, else 0.
 // Source: 2GEO.1 spike §4 (docs/spikes/2geo-1-terrain-sound-change.md:157-161).

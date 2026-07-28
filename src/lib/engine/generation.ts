@@ -1,16 +1,26 @@
 import { hashRand } from "./rng";
-import { driftRule, applyRuleToLex } from "./phonology";
-import { ownerMap, freeAdjacentFor, passableComponents, basePool, isolationScore, dominantTerrain, dominantAssimilator, neighborsOf, ASSIM_TURNS } from "./geography";
+import { driftRule, applyRuleToLex, formOf } from "./phonology";
+import { ownerMap, freeAdjacentFor, passableComponents, basePool, isolationScore, dominantTerrain, dominantAssimilator, neighborsOf, pairContact, ASSIM_TURNS } from "./geography";
 import { leavesOf, isLeaf, childrenOf } from "./tree";
 import { inventoryOf, genStem, RENAME_CUT } from "./naming";
 import { intelligibility } from "./intelligibility";
 import { resolveBorrow } from "./borrowing";
+import { severePairs, pairThreshold, resolveCollision } from "./collision";
 import { heirCandidates } from "./stakes";
 import { resolveContact, shouldOpenRoute, routeKey, CONTACT_YIELD, CONTACT_TRADE_LOSS, ROUTE_TURNS } from "./contact";
 import type { Anchor, Branch, GameState, HistoryEntry, Lexicon, PendingFocusChoice } from "./types";
 
-// One generation resolves: autonomous drift → rename check → passive spread →
-// contact event → lexical borrowing → assimilation death → geographic fracture → repool.
+// One generation resolves: autonomous drift → collision resolution → rename check →
+// passive spread → contact event → lexical borrowing → assimilation death →
+// geographic fracture → repool.
+
+// 2LEX.2: per-branch per-turn repair budget (step 1.5 below). A live-engine census
+// found up to 14 concurrent severe pairs on one branch-turn (drift generates far more
+// collisions than the spike's original passive census implied), so 1 was too tight to
+// ever clear the chronic tail; 3 clears real backlogs within a few turns while staying
+// well short of "every collision fixed instantly."
+const MAX_REPAIRS_PER_TURN = 3;
+
 export function resolveGeneration(s: GameState): GameState {
   const seed = s.world.seed, turn = s.turn, adj = s.world.adj, log: string[] = [];
   const branches: Record<number, Branch> = {};
@@ -29,6 +39,67 @@ export function resolveGeneration(s: GameState): GameState {
     const terrain = dominantTerrain(L.id, L.territory, s.world.edges, owner);
     branches[L.id] = { ...branches[L.id], lex: applyRuleToLex(L.lex, rule, { terrain, seed, turn, branchId: L.id }).lex, history: [...branches[L.id].history, { name: rule.name, note: rule.note, drift: true }] };
     log.push(`${L.name} drifted (${rule.name.toLowerCase()})`);
+  });
+
+  // 1.5 COLLISION RESOLUTION (2LEX.2, 2lex-1 spike §4). Tick a per-pair pressure
+  //     counter against this turn's POST-drift forms, drop healed/cross-class/sub-cut
+  //     keys, and repair the ripest pairs once they reach their distance-scaled
+  //     threshold. Runs after drift (the collision source) and before rename (so the
+  //     era check sees the repaired lexicon). No leavesOf > 1 guard, unlike
+  //     borrowing/assimilation: a language alone in the world still disambiguates for
+  //     itself. No touched guard either: repair is autonomous regardless of player
+  //     action. Pure — the whole mechanic adds no RNG beyond world.ts's one
+  //     compoundOrder draw.
+  //     Capped at MAX_REPAIRS_PER_TURN ripest pairs per branch per turn, not one: a
+  //     census run against the real engine (not the passive pre-mechanic census) found
+  //     40% of branch-turns carry MULTIPLE concurrent severe pairs (up to 14 at once —
+  //     drift creates far more collisions than the spike's original passive numbers
+  //     implied), so a strict one-per-turn cap leaves a permanent backlog rather than
+  //     ever clearing the chronic tail this mechanic exists for. Each repair in the
+  //     batch is resolved against the batch's OWN progressively-updated lex (not the
+  //     turn-start snapshot), so a second repair sees the first's new form and can't
+  //     silently recreate the collision it just fixed.
+  leavesOf(branches).forEach((L) => {
+    const b = branches[L.id];
+    const severe = severePairs(b.lex);
+    // fresh record built from this turn's severe pairs only: the cleanest expression of
+    // "reset the moment it heals" — also drops keys for pairs that became cross-class,
+    // sub-cut, or whose concepts vanished, with no separate delete pass needed.
+    const pressure: Record<string, number> = {};
+    severe.forEach((p) => { const k = `${p[0]}|${p[1]}`; pressure[k] = (b.collisionPressure[k] ?? 0) + 1; });
+    const ripe = severe
+      .filter((p) => pressure[`${p[0]}|${p[1]}`] >= pairThreshold(p[0], p[1]))
+      .sort((p, q) => (pressure[`${q[0]}|${q[1]}`] - pairThreshold(q[0], q[1])) - (pressure[`${p[0]}|${p[1]}`] - pairThreshold(p[0], p[1])));
+    if (!ripe.length) { branches[L.id] = { ...b, collisionPressure: pressure }; return; }
+    // borrowing arm (spike §3.5): the yielding concept isn't known until resolveCollision
+    // picks it, so resolve BOTH pair members' potential lenders and let the callee
+    // select whichever one is actually yielding. Highest-pairContact passable neighbour
+    // whose form differs from the colliding form; deterministic, no RNG. Reads `lex`
+    // fresh each call so an earlier repair in this same batch is visible to the next.
+    const lenderFor = (concept: string, lex: Lexicon) => {
+      let best: { name: string; word: string[]; contact: number } | null = null;
+      neighborsOf(L.id, b.territory, s.world.edges, owner).forEach((nId) => {
+        const N = branches[nId]; if (!N) return;
+        const entry = N.lex.find((e) => e.concept === concept); if (!entry) return;
+        if (formOf(entry.word) === formOf(lex.find((e) => e.concept === concept)!.word)) return;
+        const contact = pairContact(L.id, nId, b.territory, s.world.edges, owner);
+        if (!best || contact > best.contact) best = { name: N.name, word: entry.word, contact };
+      });
+      return best;
+    };
+    let lex = b.lex;
+    const entries: HistoryEntry[] = [];
+    const terrain = dominantTerrain(L.id, b.territory, s.world.edges, owner);
+    ripe.slice(0, MAX_REPAIRS_PER_TURN).forEach((pair) => {
+      const lender = lenderFor(pair[0], lex) ?? lenderFor(pair[1], lex);
+      const res = resolveCollision(pair, lex, terrain, s.world.compoundOrder, lender);
+      lex = lex.map((e) => (e.concept === res.concept ? { ...e, word: res.word } : e));
+      delete pressure[`${pair[0]}|${pair[1]}`]; // repair clears the pair's clock
+      const other = pair[0] === res.concept ? pair[1] : pair[0];
+      entries.push({ name: "Disambiguation", note: `'${res.concept}' → ${formOf(res.word)} (collided with '${other}')` });
+      log.push(`${L.name} disambiguated '${res.concept}' as '${formOf(res.word)}'`);
+    });
+    branches[L.id] = { ...b, lex, collisionPressure: pressure, history: [...b.history, ...entries] };
   });
 
   // 2. divergence-threshold rename (1ENG.10): every branch is born with one implicit
@@ -201,7 +272,9 @@ export function resolveGeneration(s: GameState): GameState {
         const startLex = parent.lex.map((e) => ({ concept: e.concept, word: [...e.word] }));
         // birth anchor: the sibling's starting lexicon, so subsequent rename checks
         // measure drift from the moment it became its own lineage, not the parent's.
-        branches[id] = { id, name, parentId: parent.id, depth: parent.depth + 1, splitIndex: parent.history.length, history: [...parent.history], lex: startLex, territory: comp, pressure: 0, anchors: [{ lex: startLex, turn, historyIndex: parent.history.length, driftFromPrev: 0 }], assimilationPressure: 0 };
+        // 2LEX.2: collisionPressure inherited whole — the community carried the
+        // ambiguity across the split (2lex-1 spike §3.2).
+        branches[id] = { id, name, parentId: parent.id, depth: parent.depth + 1, splitIndex: parent.history.length, history: [...parent.history], lex: startLex, territory: comp, pressure: 0, anchors: [{ lex: startLex, turn, historyIndex: parent.history.length, driftFromPrev: 0 }], assimilationPressure: 0, collisionPressure: { ...parent.collisionPressure } };
       });
       branches[L.id] = { ...parent, territory: main };
       // parent keeps its component; siblings own theirs — ownerMap reflects the

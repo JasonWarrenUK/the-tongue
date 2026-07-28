@@ -156,8 +156,8 @@
 					},
 					{
 						"id": "1ENG.19",
-						"description": "Implement the 1ENG.14 substrate and conditioning (stage A) — `CONCEPTS` 32→48 (9 verbs incl. `finish`, 3 pronouns, 4 adjectives) with `CONCEPT_CLASS`, new `syntax.ts` (`FRAMES`, `frameOrder`, `positionProfile`, `walkFrameWeights`, `followerVowelShare`, `syntaxMult`, `SYNTAX_STRENGTH`, `FRAME_WALK`, `ORDER_INNOVATE_RATE`), `Branch.wordOrder`/`frameWeights`/`proDrop` seeded and inherited, the fracture-birth reanalysis flip, the `applyRuleToLex` syntax gate at both drift call sites, the new `fortify`/`aphaer` initial-position rules and `PhrasePanel.svelte`. Breaking: three required Branch fields, `CONCEPTS` growth and two new `RULES` entries shift goldens — contract specified in the amended 1ENG.14 spike; sequenced after 2LEX.2 so severity tier 1 lands against the finished collision module",
-						"status": "blocked",
+						"description": "Implement the 1ENG.14 substrate and conditioning (stage A) — `CONCEPTS` 32→48 (9 verbs incl. `finish`, 3 pronouns, 4 adjectives), new `syntax.ts` (`FRAMES`, `frameOrder`, `positionProfile`, `walkFrameWeights`, `followerVowelShare`, `syntaxMult`, `SYNTAX_STRENGTH`, `FRAME_WALK`, `ORDER_INNOVATE_RATE`), `Branch.wordOrder`/`frameWeights`/`proDrop` seeded and inherited, the fracture-birth reanalysis flip, the `applyRuleToLex` syntax gate at both drift call sites, the new `fortify`/`aphaer` initial-position rules and `PhrasePanel.svelte`. Breaking: three required Branch fields, `CONCEPTS` growth and two new `RULES` entries shift goldens — contract specified in the amended 1ENG.14 spike. **Note:** `CONCEPT_CLASS`/`SUBSTRATE_ORDER` already landed in `lexicon.ts` via 2LEX.2 (covering the full 48-concept substrate ahead of `CONCEPTS` growing into it), so this task only needs to grow `CONCEPTS` — the class gate activates for the new concepts automatically, no new class table to write",
+						"status": "todo",
 						"dependsOn": [
 							"1ENG.14",
 							"2LEX.2"
@@ -354,8 +354,8 @@
 					},
 					{
 						"id": "2LEX.2",
-						"description": "Implement the homophone-collision resolution mechanic — new `collision.ts` (`pairScore`, `pairThreshold`, `severePairs`, `yieldingConcept`, `modifierCandidates`, `compoundWord`, `resolveCollision`, `COLLISION_TURNS`, `SEVERITY_CUT`), the Numberbatch distance table copied to `src/lib/engine/semantic-distance.json`, `World.compoundOrder` + `Branch.collisionPressure` (breaking: required fields), turn-loop step 1.5 in `generation.ts` and the apply-time repair prompt in `game.svelte.ts`. Severity = class gate + graded relatedness with distance-scaled thresholds; no new randomness beyond one world-gen draw — contract specified in the revised 2LEX.1 spike; the borrowing arm consumes 2GEO.5's exports",
-						"status": "todo",
+						"description": "Implement the homophone-collision resolution mechanic — new `collision.ts` (`pairScore`, `pairThreshold`, `severePairs`, `yieldingConcept`, `modifierCandidates`, `compoundWord`, `resolveCollision`, `COLLISION_TURNS`, `SEVERITY_CUT`), the Numberbatch distance table copied to `src/lib/engine/semantic-distance.json`, `World.compoundOrder` + `Branch.collisionPressure` (breaking: required fields), turn-loop step 1.5 in `generation.ts` and the apply-time repair prompt in `game.svelte.ts`. Severity = class gate + graded relatedness with distance-scaled thresholds; no new randomness beyond one world-gen draw — contract specified in the revised 2LEX.1 spike; the borrowing arm consumes 2GEO.5's exports. **Revised during implementation:** `CONCEPT_CLASS`/`SUBSTRATE_ORDER` were added to `lexicon.ts` now (covering the full 48-concept substrate) rather than waiting for 1ENG.19, so severity tier 1 is live from this task rather than staying vacuous; the autonomous-repair cap is `MAX_REPAIRS_PER_TURN = 3` ripest pairs per branch per turn, not one — a live-engine census found up to 14 concurrent severe pairs on a single branch-turn (far more than the spike's passive pre-mechanic census implied), so a 1-per-turn cap left a permanent backlog. Verified via a 30-seed/150-turn sweep: zero severe pairs remain stuck past their own threshold at horizon",
+						"status": "done",
 						"dependsOn": [
 							"2LEX.1",
 							"2GEO.5"
@@ -378,7 +378,7 @@
 					{
 						"id": "2LEX.5",
 						"description": "Design spike: archive / loss with residue — a dead branch's frozen final lexicon becomes spendable: living branches pay influence to revive a dead relative's word, resolving a homophone collision or purely for flavour (the learned-borrowing/Cornish-revival move). Explicitly waits on 2LEX.2 so collisions give it a mechanical reason to exist, not just flavour (design-analysis §8)",
-						"status": "blocked",
+						"status": "todo",
 						"dependsOn": [
 							"2LEX.2"
 						]
