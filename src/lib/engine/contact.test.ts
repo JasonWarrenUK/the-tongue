@@ -20,7 +20,7 @@ const DIVERGENT_LEX: Lexicon = [
 function mkBranch(id: number, territory: number[], lex: Lexicon = LEX): Branch {
   return {
     id, name: `B${id}`, parentId: null, depth: 0, splitIndex: 0, history: [],
-    lex, territory, pressure: 0, anchors: [], assimilationPressure: 0,
+    lex, territory, pressure: 0, anchors: [], assimilationPressure: 0, collisionPressure: {},
   };
 }
 function mkState(
@@ -28,7 +28,7 @@ function mkState(
   opts: { seed?: number; turn?: number } = {},
 ): GameState {
   return {
-    world: { seed: opts.seed ?? 1, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [], edges, adj: {}, start: 0 },
+    world: { seed: opts.seed ?? 1, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [], edges, adj: {}, start: 0, compoundOrder: "modFirst" },
     branches, rootId: 0, selectedId: 0, nextId: Object.keys(branches).length, turn: opts.turn ?? 0,
     settings: { pool: 10, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
     pool: 10, touched: {}, log: [], focusId: 0, mourning: null, pendingFocusChoice: null, ended: false, routes: {},
