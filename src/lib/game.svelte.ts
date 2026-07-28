@@ -5,7 +5,7 @@ import { leavesOf, isLeaf, descendsFrom } from "./engine/tree";
 import { ownerMap, freeAdjacentFor, passableComponents, basePool, overheadFor, dominantAssimilator, dominantTerrain, ASSIM_TURNS } from "./engine/geography";
 import { displayName, eraStages, protoBlendFor } from "./engine/naming";
 import { buildEraLayout } from "./engine/tree";
-import { reachMult, COST_CAP, MOURN_TURNS } from "./engine/stakes";
+import { reachMult, COST_CAP, MOURN_TURNS, momentumMult, bumpMomentum } from "./engine/stakes";
 import { resolveContact } from "./engine/contact";
 import { severePairs, pairThreshold, yieldingConcept, modifierCandidates, compoundWord } from "./engine/collision";
 import type { GameState, Settings, Candidate } from "./engine/types";
@@ -32,7 +32,7 @@ class Game {
   candidates = $derived.by<Candidate[]>(() =>
     RULES.map((rule) => {
       const { lex: after, fires } = applyRuleToLex(this.sel.lex, rule);
-      return { rule, fires, collDelta: collisionPairs(after) - this.baseColl };
+      return { rule, fires, collDelta: collisionPairs(after) - this.baseColl, momentum: momentumMult(this.sel, rule.category) };
     }).filter((c) => c.fires > 0)
   );
   previewLex = $derived(this.preview ? applyRuleToLex(this.sel.lex, RULE_BY_ID[this.preview]).lex : null);
@@ -149,8 +149,10 @@ class Game {
     const cost = Math.ceil(Math.min(COST_CAP * base, base * reachMult(s, s.selectedId)));
     if (cost > s.pool) return;
     const rule = RULE_BY_ID[ruleId]; const after = applyRuleToLex(b.lex, rule).lex;
+    // 2STK.3 §3: player-applied rules bump momentum at full weight (decision §9.15).
+    const bumped = bumpMomentum({ ...b, lex: after, history: [...b.history, { name: rule.name, note: rule.note }] }, rule.category, true);
     this.st = { ...s, pool: s.pool - cost, touched: { ...s.touched, [s.selectedId]: true },
-      branches: { ...s.branches, [s.selectedId]: { ...b, lex: after, history: [...b.history, { name: rule.name, note: rule.note }] } } };
+      branches: { ...s.branches, [s.selectedId]: bumped } };
     this.preview = null;
     // 2LEX.2 §3.6: diff severe pairs before/after — the same before/after comparison
     // collDelta already prices for the picker, narrowed to pairs that newly repair.
