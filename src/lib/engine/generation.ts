@@ -6,10 +6,11 @@ import { inventoryOf, genStem, RENAME_CUT } from "./naming";
 import { intelligibility } from "./intelligibility";
 import { resolveBorrow } from "./borrowing";
 import { heirCandidates } from "./stakes";
+import { resolveContact, shouldOpenRoute, routeKey, CONTACT_YIELD, CONTACT_TRADE_LOSS, ROUTE_TURNS } from "./contact";
 import type { Anchor, Branch, GameState, HistoryEntry, Lexicon, PendingFocusChoice } from "./types";
 
 // One generation resolves: autonomous drift → rename check → passive spread →
-// lexical borrowing → assimilation death → geographic fracture → repool.
+// contact event → lexical borrowing → assimilation death → geographic fracture → repool.
 export function resolveGeneration(s: GameState): GameState {
   const seed = s.world.seed, turn = s.turn, adj = s.world.adj, log: string[] = [];
   const branches: Record<number, Branch> = {};
@@ -64,17 +65,61 @@ export function resolveGeneration(s: GameState): GameState {
     }
   });
 
+  // 3.25 CONTACT EVENT (2STK.5 §5). One seeded event per generation between a
+  //      bordering living pair; odds ARE the pair's mutual intelligibility (decision
+  //      §9.17: pure roll, displayed pre-resolution via game.svelte.ts's live
+  //      pendingContact preview, no influence sweetening). Runs after spread (owner
+  //      map is final for this turn) and before borrowing (a fresh success licenses
+  //      borrowing the SAME turn, per §7). Called against the LOCAL mutated `branches`
+  //      (post-drift lexicons) rather than s.branches, since odds must read this
+  //      turn's live intelligibility.
+  let contactYield = 0;
+  const routes: Record<string, number> = { ...s.routes };
+  const contactResult = resolveContact({ ...s, branches }, owner);
+  if (contactResult) {
+    const A = branches[contactResult.aId], B = branches[contactResult.bId];
+    const pct = Math.round(contactResult.odds * 100);
+    if (shouldOpenRoute(contactResult)) {
+      contactYield += CONTACT_YIELD;
+      // route opens on the turn resolved (`turn`) through ROUTE_TURNS further
+      // generations, tested against the RETURNED state's turn (turn + 1) — see repool.
+      routes[routeKey(A.id, B.id)] = turn + 1 + ROUTE_TURNS;
+      log.push(`${contactResult.kind} between ${A.name} and ${B.name} succeeded (${pct}%) — trade route open`);
+    } else if (contactResult.kind === "trade") {
+      contactYield -= CONTACT_TRADE_LOSS;
+      log.push(`trade between ${A.name} and ${B.name} failed (${pct}%)`);
+    } else if (contactResult.kind === "warning") {
+      // §9.18: a failed warning ACCELERATES an existing assimilation countdown, it
+      // never starts one from nothing — the smaller branch must already have a
+      // qualifying dominant assimilator (checked live, same call step 4 makes). Step
+      // 4's own +1 can then complete the assimilation this same turn; that stacking
+      // is intended (decision: the warning went unheeded). Size tie -> lower id,
+      // mirroring the fracture/assimilation tie-break convention.
+      const small = A.territory.length <= B.territory.length ? A : B;
+      if (dominantAssimilator(small, branches, s.world.edges, owner)) {
+        branches[small.id] = { ...branches[small.id], assimilationPressure: branches[small.id].assimilationPressure + 1 };
+        log.push(`a warning between ${A.name} and ${B.name} went unheeded (${pct}%) — ${small.name} wavers`);
+      } else {
+        log.push(`a warning between ${A.name} and ${B.name} went unheeded (${pct}%)`);
+      }
+    } else {
+      log.push(`a marriage between ${A.name} and ${B.name} came to nothing (${pct}%)`);
+    }
+  }
+
   // 3.5 lexical borrowing: bordering living neighbours converge (2GEO.4). Directional,
-  //     per ordered pair, contact-throttled. Salient concepts resist drift (step 1) yet
-  //     are the ones that cross borders here — the real Wanderwort profile. Runs after
-  //     spread (owner map is final for this turn) and before assimilation (a doomed
-  //     branch's salient words can still cross into its absorber first). Guarded like
-  //     assimilation: a lone/boxed-in branch has no neighbour to borrow from.
+  //     per ordered pair, contact-throttled, and now additionally gated on an open
+  //     trade route (2STK.5 — see borrowing.ts). Salient concepts resist drift (step
+  //     1) yet are the ones that cross borders here — the real Wanderwort profile.
+  //     Runs after spread (owner map is final for this turn) and before assimilation
+  //     (a doomed branch's salient words can still cross into its absorber first).
+  //     Guarded like assimilation: a lone/boxed-in branch has no neighbour to borrow
+  //     from.
   if (leavesOf(branches).length > 1) {
     leavesOf(branches).forEach((A) => {
       neighborsOf(A.id, A.territory, s.world.edges, owner).forEach((bId) => {
         const B = branches[bId]; if (!B) return;
-        const res = resolveBorrow(branches[A.id], B, s.world.edges, owner, seed, turn);
+        const res = resolveBorrow(branches[A.id], B, s.world.edges, owner, seed, turn, routes);
         if (!res) return;
         const lex = branches[A.id].lex.map((e) =>
           e.concept === res.concept ? { ...e, word: res.word } : e);
@@ -185,5 +230,10 @@ export function resolveGeneration(s: GameState): GameState {
   }
   // 2STK.2: mourning ticks down toward expiry alongside every other per-turn clock.
   const mourning = s.mourning && turn + 1 >= s.mourning.untilTurn ? null : s.mourning;
-  return { ...s, branches, nextId, turn: turn + 1, pool: basePool(branches, s.settings), touched: {}, selectedId, log, mourning, pendingFocusChoice: pendingFocusChoice ?? s.pendingFocusChoice };
+  // 2STK.5 §5: routes lapse and are renewed by fresh successes — prune expired keys
+  // each repool so the record can't grow unbounded across a long run. Expiry is
+  // checked against the turn the returned state will be at.
+  const liveRoutes: Record<string, number> = {};
+  Object.entries(routes).forEach(([k, until]) => { if (turn + 1 < until) liveRoutes[k] = until; });
+  return { ...s, branches, nextId, turn: turn + 1, pool: Math.max(0, basePool(branches, s.settings) + contactYield), routes: liveRoutes, touched: {}, selectedId, log, mourning, pendingFocusChoice: pendingFocusChoice ?? s.pendingFocusChoice };
 }

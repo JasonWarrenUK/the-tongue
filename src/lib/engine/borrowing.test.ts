@@ -29,11 +29,17 @@ const LEX_B: Lexicon = [
 const waterEdges: Edge[] = [{ a: 0, b: 1, passable: true, cost: 1, name: "water" }];
 const waterOwner = { 0: 0, 1: 1 };
 
+// 2STK.5: borrowing is now gated on an open trade route. Every test in this file
+// exercises the borrowing mechanic itself (contact/selection/adaptation), not the
+// gate, so they all run with the 0-1 border's route open; the gate's own behaviour is
+// covered by the dedicated closed/expired-route tests below.
+const OPEN: Record<string, number> = { "0:1": 999 };
+
 describe("resolveBorrow", () => {
   test("high contact (>= BORROW_FAITHFUL_CUT) yields a faithful whole-copy of B's form", () => {
     const A = mkBranch(0, [0], LEX_A), B = mkBranch(1, [1], LEX_B);
     // seed/turn probed to land a roll well under BORROW_RATE * contact(=1) = 0.5
-    const res = resolveBorrow(A, B, waterEdges, waterOwner, 3, 0);
+    const res = resolveBorrow(A, B, waterEdges, waterOwner, 3, 0, OPEN);
     expect(res).not.toBeNull();
     expect(res!.faithful).toBe(true);
     expect(res!.word).toEqual(LEX_B.find((e) => e.concept === "fish")!.word);
@@ -50,7 +56,7 @@ describe("resolveBorrow", () => {
     const owner = { 0: 0, 1: 1, 2: 2, 3: 3 };
     const A = mkBranch(0, [0], LEX_A), B = mkBranch(1, [1], LEX_B);
     // seed/turn probed to land a roll well under BORROW_RATE * contact(=1/3) ≈ 0.167
-    const res = resolveBorrow(A, B, edges, owner, 2, 5);
+    const res = resolveBorrow(A, B, edges, owner, 2, 5, OPEN);
     expect(res).not.toBeNull();
     expect(res!.faithful).toBe(false);
     const wa = LEX_A.find((e) => e.concept === "fish")!.word;
@@ -62,7 +68,7 @@ describe("resolveBorrow", () => {
   test("already-identical eligible set → null (no-op, no log-worthy event)", () => {
     const IDENTICAL_B: Lexicon = LEX_A.map((e) => ({ concept: e.concept, word: [...e.word] }));
     const A = mkBranch(0, [0], LEX_A), B = mkBranch(1, [1], IDENTICAL_B);
-    const res = resolveBorrow(A, B, waterEdges, waterOwner, 3, 0);
+    const res = resolveBorrow(A, B, waterEdges, waterOwner, 3, 0, OPEN);
     expect(res).toBeNull();
   });
 
@@ -71,14 +77,14 @@ describe("resolveBorrow", () => {
     const lexA: Lexicon = [{ concept: "eye", word: ["k", "o"] }];
     const lexB: Lexicon = [{ concept: "eye", word: ["p", "u"] }];
     const A = mkBranch(0, [0], lexA), B = mkBranch(1, [1], lexB);
-    const res = resolveBorrow(A, B, waterEdges, waterOwner, 3, 0);
+    const res = resolveBorrow(A, B, waterEdges, waterOwner, 3, 0, OPEN);
     expect(res).toBeNull();
   });
 
   test("does not fire when the roll lands above BORROW_RATE * contact", () => {
     const A = mkBranch(0, [0], LEX_A), B = mkBranch(1, [1], LEX_B);
     // seed=9,turn=0 probed to roll ~0.993, far above BORROW_RATE*contact(=1)=0.5
-    const res = resolveBorrow(A, B, waterEdges, waterOwner, 9, 0);
+    const res = resolveBorrow(A, B, waterEdges, waterOwner, 9, 0, OPEN);
     expect(res).toBeNull();
   });
 
@@ -93,7 +99,7 @@ describe("resolveBorrow", () => {
       { concept: "river", word: ["z", "u", "s"] },
     ];
     const A = mkBranch(0, [0], lexA), B = mkBranch(1, [1], lexB);
-    const res = resolveBorrow(A, B, waterEdges, waterOwner, 3, 0);
+    const res = resolveBorrow(A, B, waterEdges, waterOwner, 3, 0, OPEN);
     expect(res).not.toBeNull();
     expect(res!.concept).toBe("river");
   });
@@ -111,33 +117,49 @@ describe("resolveBorrow", () => {
     ];
     expect(CONCEPTS.indexOf("fish")).toBeLessThan(CONCEPTS.indexOf("river"));
     const A = mkBranch(0, [0], lexA), B = mkBranch(1, [1], lexB);
-    const res = resolveBorrow(A, B, waterEdges, waterOwner, 3, 0);
+    const res = resolveBorrow(A, B, waterEdges, waterOwner, 3, 0, OPEN);
     expect(res!.concept).toBe("fish");
   });
 
   describe("determinism", () => {
     test("same seed+turn+pair → identical result", () => {
       const A = mkBranch(0, [0], LEX_A), B = mkBranch(1, [1], LEX_B);
-      const r1 = resolveBorrow(A, B, waterEdges, waterOwner, 3, 0);
-      const r2 = resolveBorrow(A, B, waterEdges, waterOwner, 3, 0);
+      const r1 = resolveBorrow(A, B, waterEdges, waterOwner, 3, 0, OPEN);
+      const r2 = resolveBorrow(A, B, waterEdges, waterOwner, 3, 0, OPEN);
       expect(r1).toEqual(r2);
     });
 
-    test("borrowing's salt draws a different value than drift/spread/salience at the same (turn, branch)", async () => {
+    test("borrowing's salt draws a different value than drift/spread/salience/contact at the same (turn, branch)", async () => {
       const { hashRand } = await import("./rng");
       const seed = 3, turn = 0, id = 0;
       const borrowRoll = hashRand(seed + 19, turn * 181 + 41, id * 1009 + 1);
       const driftRoll = hashRand(seed + 7, turn * 131 + 17, id * 911 + 3);
       const spreadRoll = hashRand(seed, turn * 7 + 1, id * 13 + 5);
       const salienceRoll = hashRand(seed + 13, turn * 151 + 29, id * 733 + 0);
+      const contactRoll = hashRand(seed + 23, turn * 211 + 53, 2); // 2STK.5
       expect(borrowRoll).not.toBeCloseTo(driftRoll, 5);
       expect(borrowRoll).not.toBeCloseTo(spreadRoll, 5);
       expect(borrowRoll).not.toBeCloseTo(salienceRoll, 5);
+      expect(borrowRoll).not.toBeCloseTo(contactRoll, 5);
     });
   });
 
   test("constants are the tuned first-pass values from the spike", () => {
     expect(BORROW_RATE).toBe(0.5);
     expect(BORROW_FAITHFUL_CUT).toBe(0.5);
+  });
+
+  describe("2STK.5 trade route gate", () => {
+    test("a closed route blocks borrowing outright", () => {
+      const A = mkBranch(0, [0], LEX_A), B = mkBranch(1, [1], LEX_B);
+      expect(resolveBorrow(A, B, waterEdges, waterOwner, 3, 0, {})).toBeNull();
+      // same call with the route open fires — isolating the gate as the only difference
+      expect(resolveBorrow(A, B, waterEdges, waterOwner, 3, 0, OPEN)).not.toBeNull();
+    });
+
+    test("an expired route is closed", () => {
+      const A = mkBranch(0, [0], LEX_A), B = mkBranch(1, [1], LEX_B);
+      expect(resolveBorrow(A, B, waterEdges, waterOwner, 3, 5, { "0:1": 5 })).toBeNull();
+    });
   });
 });

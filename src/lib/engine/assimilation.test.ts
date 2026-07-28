@@ -62,7 +62,7 @@ function smallVsLarge(opts: { smallLex?: Lexicon; smallTerritory?: number[]; lar
     // the assimilation step; both branches touched so drift never fires either.
     settings: { pool: 999, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
     pool: 999, touched: { 0: true, 1: true }, log: [],
-    focusId: 1, mourning: null, pendingFocusChoice: null, ended: false,
+    focusId: 1, mourning: null, pendingFocusChoice: null, ended: false, routes: {},
   };
 }
 
@@ -160,7 +160,7 @@ describe("assimilation: safety guard", () => {
       branches: { 0: lone }, rootId: 0, selectedId: 0, nextId: 1, turn: 0,
       settings: { pool: 999, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
       pool: 999, touched: { 0: true }, log: [],
-      focusId: 0, mourning: null, pendingFocusChoice: null, ended: false,
+      focusId: 0, mourning: null, pendingFocusChoice: null, ended: false, routes: {},
     };
     const out = runTurns(s, ASSIM_TURNS + 5);
     expect(out.branches[0].territory).toEqual([0]);

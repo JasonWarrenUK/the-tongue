@@ -48,7 +48,7 @@ function baseState(overrides: Partial<GameState> = {}): GameState {
     branches, rootId: 0, selectedId: 0, nextId: 4, turn: 5,
     settings: { pool: 999, growth: 1, overhead: 1, changeCost: 2, spreadEvery: 999 },
     pool: 999, touched: {}, log: [],
-    focusId: 0, mourning: null, pendingFocusChoice: null, ended: false,
+    focusId: 0, mourning: null, pendingFocusChoice: null, ended: false, routes: {},
     ...overrides,
   };
 }
