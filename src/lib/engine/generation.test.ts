@@ -50,7 +50,7 @@ function fractureState(lex: Lexicon = MIXED_LEX): GameState {
   const branch: Branch = {
     id: 0, name: "Aenic", parentId: null, depth: 0, splitIndex: 0, history: [],
     lex: lex.map((e) => ({ concept: e.concept, word: [...e.word] })),
-    territory: [0, 1, 2, 3], pressure: 0, anchors: birthAnchor(lex), assimilationPressure: 0, collisionPressure: {},
+    territory: [0, 1, 2, 3], pressure: 0, anchors: birthAnchor(lex), assimilationPressure: 0, collisionPressure: {}, momentum: {},
   };
   return {
     world: { seed: 1234, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1, 2, 3].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst" },
@@ -206,7 +206,7 @@ describe("1ENG.10 lineage-continuation fracture", () => {
     const mkBranch = (id: number, name: string, territory: number[]): Branch => ({
       id, name, parentId: null, depth: 0, splitIndex: 0, history: [],
       lex: MIXED_LEX.map((e) => ({ concept: e.concept, word: [...e.word] })),
-      territory, pressure: 0, anchors: birthAnchor(MIXED_LEX), assimilationPressure: 0, collisionPressure: {},
+      territory, pressure: 0, anchors: birthAnchor(MIXED_LEX), assimilationPressure: 0, collisionPressure: {}, momentum: {},
     });
 
     const s: GameState = {
@@ -242,7 +242,7 @@ describe("1ENG.10 divergence-threshold rename", () => {
     const branch: Branch = {
       id: 0, name: "Aenic", parentId: null, depth: 0, splitIndex: 0, history: [],
       lex: MIXED_LEX.map((e) => ({ concept: e.concept, word: [...e.word] })),
-      territory: [0], pressure: 0, anchors: birthAnchor(MIXED_LEX), assimilationPressure: 0, collisionPressure: {},
+      territory: [0], pressure: 0, anchors: birthAnchor(MIXED_LEX), assimilationPressure: 0, collisionPressure: {}, momentum: {},
     };
     return {
       world: { seed: 99, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1, 2, 3].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst" },
@@ -278,6 +278,60 @@ describe("1ENG.10 divergence-threshold rename", () => {
   });
 });
 
+// 2STK.3 §3 — drift momentum, exercised through the real turn loop (step 1 drift +
+// repool decay) rather than stakes.ts's functions in isolation.
+describe("2STK.3 drift momentum (step 1 + repool)", () => {
+  function driftingState(): GameState {
+    const { adj, edges } = lineAdjacency();
+    const branch: Branch = {
+      id: 0, name: "Aenic", parentId: null, depth: 0, splitIndex: 0, history: [],
+      lex: MIXED_LEX.map((e) => ({ concept: e.concept, word: [...e.word] })),
+      territory: [0], pressure: 0, anchors: birthAnchor(MIXED_LEX), assimilationPressure: 0, collisionPressure: {}, momentum: {},
+    };
+    return {
+      world: { seed: 99, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1, 2, 3].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst" },
+      branches: { 0: branch }, rootId: 0, selectedId: 0,
+      nextId: 1, turn: 0,
+      settings: { pool: 999, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
+      pool: 999, touched: {}, log: [],
+      focusId: 0, mourning: null, pendingFocusChoice: null, ended: false, routes: {},
+    };
+  }
+
+  test("an untouched branch that drifts accrues momentum in the drifted rule's category", () => {
+    let s = driftingState();
+    s = resolveGeneration({ ...s, touched: {} });
+    const drifted = s.log.length > 0; // driftRule found a firing candidate this turn
+    expect(drifted).toBe(true);
+    const mult = Object.values(s.branches[0].momentum);
+    expect(mult.some((m) => m > 1)).toBe(true); // some category was bumped
+  });
+
+  test("momentum decays back toward 1 once the branch stops drifting that category", () => {
+    let s = driftingState();
+    // accrue momentum in whichever category fires first
+    s = resolveGeneration({ ...s, touched: {} });
+    const cat = (Object.entries(s.branches[0].momentum) as [string, number][]).find(([, m]) => m > 1)?.[0];
+    expect(cat).toBeDefined();
+    const afterOneDrift = s.branches[0].momentum[cat as keyof typeof s.branches[0]["momentum"]]!;
+    // now hold the branch (touched every turn) so it never drifts again — momentum should
+    // only decay, never re-accrue.
+    for (let i = 0; i < 10; i++) s = resolveGeneration({ ...s, touched: { 0: true } });
+    const afterHolding = s.branches[0].momentum[cat as keyof typeof s.branches[0]["momentum"]] ?? 1;
+    expect(afterHolding).toBeLessThan(afterOneDrift);
+  });
+
+  test("determinism: momentum accrual across a multi-turn transcript is byte-identical", () => {
+    function run(): GameState {
+      let s = driftingState();
+      for (let i = 0; i < 15; i++) s = resolveGeneration({ ...s, touched: {} });
+      return s;
+    }
+    const a = run(), b = run();
+    expect(a.branches[0].momentum).toEqual(b.branches[0].momentum);
+  });
+});
+
 describe("2GEO.5 lexical borrowing (step 3.5)", () => {
   // Two single-region branches sharing one passable "water" border edge — contact(A,B)
   // = contact(B,A) = 1, so borrowing fires readily every turn it's eligible. "fish" is
@@ -308,7 +362,7 @@ describe("2GEO.5 lexical borrowing (step 3.5)", () => {
     const mk = (id: number, territory: number[], lex: Lexicon): Branch => ({
       id, name: id === 0 ? "Aenic" : "Boran", parentId: null, depth: 0, splitIndex: 0, history: [],
       lex: lex.map((e) => ({ concept: e.concept, word: [...e.word] })),
-      territory, pressure: 0, anchors: birthAnchor(lex), assimilationPressure: 0, collisionPressure: {},
+      territory, pressure: 0, anchors: birthAnchor(lex), assimilationPressure: 0, collisionPressure: {}, momentum: {},
     });
     return {
       world: { seed: 3, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst" },
@@ -377,7 +431,7 @@ describe("2GEO.5 lexical borrowing (step 3.5)", () => {
     const branch: Branch = {
       id: 0, name: "Aenic", parentId: null, depth: 0, splitIndex: 0, history: [],
       lex: BORROW_LEX_A.map((e) => ({ concept: e.concept, word: [...e.word] })),
-      territory: [0], pressure: 0, anchors: birthAnchor(BORROW_LEX_A), assimilationPressure: 0, collisionPressure: {},
+      territory: [0], pressure: 0, anchors: birthAnchor(BORROW_LEX_A), assimilationPressure: 0, collisionPressure: {}, momentum: {},
     };
     const s: GameState = {
       world: { seed: 3, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1, 2, 3].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst" },
@@ -433,7 +487,7 @@ describe("2STK.5 contact events & trade routes (step 3.25)", () => {
     const mk = (id: number, lex: Lexicon): Branch => ({
       id, name: id === 0 ? "Aenic" : "Boran", parentId: null, depth: 0, splitIndex: 0, history: [],
       lex: lex.map((e) => ({ concept: e.concept, word: [...e.word] })), territory: [id], pressure: 0,
-      anchors: birthAnchor(lex), assimilationPressure: 0, collisionPressure: {},
+      anchors: birthAnchor(lex), assimilationPressure: 0, collisionPressure: {}, momentum: {},
     });
     const pool = opts.pool ?? 10;
     return {
@@ -514,7 +568,7 @@ describe("2STK.5 contact events & trade routes (step 3.25)", () => {
       const mk = (id: number, territory: number[], lex: Lexicon, pressure: number): Branch => ({
         id, name: id === 0 ? "Small" : "Large", parentId: null, depth: 0, splitIndex: 0, history: [],
         lex: lex.map((e) => ({ concept: e.concept, word: [...e.word] })), territory, pressure: 0,
-        anchors: birthAnchor(lex), assimilationPressure: pressure, collisionPressure: {},
+        anchors: birthAnchor(lex), assimilationPressure: pressure, collisionPressure: {}, momentum: {},
       });
       return {
         world: { seed, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1, 2, 3, 4].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst" },
@@ -562,7 +616,7 @@ describe("2STK.5 contact events & trade routes (step 3.25)", () => {
     const mk = (id: number, lex: Lexicon): Branch => ({
       id, name: id === 0 ? "Aenic" : "Boran", parentId: null, depth: 0, splitIndex: 0, history: [],
       lex: lex.map((e) => ({ concept: e.concept, word: [...e.word] })), territory: [id], pressure: 0,
-      anchors: birthAnchor(lex), assimilationPressure: 0, collisionPressure: {},
+      anchors: birthAnchor(lex), assimilationPressure: 0, collisionPressure: {}, momentum: {},
     });
     const s: GameState = {
       world: { seed: 3, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst" },
@@ -606,7 +660,7 @@ describe("2LEX.2 collision resolution", () => {
       id: 0, name: "Aenic", parentId: null, depth: 0, splitIndex: 0, history: [],
       lex: opts.lex ?? COLL_LEX, territory: [0], pressure: 0,
       anchors: [{ lex: opts.lex ?? COLL_LEX, turn: 0, historyIndex: 0, driftFromPrev: 0 }],
-      assimilationPressure: 0, collisionPressure: opts.collisionPressure ?? {},
+      assimilationPressure: 0, collisionPressure: opts.collisionPressure ?? {}, momentum: {},
     };
     return {
       world: { seed: 1, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [{ id: 0, x: 0, y: 0 }], edges: [], adj: { 0: [] }, start: 0, compoundOrder: "modFirst" },
@@ -750,13 +804,13 @@ describe("2LEX.2 collision resolution", () => {
       id: 0, name: "Aenic", parentId: null, depth: 0, splitIndex: 0, history: [],
       lex, territory: [0], pressure: 0,
       anchors: [{ lex, turn: 0, historyIndex: 0, driftFromPrev: 0 }],
-      assimilationPressure: 0, collisionPressure: opts.collisionPressure ?? {},
+      assimilationPressure: 0, collisionPressure: opts.collisionPressure ?? {}, momentum: {},
     };
     const neighbour: Branch = {
       id: 1, name: "Boran", parentId: null, depth: 0, splitIndex: 0, history: [],
       lex: neighbourLex, territory: [1], pressure: 0,
       anchors: [{ lex: neighbourLex, turn: 0, historyIndex: 0, driftFromPrev: 0 }],
-      assimilationPressure: 0, collisionPressure: {},
+      assimilationPressure: 0, collisionPressure: {}, momentum: {},
     };
     return {
       world: { seed: 1, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst" },

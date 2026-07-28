@@ -100,6 +100,46 @@ describe("driftRule bias", () => {
   });
 });
 
+// 2STK.3 §3 — drift momentum joins biasedMult in the weighted pick. Neutral iso=0.5
+// isolates the momentum term from the terrain-bias term (biasedMult(_, 0.5) === 1 for
+// every category, per the regression guard above).
+describe("driftRule momentum (2STK.3)", () => {
+  const seed = 42, branchId = 3, sweep = 200, iso = 0.5;
+
+  function categoryTally(momentum?: Partial<Record<string, number>>): Record<string, number> {
+    const tally: Record<string, number> = {};
+    for (let turn = 0; turn < sweep; turn++) {
+      const rule = driftRule(MIXED_LEX, seed, turn, branchId, iso, momentum);
+      if (!rule) continue;
+      tally[rule.category] = (tally[rule.category] || 0) + 1;
+    }
+    return tally;
+  }
+
+  test("a momentum-favoured category is selected more often than with no momentum", () => {
+    const plain = categoryTally();
+    const favoured = categoryTally({ vowelShift: 2 }); // MOMENTUM_CAP
+    expect(favoured.vowelShift ?? 0).toBeGreaterThan(plain.vowelShift ?? 0);
+  });
+
+  test("momentum on a non-firing category is inert (no candidate carries it)", () => {
+    // MIXED_LEX's firing set is {lenition, deletion, vowelShift, epenthesis} — assimilation
+    // never fires (no stop-before-nasal environment in this lexicon), so boosting it must
+    // leave every other category's tally untouched.
+    const plain = categoryTally();
+    const withInertBoost = categoryTally({ assimilation: 2 });
+    expect(withInertBoost).toEqual(plain);
+  });
+
+  test("no momentum arg (undefined) behaves identically to an explicit empty object", () => {
+    for (let turn = 0; turn < 20; turn++) {
+      const omitted = driftRule(MIXED_LEX, seed, turn, branchId, iso);
+      const explicit = driftRule(MIXED_LEX, seed, turn, branchId, iso, {});
+      expect(omitted?.id).toBe(explicit?.id);
+    }
+  });
+});
+
 describe("applyRuleToLex salience gating (2GEO.3)", () => {
   const apoc = RULE_BY_ID.apoc; // vowel → ∅ / _ # — fires on any word ending in a vowel
   // "stone" is core-salient (0.5) for mountain terrain; "unrelated" has no
