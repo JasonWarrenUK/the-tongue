@@ -729,4 +729,80 @@ describe("2LEX.2 collision resolution", () => {
       expect(out.branches[0].lex.find((e) => e.concept === "moon")!.word).not.toEqual(["t", "a"]);
     }
   });
+
+  // The borrowing arm (spike §3.5) itself is unit-tested via resolveCollision's
+  // `lender` parameter above, but generation.ts's `lenderFor` closure — which actually
+  // selects a lender from a passable neighbour — was previously untested through the
+  // real turn loop. Two-branch fixture mirrors 2GEO.5's own borrowState pattern: a
+  // passable border so neighborsOf/pairContact find something to select.
+  function collisionWithNeighbourState(opts: {
+    collisionPressure?: Record<string, number>; lex?: Lexicon; neighbourLex?: Lexicon; passable?: boolean;
+  } = {}): GameState {
+    const lex = opts.lex ?? COLL_LEX;
+    const neighbourLex: Lexicon = opts.neighbourLex ?? COLL_LEX.map((e) => ({ concept: e.concept, word: [...e.word] }));
+    const edges: Edge[] = [{ a: 0, b: 1, passable: opts.passable ?? true, cost: 1, name: "plain" }];
+    const adj: Adjacency = { 0: [], 1: [] };
+    edges.forEach((e) => {
+      adj[e.a].push({ to: e.b, passable: e.passable, cost: e.cost });
+      adj[e.b].push({ to: e.a, passable: e.passable, cost: e.cost });
+    });
+    const branch: Branch = {
+      id: 0, name: "Aenic", parentId: null, depth: 0, splitIndex: 0, history: [],
+      lex, territory: [0], pressure: 0,
+      anchors: [{ lex, turn: 0, historyIndex: 0, driftFromPrev: 0 }],
+      assimilationPressure: 0, collisionPressure: opts.collisionPressure ?? {},
+    };
+    const neighbour: Branch = {
+      id: 1, name: "Boran", parentId: null, depth: 0, splitIndex: 0, history: [],
+      lex: neighbourLex, territory: [1], pressure: 0,
+      anchors: [{ lex: neighbourLex, turn: 0, historyIndex: 0, driftFromPrev: 0 }],
+      assimilationPressure: 0, collisionPressure: {},
+    };
+    return {
+      world: { seed: 1, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst" },
+      branches: { 0: branch, 1: neighbour }, rootId: 0, selectedId: 0, nextId: 2, turn: 0,
+      settings: { pool: 10, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
+      pool: 10, touched: { 0: true, 1: true }, log: [],
+      focusId: 0, mourning: null, pendingFocusChoice: null, ended: false, routes: {},
+    };
+  }
+
+  test("borrowing arm: a passable neighbour with a distinct form for the yielding concept is adopted whole, not compounded", () => {
+    // moon yields (zero-salience tie, higher CONCEPTS index) — give the neighbour a
+    // distinct "moon" form so lenderFor(moon) finds it before resolveCollision ever
+    // reaches the compounding fallback.
+    const neighbourLex: Lexicon = COLL_LEX.map((e) => (e.concept === "moon" ? { ...e, word: ["z", "u"] } : { ...e, word: [...e.word] }));
+    const s = collisionWithNeighbourState({ collisionPressure: { "moon|sun": 2 }, neighbourLex });
+    const out = resolveGeneration(s);
+    const moon = out.branches[0].lex.find((e) => e.concept === "moon")!;
+    // adopted verbatim from Boran (["z","u"]) rather than compounded with sky
+    // (compoundWord(sky-clip, moon) would clip to ["k","o","t","a"] under modFirst) —
+    // proof lenderFor found the neighbour and resolveCollision took the lender branch.
+    expect(moon.word).toEqual(["z", "u"]);
+    const entry = out.branches[0].history.find((h) => h.name === "Disambiguation");
+    expect(entry?.note).toContain("zu");
+  });
+
+  test("borrowing arm: an impassable border falls back to compounding despite a divergent neighbour form", () => {
+    const neighbourLex: Lexicon = COLL_LEX.map((e) => (e.concept === "moon" ? { ...e, word: ["z", "u"] } : { ...e, word: [...e.word] }));
+    const s = collisionWithNeighbourState({ collisionPressure: { "moon|sun": 2 }, neighbourLex, passable: false });
+    const out = resolveGeneration(s);
+    const moon = out.branches[0].lex.find((e) => e.concept === "moon")!;
+    expect(moon.word).not.toEqual(["z", "u"]); // neighborsOf never returns Boran, so no lender is ever offered
+    expect(moon.word).not.toEqual(["t", "a"]);
+  });
+
+  test("borrowing arm: a neighbour sharing the exact colliding form is skipped (no-op lender)", () => {
+    // neighbourLex defaults to COLL_LEX unmodified, so Boran's "moon" is byte-identical
+    // to Aenic's colliding form — lenderFor's formOf(entry.word) === formOf(colliding)
+    // guard must reject it and fall through to compounding.
+    const s = collisionWithNeighbourState({ collisionPressure: { "moon|sun": 2 } });
+    const out = resolveGeneration(s);
+    const moon = out.branches[0].lex.find((e) => e.concept === "moon")!;
+    // still repairs, but via compounding (sky-clip + moon), not a lender adoption —
+    // Boran's "moon" is byte-identical to the colliding form, so lenderFor's
+    // formOf(entry.word) === formOf(colliding) guard must reject it as a candidate.
+    expect(moon.word).not.toEqual(["t", "a"]);
+    expect(moon.word).not.toEqual(["z", "u"]);
+  });
 });
