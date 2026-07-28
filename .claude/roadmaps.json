@@ -285,7 +285,7 @@
 					{
 						"id": "2STK.4",
 						"description": "Implement ambitions & lock-in (2stk-1 spike §4) — `World.ambitions` via constrained tension draw, live-condition evaluation each repool, natural deadlines only, lock-in grading and freezing the record, goal-driven → sandbox phase flag, starter roster (self-referencing ambitions need focusId; roster items reading momentum/contact state activate as 2STK.3/2STK.5 land)",
-						"status": "blocked",
+						"status": "todo",
 						"dependsOn": [
 							"2STK.1",
 							"2STK.2"
@@ -294,9 +294,17 @@
 					{
 						"id": "2STK.5",
 						"description": "Implement contact events & trade routes (2stk-1 spike §5) — one seeded event per generation between bordering branches, odds = mutual intelligibility, pure roll with pre-resolution preview, typed failure consequences, `CONTACT_YIELD` income, and trade routes gating `resolveBorrow` (⚠️ behaviour change to shipped 2GEO.5: borrowing now requires an open route)",
-						"status": "todo",
+						"status": "done",
 						"dependsOn": [
 							"2STK.1"
+						]
+					},
+					{
+						"id": "2STK.7",
+						"description": "Design spike: contact deadlock escape — intelligibility 0 is an absorbing state for 2STK.5's pure-roll contact odds (success = roll < odds can never fire), so a fully-diverged bordering pair can never open a route and can never borrow its way back. Evaluate a second route-opening condition against `shouldOpenRoute` (contact.ts): a sustained-border-pressure counter mirroring `assimilationPressure`, a `pairContact` force-open threshold (no new state), or an odds floor",
+						"status": "todo",
+						"dependsOn": [
+							"2STK.5"
 						]
 					},
 					{

@@ -75,3 +75,18 @@ export const asymmetricBorder = {
   edges: [e(0, 1, true, "plain"), e(1, 2, true, "plain"), e(1, 3, true, "plain"), e(1, 4, true, "plain")] as Edge[],
   owner: { 0: 0, 1: 1, 2: 2, 3: 3, 4: 4 },
 };
+
+// 2STK.5 contact-pair fixtures — a 3-branch passable chain 0-1-2 giving exactly two
+// unordered bordering pairs, (0,1) and (1,2): the minimum that makes borderingPairs'
+// canonical ordering and the seeded index pick observable.
+export const chainThree = {
+  edges: [e(0, 1, true, "plain"), e(1, 2, true, "plain")] as Edge[],
+  owner: { 0: 0, 1: 1, 2: 2 },
+};
+
+// A closed triangle: three branches, three pairs, so pair ordering is not trivially
+// the insertion order of any single neighborsOf walk.
+export const triangleThree = {
+  edges: [e(0, 1, true, "plain"), e(1, 2, true, "plain"), e(0, 2, true, "plain")] as Edge[],
+  owner: { 0: 0, 1: 1, 2: 2 },
+};

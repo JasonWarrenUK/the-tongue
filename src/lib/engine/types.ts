@@ -102,6 +102,13 @@ export interface GameState {
   pendingFocusChoice: PendingFocusChoice | null;
   // 2STK.2 §2.3: the silence ending fired — the game's single formal ending.
   ended: boolean;
+  // 2STK.5 §5: open trade routes — canonical unordered border-pair key "loId:hiId"
+  // (see contact.ts routeKey) → the turn the route expires. A contact SUCCESS opens/
+  // renews a route for ROUTE_TURNS generations; resolveBorrow fires only on a border
+  // with an open route (⚠️ behaviour change to shipped 2GEO.5 — borrowing now requires
+  // a route the chronicle can trace to a narrated contact success). Expired keys are
+  // pruned each repool so the record can't grow unbounded across a long run.
+  routes: Record<string, number>;
 }
 export interface FreeRegion { region: number; cost: number; passable: boolean }
 export interface Candidate { rule: Rule; fires: number; collDelta: number }

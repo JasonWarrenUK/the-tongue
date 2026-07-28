@@ -3,6 +3,7 @@ import { pairContact, dominantTerrain } from "./geography";
 import { borrowableConcepts, CONCEPTS } from "./lexicon";
 import { stepToward } from "./phonology";
 import { formSimilarity } from "./intelligibility";
+import { routeOpen } from "./contact";
 import type { Branch, Edge } from "./types";
 
 // 2GEO.4/2GEO.5 — the one convergent force in an otherwise all-divergent turn loop.
@@ -16,10 +17,19 @@ export const BORROW_FAITHFUL_CUT = 0.5;  // contact share at/above which loans c
 
 // Resolve one directional borrow A←B for this turn. Returns the concept borrowed and A's
 // new form, or null if it does not fire / is a no-op (already identical / no eligible concept).
+//
+// 2STK.5 §5 (decisions §9.19/§9.20): borrowing additionally requires an OPEN TRADE
+// ROUTE on this border — a contact success at generation.ts step 3.25 licenses the
+// border for ROUTE_TURNS generations. ⚠️ Behaviour change to shipped 2GEO.5: borrowing
+// was previously contact-throttled only, and is now rarer and story-shaped (every
+// loanword traces to a narrated contact success). The spike's §5 warning box suggests
+// keeping resolveBorrow's signature intact and gating at the generation.ts call site;
+// the gate lives here instead so no caller can reach the mechanic ungated.
 export function resolveBorrow(
   A: Branch, B: Branch, edges: Edge[], owner: Record<number, number>,
-  seed: number, turn: number,
+  seed: number, turn: number, routes: Record<string, number>,
 ): { concept: string; word: string[]; faithful: boolean } | null {
+  if (!routeOpen(routes, A.id, B.id, turn)) return null;
   const contact = pairContact(A.id, B.id, A.territory, edges, owner);
   // fresh salt triple, distinct from drift (seed+7/turn*131+17/branchId*911+3), spread
   // (seed/turn*7+1/branchId*13+5) and salience (seed+13/turn*151+29/branchId*733+i).

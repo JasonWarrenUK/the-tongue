@@ -2,6 +2,8 @@ import { describe, test, expect } from "bun:test";
 import { resolveGeneration } from "./generation";
 import { RENAME_CUT } from "./naming";
 import { intelligibility } from "./intelligibility";
+import { basePool, ASSIM_TURNS } from "./geography";
+import { routeKey, routeOpen, CONTACT_YIELD, CONTACT_TRADE_LOSS, ROUTE_TURNS } from "./contact";
 import type { GameState, Lexicon, Branch, Adjacency, Edge } from "./types";
 
 // 1ENG.9/1ENG.10 — fracture divergence-at-birth + lineage-continuation + rename. These
@@ -55,7 +57,7 @@ function fractureState(lex: Lexicon = MIXED_LEX): GameState {
     nextId: 1, turn: 0,
     settings: { pool: 10, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
     pool: 10, touched: { 0: true }, log: [],
-    focusId: 0, mourning: null, pendingFocusChoice: null, ended: false,
+    focusId: 0, mourning: null, pendingFocusChoice: null, ended: false, routes: {},
   };
 }
 
@@ -213,7 +215,7 @@ describe("1ENG.10 lineage-continuation fracture", () => {
       nextId: 2, turn: 0,
       settings: { pool: 10, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
       pool: 10, touched: { 0: true, 1: true }, log: [],
-      focusId: 0, mourning: null, pendingFocusChoice: null, ended: false,
+      focusId: 0, mourning: null, pendingFocusChoice: null, ended: false, routes: {},
     };
 
     const out = resolveGeneration(s);
@@ -247,7 +249,7 @@ describe("1ENG.10 divergence-threshold rename", () => {
       nextId: 1, turn: 0,
       settings: { pool: 999, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
       pool: 999, touched: {}, log: [],
-      focusId: 0, mourning: null, pendingFocusChoice: null, ended: false,
+      focusId: 0, mourning: null, pendingFocusChoice: null, ended: false, routes: {},
     };
   }
 
@@ -287,7 +289,13 @@ describe("2GEO.5 lexical borrowing (step 3.5)", () => {
   ];
   const BORROW_LEX_B: Lexicon = [
     { concept: "fish", word: ["m", "u", "s"] },
-    { concept: "eye", word: ["p", "e"] },
+    // 2STK.5: "eye" is identical to A's, not divergent. Two effects, both wanted: it
+    // remains the never-salient control (borrowableConcepts excludes "eye" under
+    // every terrain, so borrowing still can never touch it), and it lifts the pair's
+    // starting intelligibility from exactly 0 to 0.5 — without which odds = 0 and the
+    // §5 contact roll can NEVER succeed (success = roll < odds), so no trade route
+    // ever opens and the borrow gate deadlocks this fixture permanently.
+    { concept: "eye", word: ["k", "o"] },
   ];
 
   function borrowState(edges: Edge[]): GameState {
@@ -308,7 +316,7 @@ describe("2GEO.5 lexical borrowing (step 3.5)", () => {
       nextId: 2, turn: 0,
       settings: { pool: 10, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
       pool: 10, touched: { 0: true, 1: true }, log: [],
-      focusId: 0, mourning: null, pendingFocusChoice: null, ended: false,
+      focusId: 0, mourning: null, pendingFocusChoice: null, ended: false, routes: {},
     };
   }
 
@@ -319,6 +327,35 @@ describe("2GEO.5 lexical borrowing (step 3.5)", () => {
     for (let i = 0; i < 6; i++) s = resolveGeneration({ ...s, touched: { 0: true, 1: true } });
     const after = intelligibility(s.branches[0].lex, s.branches[1].lex);
     expect(after).toBeGreaterThan(before);
+  });
+
+  // 2STK.5: this pair's convergence now runs through a real contact success (odds
+  // 0.5 at turn 0) opening a route, exercising the whole chain rather than assuming
+  // it. The two tests below isolate the mechanic from that chain in either direction.
+  test("2STK.5: with a pre-opened route, borrowing fires exactly as it did before the gate", () => {
+    const edges: Edge[] = [{ a: 0, b: 1, passable: true, cost: 1, name: "water" }];
+    let s = borrowState(edges);
+    s = { ...s, routes: { "0:1": 999 } };
+    const before = intelligibility(s.branches[0].lex, s.branches[1].lex);
+    for (let i = 0; i < 6; i++) s = resolveGeneration({ ...s, touched: { 0: true, 1: true }, routes: { "0:1": 999 } });
+    const after = intelligibility(s.branches[0].lex, s.branches[1].lex);
+    expect(after).toBeGreaterThan(before);
+  });
+
+  test("2STK.5: with no route ever open, borrowing never fires regardless of contact", () => {
+    const edges: Edge[] = [{ a: 0, b: 1, passable: true, cost: 1, name: "water" }];
+    // a pair mutually unintelligible enough that contact can never succeed, so no
+    // route can ever open by the normal mechanism either — isolates the gate itself.
+    const s0 = borrowState(edges);
+    let s: GameState = { ...s0, branches: { ...s0.branches, 0: { ...s0.branches[0], lex: [
+      { concept: "fish", word: ["t", "a", "p"] }, { concept: "eye", word: ["z", "u"] },
+    ] } } };
+    for (let i = 0; i < 6; i++) {
+      const forced = { ...s, touched: { 0: true, 1: true } };
+      const out = resolveGeneration(forced);
+      expect(out.log.some((l) => l.includes("borrowed"))).toBe(false);
+      s = out;
+    }
   });
 
   test("a walled (impassable-border) pair shows no borrowing convergence", () => {
@@ -347,7 +384,7 @@ describe("2GEO.5 lexical borrowing (step 3.5)", () => {
       nextId: 1, turn: 0,
       settings: { pool: 999, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
       pool: 999, touched: { 0: true }, log: [],
-      focusId: 0, mourning: null, pendingFocusChoice: null, ended: false,
+      focusId: 0, mourning: null, pendingFocusChoice: null, ended: false, routes: {},
     };
     expect(() => resolveGeneration(s)).not.toThrow();
     const out = resolveGeneration(s);
@@ -364,5 +401,189 @@ describe("2GEO.5 lexical borrowing (step 3.5)", () => {
     const a = run(), b = run();
     expect(a.branches).toEqual(b.branches);
     expect(a.log).toEqual(b.log);
+  });
+});
+
+describe("2STK.5 contact events & trade routes (step 3.25)", () => {
+  // Two single-region branches sharing one passable border, geometry mirrored from
+  // the 2GEO.5 fixture above but kept local so each test can control the pair's
+  // lexicon (and hence odds) precisely. LEX/LEX_DIVERGED differ on exactly one
+  // concept ("a": "tape" vs "hur") -> intelligibility(LEX, LEX_DIVERGED) = 0.75,
+  // giving a controllable, non-1/non-0 odds for the failure-path tests below.
+  const LEX: Lexicon = [
+    { concept: "a", word: ["t", "a", "p", "e"] },
+    { concept: "b", word: ["k", "o"] },
+    { concept: "c", word: ["m", "a", "t"] },
+    { concept: "d", word: ["s", "i", "n"] },
+  ];
+  const LEX_DIVERGED: Lexicon = [
+    { concept: "a", word: ["h", "u", "r"] },
+    { concept: "b", word: ["k", "o"] },
+    { concept: "c", word: ["m", "a", "t"] },
+    { concept: "d", word: ["s", "i", "n"] },
+  ];
+
+  function contactPair(
+    seed: number, turn: number, lexA: Lexicon, lexB: Lexicon,
+    opts: { pool?: number; growth?: number; routes?: Record<string, number> } = {},
+  ): GameState {
+    const edges: Edge[] = [{ a: 0, b: 1, passable: true, cost: 1, name: "plain" }];
+    const adj: Adjacency = { 0: [{ to: 1, passable: true, cost: 1 }], 1: [{ to: 0, passable: true, cost: 1 }] };
+    const mk = (id: number, lex: Lexicon): Branch => ({
+      id, name: id === 0 ? "Aenic" : "Boran", parentId: null, depth: 0, splitIndex: 0, history: [],
+      lex: lex.map((e) => ({ concept: e.concept, word: [...e.word] })), territory: [id], pressure: 0,
+      anchors: birthAnchor(lex), assimilationPressure: 0,
+    });
+    const pool = opts.pool ?? 10;
+    return {
+      world: { seed, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0 },
+      branches: { 0: mk(0, lexA), 1: mk(1, lexB) },
+      rootId: 0, selectedId: 0, nextId: 2, turn,
+      settings: { pool, growth: opts.growth ?? 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
+      pool, touched: { 0: true, 1: true }, log: [], routes: opts.routes ?? {},
+      focusId: 0, mourning: null, pendingFocusChoice: null, ended: false,
+    };
+  }
+
+  test("a success opens a route with the correct expiry and pays CONTACT_YIELD", () => {
+    // identical lexicons -> odds = 1, contact always succeeds
+    const s = contactPair(3, 0, LEX, LEX);
+    const out = resolveGeneration(s);
+    expect(out.routes[routeKey(0, 1)]).toBe(out.turn + ROUTE_TURNS);
+    expect(routeOpen(out.routes, 0, 1, out.turn)).toBe(true);
+    expect(out.pool).toBe(basePool(out.branches, out.settings) + CONTACT_YIELD);
+    expect(out.log.some((l) => l.includes("trade route open"))).toBe(true);
+  });
+
+  test("route expires after ROUTE_TURNS without a renewing success", () => {
+    // one branch permanently unintelligible with the other (odds = 0 forever, since
+    // they never borrow without a route and never drift, being touched every turn) —
+    // no fresh success can renew the pre-seeded route.
+    const NEVER_INTEL: Lexicon = [
+      { concept: "a", word: ["z", "u", "x"] }, { concept: "b", word: ["w", "e"] },
+      { concept: "c", word: ["j", "i", "g"] }, { concept: "d", word: ["v", "o"] },
+    ];
+    let s = contactPair(3, 0, LEX, NEVER_INTEL, { routes: { "0:1": 3 } }); // open through turn 2
+    for (let i = 0; i < 6; i++) s = resolveGeneration({ ...s, touched: { 0: true, 1: true } });
+    expect(s.routes[routeKey(0, 1)]).toBeUndefined();
+  });
+
+  test("a failed trade costs CONTACT_TRADE_LOSS, floored at zero", () => {
+    // seed=3,turn=7 probed: kind=trade, roll lands above odds(LEX,LEX_DIVERGED)=0.75
+    const s = contactPair(3, 7, LEX, LEX_DIVERGED);
+    const out = resolveGeneration(s);
+    expect(out.log.some((l) => l.includes("trade") && l.includes("failed"))).toBe(true);
+    expect(out.pool).toBe(basePool(out.branches, out.settings) - CONTACT_TRADE_LOSS);
+
+    const zero = contactPair(3, 7, LEX, LEX_DIVERGED, { pool: 0, growth: 0 });
+    const outZero = resolveGeneration(zero);
+    expect(outZero.pool).toBe(0);
+  });
+
+  test("a failed marriage changes nothing but the log", () => {
+    // seed=1,turn=0 probed: kind=marriage, roll lands above odds(LEX,LEX_DIVERGED)=0.75
+    const s = contactPair(1, 0, LEX, LEX_DIVERGED);
+    const out = resolveGeneration(s);
+    expect(out.log.some((l) => l.includes("marriage") && l.includes("nothing"))).toBe(true);
+    expect(out.pool).toBe(basePool(out.branches, out.settings));
+    expect(out.routes).toEqual({});
+    expect(out.branches[0].assimilationPressure).toBe(0);
+    expect(out.branches[1].assimilationPressure).toBe(0);
+  });
+
+  test("a failed warning bumps pressure only with a qualifying dominant assimilator, and can complete an assimilation a turn early", () => {
+    // small (1 region) vs large (4 regions); LEX_A_HI differs from LEX by one
+    // substitution in one word -> intelligibility 0.9375, comfortably above
+    // ASSIM_INTEL_CUT (0.75) so `small` already qualifies as an assimilation target.
+    const LEX_A_HI: Lexicon = [
+      { concept: "a", word: ["h", "a", "p", "e"] },
+      { concept: "b", word: ["k", "o"] },
+      { concept: "c", word: ["m", "a", "t"] },
+      { concept: "d", word: ["s", "i", "n"] },
+    ];
+    function smallVsLarge(seed: number, turn: number, smallLex: Lexicon, smallPressure = 0): GameState {
+      const edges: Edge[] = [
+        { a: 0, b: 1, passable: true, cost: 1, name: "plain" },
+        { a: 1, b: 2, passable: true, cost: 1, name: "plain" },
+        { a: 1, b: 3, passable: true, cost: 1, name: "plain" },
+        { a: 1, b: 4, passable: true, cost: 1, name: "plain" },
+      ];
+      const adj: Adjacency = { 0: [], 1: [], 2: [], 3: [], 4: [] };
+      edges.forEach((e) => { adj[e.a].push({ to: e.b, passable: e.passable, cost: e.cost }); adj[e.b].push({ to: e.a, passable: e.passable, cost: e.cost }); });
+      const mk = (id: number, territory: number[], lex: Lexicon, pressure: number): Branch => ({
+        id, name: id === 0 ? "Small" : "Large", parentId: null, depth: 0, splitIndex: 0, history: [],
+        lex: lex.map((e) => ({ concept: e.concept, word: [...e.word] })), territory, pressure: 0,
+        anchors: birthAnchor(lex), assimilationPressure: pressure,
+      });
+      return {
+        world: { seed, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1, 2, 3, 4].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0 },
+        branches: { 0: mk(0, [0], smallLex, smallPressure), 1: mk(1, [1, 2, 3, 4], LEX, 0) },
+        rootId: 0, selectedId: 0, nextId: 2, turn,
+        settings: { pool: 999, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
+        pool: 999, touched: { 0: true, 1: true }, log: [], routes: {},
+        focusId: 0, mourning: null, pendingFocusChoice: null, ended: false,
+      };
+    }
+
+    // seed=7,turn=4 probed: kind=warning, roll lands above odds(LEX,LEX_A_HI)=0.9375
+    const qualifying = resolveGeneration(smallVsLarge(7, 4, LEX_A_HI));
+    expect(qualifying.log.some((l) => l.includes("warning") && l.includes("unheeded"))).toBe(true);
+    // both the 3.25 warning bump and step 4's own +1 land this generation
+    expect(qualifying.branches[0].assimilationPressure).toBe(2);
+
+    // seed=18,turn=0 probed: kind=warning, roll lands above odds(LEX,LOW_INTEL)≈0 —
+    // LOW_INTEL is far enough from LEX that intelligibility sits under ASSIM_INTEL_CUT,
+    // so `small` has no qualifying dominant assimilator at all.
+    const LOW_INTEL: Lexicon = [
+      { concept: "a", word: ["z", "u", "x"] }, { concept: "b", word: ["w", "e"] },
+      { concept: "c", word: ["j", "i", "g"] }, { concept: "d", word: ["v", "o"] },
+    ];
+    const nonQualifying = resolveGeneration(smallVsLarge(18, 0, LOW_INTEL));
+    expect(nonQualifying.branches[0].assimilationPressure).toBe(0);
+
+    // stacking completes an assimilation a turn early: start `small` one warning-bump
+    // short of ASSIM_TURNS (accumulated by the normal step-4 mechanism), then a
+    // failed-warning turn should tip it over the threshold and empty its territory.
+    const primed = smallVsLarge(7, 4, LEX_A_HI, ASSIM_TURNS - 2);
+    const out = resolveGeneration(primed);
+    expect(out.branches[0].territory).toEqual([]);
+    expect(out.log.some((l) => l.includes("assimilated into"))).toBe(true);
+  });
+
+  test("a fresh contact success licenses borrowing the SAME generation (§7)", () => {
+    // odds must let contact succeed (identical control concept "eye" per the fixed
+    // 2GEO.5 fixture) while "fish" stays divergent and water-salient so a borrow is
+    // actually available once the route opens.
+    const edges: Edge[] = [{ a: 0, b: 1, passable: true, cost: 1, name: "water" }];
+    const adj: Adjacency = { 0: [{ to: 1, passable: true, cost: 1 }], 1: [{ to: 0, passable: true, cost: 1 }] };
+    const A: Lexicon = [{ concept: "fish", word: ["t", "a", "p"] }, { concept: "eye", word: ["k", "o"] }];
+    const B: Lexicon = [{ concept: "fish", word: ["m", "u", "s"] }, { concept: "eye", word: ["k", "o"] }];
+    const mk = (id: number, lex: Lexicon): Branch => ({
+      id, name: id === 0 ? "Aenic" : "Boran", parentId: null, depth: 0, splitIndex: 0, history: [],
+      lex: lex.map((e) => ({ concept: e.concept, word: [...e.word] })), territory: [id], pressure: 0,
+      anchors: birthAnchor(lex), assimilationPressure: 0,
+    });
+    const s: GameState = {
+      world: { seed: 3, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0 },
+      branches: { 0: mk(0, A), 1: mk(1, B) }, rootId: 0, selectedId: 0, nextId: 2, turn: 0,
+      settings: { pool: 10, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
+      pool: 10, touched: { 0: true, 1: true }, log: [], routes: {},
+      focusId: 0, mourning: null, pendingFocusChoice: null, ended: false,
+    };
+    const out = resolveGeneration(s);
+    expect(out.log.some((l) => l.includes("trade route open"))).toBe(true);
+    expect(out.log.some((l) => l.includes("borrowed"))).toBe(true);
+  });
+
+  test("determinism: identical transcripts produce identical branches, log and routes", () => {
+    function run(): GameState {
+      let s = contactPair(3, 0, LEX, LEX_DIVERGED);
+      for (let i = 0; i < 10; i++) s = resolveGeneration({ ...s, touched: { 0: true, 1: true } });
+      return s;
+    }
+    const a = run(), b = run();
+    expect(a.branches).toEqual(b.branches);
+    expect(a.log).toEqual(b.log);
+    expect(a.routes).toEqual(b.routes);
   });
 });
