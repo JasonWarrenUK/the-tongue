@@ -1,8 +1,9 @@
 <script lang="ts">
   import { formOf } from "$lib/engine/phonology";
   import type { Lexicon } from "$lib/engine/types";
-  let { lex, previewLex, curHomo, prevHomo }:
-    { lex: Lexicon; previewLex: Lexicon | null; curHomo: Set<string>; prevHomo: Set<string> | null } = $props();
+  let { lex, previewLex, curHomo, prevHomo, severeConcepts, pressureLabel }:
+    { lex: Lexicon; previewLex: Lexicon | null; curHomo: Set<string>; prevHomo: Set<string> | null;
+      severeConcepts: Set<string>; pressureLabel: Record<string, string> } = $props();
 </script>
 
 <div class="bg-surface rounded-lg overflow-hidden border border-border">
@@ -13,6 +14,7 @@
       {@const after = previewLex ? formOf(previewLex[i].word) : before}
       {@const changed = !!previewLex && after !== before}
       {@const homo = previewLex ? prevHomo?.has(after) : curHomo.has(before)}
+      {@const severe = !previewLex && severeConcepts.has(e.concept)}
       <div class="grid grid-cols-2 px-3 py-1.5 items-center {changed ? 'bg-accent/10' : i % 2 ? 'bg-fg/5' : ''}">
         <span class="text-fg">{e.concept}</span>
         <span class="font-mono flex items-center gap-1.5">
@@ -21,7 +23,13 @@
           {:else}
             <span class="text-fg">{before}</span>
           {/if}
-          {#if homo}<span class="text-warn text-xs" title="shares a form with another concept">●</span>{/if}
+          {#if homo}
+            {#if severe}
+              <span class="text-warn text-xs" title={pressureLabel[e.concept] ?? "shares a form with another concept — repairing"}>●</span>
+            {:else}
+              <span class="text-muted text-xs" title="shares a form with another concept — tolerated">●</span>
+            {/if}
+          {/if}
         </span>
       </div>
     {/each}

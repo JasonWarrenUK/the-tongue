@@ -1,21 +1,30 @@
 import { freshState } from "./engine/world";
 import { resolveGeneration } from "./engine/generation";
-import { RULES, RULE_BY_ID, applyRuleToLex, collisionPairs, homophoneForms } from "./engine/phonology";
+import { RULES, RULE_BY_ID, applyRuleToLex, collisionPairs, homophoneForms, formOf } from "./engine/phonology";
 import { leavesOf, isLeaf, descendsFrom } from "./engine/tree";
-import { ownerMap, freeAdjacentFor, passableComponents, basePool, overheadFor, dominantAssimilator, ASSIM_TURNS } from "./engine/geography";
+import { ownerMap, freeAdjacentFor, passableComponents, basePool, overheadFor, dominantAssimilator, dominantTerrain, ASSIM_TURNS } from "./engine/geography";
 import { displayName, eraStages, protoBlendFor } from "./engine/naming";
 import { buildEraLayout } from "./engine/tree";
 import { reachMult, COST_CAP, MOURN_TURNS } from "./engine/stakes";
 import { resolveContact } from "./engine/contact";
+import { severePairs, pairThreshold, yieldingConcept, modifierCandidates, compoundWord } from "./engine/collision";
 import type { GameState, Settings, Candidate } from "./engine/types";
 import type { EraStage } from "./engine/naming";
 import type { ContactResult } from "./engine/contact";
+
+// 2LEX.2 §3.6: one queued repair prompt — a player-applied rule just landed a NEW
+// severe pair. Stores enough for the dialog to render without importing collision.ts.
+export interface PendingRepair { pair: [string, string]; yielding: string; candidates: string[] }
 
 class Game {
   seed = $state(1985);
   st = $state<GameState>(freshState(1985));
   preview = $state<string | null>(null);
   showCfg = $state(false);
+  // 2LEX.2 §3.6: UI-side pause state, unlike pendingFocusChoice — resolveGeneration
+  // never produces a repair prompt, so it has no business on GameState, and it never
+  // survives a turn (endTurn/loadWorld both clear it below).
+  pendingRepairs = $state<PendingRepair[]>([]);
 
   sel = $derived(this.st.branches[this.st.selectedId]);
   leaves = $derived(leavesOf(this.st.branches));
@@ -29,6 +38,20 @@ class Game {
   previewLex = $derived(this.preview ? applyRuleToLex(this.sel.lex, RULE_BY_ID[this.preview]).lex : null);
   curHomo = $derived(homophoneForms(this.sel.lex));
   prevHomo = $derived(this.previewLex ? homophoneForms(this.previewLex) : null);
+  // 2LEX.2: which concepts sit in a currently-severe pair, and how far each pair's
+  // pressure has climbed toward its own threshold — WordTable splits the single warn
+  // dot into severe (this) vs merely-tolerated (everything else in curHomo).
+  severeConcepts = $derived.by<Set<string>>(() => new Set(severePairs(this.sel.lex).flat()));
+  pressureLabel = $derived.by<Record<string, string>>(() => {
+    const out: Record<string, string> = {};
+    severePairs(this.sel.lex).forEach((pair) => {
+      const key = `${pair[0]}|${pair[1]}`;
+      const pressure = this.sel.collisionPressure[key] ?? 0;
+      const label = `${pressure}/${pairThreshold(pair[0], pair[1])} turns until disambiguation`;
+      out[pair[0]] = label; out[pair[1]] = label;
+    });
+    return out;
+  });
   willDrift = $derived(this.leaves.filter((l) => !this.st.touched[l.id]).length);
   overhead = $derived(overheadFor(this.sel, this.st.settings));
   overheadDue = $derived(this.st.touched[this.st.selectedId] ? 0 : this.overhead);
@@ -55,6 +78,12 @@ class Game {
   focal = $derived(this.st.branches[this.st.focusId]);
   pendingFocus = $derived(this.st.pendingFocusChoice);
   ended = $derived(this.st.ended);
+  // 2LEX.2 §3.6: the head of the repair queue, the flat changeCost it repairs for
+  // (no second overhead, not reach-scaled — see repairCollision), and whether the
+  // pool can currently afford it. Tolerate remains available even when it can't.
+  pendingRepair = $derived(this.pendingRepairs[0] ?? null);
+  repairCost = $derived(this.st.settings.changeCost);
+  canRepair = $derived(!!this.pendingRepair && this.repairCost <= this.st.pool);
   // 2STK.5 §5: the pending contact event, previewed BEFORE end-of-turn resolution
   // (the spike's visibility constraint). Live-recomputed against current state
   // exactly like `assimilatingInto` above, never stored on GameState — it tracks the
@@ -110,10 +139,10 @@ class Game {
     return eraStages(b, { alive, protoBlend });
   });
 
-  loadWorld(s: number) { this.st = freshState(s); this.seed = s; this.preview = null; }
+  loadWorld(s: number) { this.st = freshState(s); this.seed = s; this.preview = null; this.pendingRepairs = []; }
 
   apply(ruleId: string) {
-    const s = this.st; if (s.pendingFocusChoice || s.ended) return;
+    const s = this.st; if (s.pendingFocusChoice || s.ended || this.pendingRepair) return;
     const b = s.branches[s.selectedId];
     const ov = s.touched[s.selectedId] ? 0 : overheadFor(b, s.settings);
     const base = s.settings.changeCost + ov;
@@ -123,9 +152,19 @@ class Game {
     this.st = { ...s, pool: s.pool - cost, touched: { ...s.touched, [s.selectedId]: true },
       branches: { ...s.branches, [s.selectedId]: { ...b, lex: after, history: [...b.history, { name: rule.name, note: rule.note }] } } };
     this.preview = null;
+    // 2LEX.2 §3.6: diff severe pairs before/after — the same before/after comparison
+    // collDelta already prices for the picker, narrowed to pairs that newly repair.
+    // Drift-caused collisions never prompt; only the player's own rule application does.
+    const beforeKeys = new Set(severePairs(b.lex).map((p) => `${p[0]}|${p[1]}`));
+    const terrain = dominantTerrain(b.id, b.territory, s.world.edges, ownerMap(s.branches));
+    const fresh = severePairs(after).filter((p) => !beforeKeys.has(`${p[0]}|${p[1]}`));
+    this.pendingRepairs = fresh.map((pair) => {
+      const yielding = yieldingConcept(pair, terrain);
+      return { pair, yielding, candidates: modifierCandidates(yielding, pair) };
+    });
   }
   expandInto(regionId: number) {
-    const s = this.st; if (s.pendingFocusChoice || s.ended) return;
+    const s = this.st; if (s.pendingFocusChoice || s.ended || this.pendingRepair) return;
     const b = s.branches[s.selectedId], owner = ownerMap(s.branches);
     const fa = freeAdjacentFor(b, s.world.adj, owner).find((f) => f.region === regionId);
     if (!fa) return;
@@ -135,13 +174,43 @@ class Game {
     this.st = { ...s, pool: s.pool - cost, branches: { ...s.branches, [b.id]: { ...b, territory: [...b.territory, regionId] } } };
   }
   endTurn() {
-    if (this.st.pendingFocusChoice || this.st.ended) return;
+    if (this.st.pendingFocusChoice || this.st.ended || this.pendingRepair) return;
     this.st = resolveGeneration(this.st); this.preview = null;
   }
   selectBranch(id: number) {
-    if (this.st.pendingFocusChoice) return;
+    if (this.st.pendingFocusChoice || this.pendingRepair) return;
     if (isLeaf(this.st.branches, id)) { this.st = { ...this.st, selectedId: id }; this.preview = null; }
   }
+  // 2LEX.2 §3.6: repair now — a second lexical intervention, priced flat at changeCost
+  // with no second overhead (touched is already set this turn, so overheadFor naturally
+  // yields 0) and deliberately NOT reach-scaled: this is a forced consequence of a rule
+  // the player already paid reach on, so double-charging would read as a penalty for a
+  // mistake rather than a distance cost (2STK.6's economy pass may revisit). The player
+  // picked the modifier, so resolveCollision's ranking/repair-made-collision walk are
+  // bypassed entirely — a repair that itself collides is the player's own gamble.
+  repairCollision(modifier: string) {
+    const p = this.pendingRepair; if (!p) return;
+    const s = this.st, cost = s.settings.changeCost;
+    if (cost > s.pool) return;
+    const b = s.branches[s.selectedId];
+    const byConcept = Object.fromEntries(b.lex.map((e) => [e.concept, e.word]));
+    const head = byConcept[p.yielding], mod = byConcept[modifier];
+    if (!head || !mod) { this.pendingRepairs = this.pendingRepairs.slice(1); return; }
+    const word = compoundWord(mod, head, s.world.compoundOrder);
+    const lex = b.lex.map((e) => (e.concept === p.yielding ? { ...e, word } : e));
+    const key = `${p.pair[0]}|${p.pair[1]}`;
+    const collisionPressure = { ...b.collisionPressure }; delete collisionPressure[key];
+    const other = p.pair[0] === p.yielding ? p.pair[1] : p.pair[0];
+    this.st = { ...s, pool: s.pool - cost,
+      branches: { ...s.branches, [b.id]: { ...b, lex, collisionPressure,
+        history: [...b.history, { name: "Disambiguation", note: `'${p.yielding}' → ${formOf(word)} (collided with '${other}')` }] } } };
+    this.pendingRepairs = this.pendingRepairs.slice(1);
+  }
+  // 2LEX.2 §3.6: tolerate — free, no immediate effect. The pair falls into the standard
+  // pressure clock at the next generation's step 1.5, and the engine repairs it
+  // autonomously with the top-ranked modifier if it survives its threshold. A real
+  // gamble on the 87% heal rate, with the stake being who chooses the word.
+  tolerateCollision() { this.pendingRepairs = this.pendingRepairs.slice(1); }
   setCfg(key: keyof Settings, val: number) {
     const s = this.st; const settings = { ...s.settings, [key]: val };
     const pool = key === "pool" || key === "growth" ? basePool(s.branches, settings) : s.pool;

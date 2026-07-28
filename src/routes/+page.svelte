@@ -11,6 +11,7 @@
   import Changes from "$lib/components/Changes.svelte";
   import HistoryList from "$lib/components/HistoryList.svelte";
   import FocusDialog from "$lib/components/FocusDialog.svelte";
+  import RepairDialog from "$lib/components/RepairDialog.svelte";
   import SilenceScreen from "$lib/components/SilenceScreen.svelte";
   import { MOURN_TURNS } from "$lib/engine/stakes";
 </script>
@@ -21,6 +22,11 @@
       <FocusDialog choice={game.pendingFocus} focusId={game.st.focusId} branches={game.st.branches}
         displayNames={game.displayNames} mournTurns={MOURN_TURNS} onfracture={(id) => game.chooseFracture(id)}
         onsuccessor={(id) => game.chooseSuccessor(id)} onsilence={() => game.electSilence()} />
+    {/if}
+    {#if game.pendingRepair}
+      <RepairDialog pending={game.pendingRepair} lex={game.sel.lex} order={game.st.world.compoundOrder}
+        cost={game.repairCost} affordable={game.canRepair}
+        onrepair={(modifier) => game.repairCollision(modifier)} ontolerate={() => game.tolerateCollision()} />
     {/if}
     {#if game.ended}
       <SilenceScreen turn={game.st.turn} onnew={() => game.loadWorld(Math.floor(Math.random() * 99999))} />
@@ -67,7 +73,8 @@
           {#if game.fracturing}<span class="text-xs text-warn">⚠ will fracture at gen end</span>{/if}
           {#if game.assimilatingInto}<span class="text-xs text-warn">⚠ assimilating into {game.assimilatingInto} — drift or expand to resist</span>{/if}
         </div>
-        <WordTable lex={game.sel.lex} previewLex={game.previewLex} curHomo={game.curHomo} prevHomo={game.prevHomo} />
+        <WordTable lex={game.sel.lex} previewLex={game.previewLex} curHomo={game.curHomo} prevHomo={game.prevHomo}
+          severeConcepts={game.severeConcepts} pressureLabel={game.pressureLabel} />
       </div>
       <div class="md:col-span-2 space-y-4">
         <Changes candidates={game.candidates} preview={game.preview} stepCost={game.stepCost}
