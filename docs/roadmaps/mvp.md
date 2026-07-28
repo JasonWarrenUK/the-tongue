@@ -61,7 +61,8 @@ A seeded, deterministic language-evolution simulator: sound-change rules drift a
 - [x] **2STK.2** — Implement focal identity & reach ([2stk-1 spike](../spikes/2stk-1-rule-choice-stakes.md) §2) — `GameState.focusId`, kinship-dominant `blendDistance`/`reachMult` (capped multiplier, never a gate), fracture focus choice, succession dialog (≤3 ranked heirs, per-candidate penalties shown, silence always electable), hoarse-voice mourning multiplier, and the silence ending (the game's single formal ending). New `stakes.ts` (`blendDistance`, `reachMult`, `mourningMult`, `heirCandidates`), `kinshipDistance` (`tree.ts`, LCA over `parentId` chains), breaking `GameState` fields (`focusId`, `mourning`, `pendingFocusChoice`, `ended`), focus-death/fracture-focus detection in `generation.ts` (focus death is the existing assimilation trigger emptying the focal branch's territory, not a new pressure counter), reach-priced `apply`/`expandInto` in `game.svelte.ts`, and the first modal/dialog pattern in the codebase (`FocusDialog.svelte`, `SilenceScreen.svelte`)
 - [ ] **2STK.3** — Implement drift momentum (2stk-1 spike §3) — `Branch.momentum` per `RuleCategory`, player-weighted accrual (drift at half), per-turn decay, `momentumMult` joining `biasedMult` in `driftRule` (naturalness stays dominant), momentum shown in the rule picker _(depends on 2STK.1)_
 - [ ] **2STK.4** — Implement ambitions & lock-in (2stk-1 spike §4) — `World.ambitions` via constrained tension draw, live-condition evaluation each repool, natural deadlines only, lock-in grading and freezing the record, goal-driven → sandbox phase flag, starter roster (self-referencing ambitions need focusId; roster items reading momentum/contact state activate as 2STK.3/2STK.5 land) _(depends on 2STK.1, 2STK.2)_
-- [ ] **2STK.5** — Implement contact events & trade routes (2stk-1 spike §5) — one seeded event per generation between bordering branches, odds = mutual intelligibility, pure roll with pre-resolution preview, typed failure consequences, `CONTACT_YIELD` income, and trade routes gating `resolveBorrow` (⚠️ behaviour change to shipped 2GEO.5: borrowing now requires an open route) _(depends on 2STK.1)_
+- [x] **2STK.5** — Implement contact events & trade routes (2stk-1 spike §5) — one seeded event per generation between bordering branches, odds = mutual intelligibility, pure roll with pre-resolution preview, typed failure consequences, `CONTACT_YIELD` income, and trade routes gating `resolveBorrow` (⚠️ behaviour change to shipped 2GEO.5: borrowing now requires an open route) _(depends on 2STK.1)_
+- [ ] **2STK.7** — Design spike: contact deadlock escape — intelligibility 0 is an absorbing state for 2STK.5's pure-roll contact odds (`success = roll < odds` can never fire at 0), so a fully-diverged bordering pair can never open a route and can never borrow its way back. Evaluate a second route-opening condition against `shouldOpenRoute` (`contact.ts`): a sustained-border-pressure counter mirroring `assimilationPressure`, a `pairContact` force-open threshold (no new state), or an odds floor _(depends on 2STK.5)_
 - [ ] **2STK.6** — Implement the treasury-and-laboratory economy (2stk-1 spike §6) — steepened size-scaled rule costs (`SIZE_COST` on `overheadFor`), isolation-scaled extra drift rate, stacked cost-multiplier cap (`COST_CAP`), the scarcity-guarantee sweep, and re-verification of the 1ENG.11 ossification sweeps under momentum and rate caps _(blocked — depends on 2STK.1, 2STK.2, 2STK.3, 2STK.5)_
 - [ ] **2GLY.1** — Design spike: glyph mutation ruleset — shape-drift grammar + phoneme→glyph reassignment rules, referencing real script lineages (e.g. Phoenician → Greek → Etruscan → Latin) _(blocked — depends on 2STK.4, 2STK.6)_
 - [ ] **2GLY.2** — Implement per-generation glyph shape drift (independent stylistic mutation) _(blocked — depends on 2GLY.1)_
@@ -143,6 +144,7 @@ graph LR
 	2STK.3["2STK.3: Implement drift momentum (2stk-1 spike…"]
 	2STK.4["2STK.4: Implement ambitions & lock-in (2stk-1 s…"]
 	2STK.5["2STK.5: Implement contact events & trade routes…"]
+	2STK.7["2STK.7: Design spike: contact deadlock escape —…"]
 	2GEO.8["2GEO.8: Design spike: rival language family — a…"]
 	2STK.6["2STK.6: Implement the treasury-and-laboratory e…"]
 	2GLY.1["2GLY.1: Design spike: glyph mutation ruleset —…"]
@@ -222,6 +224,7 @@ graph LR
 	2STK.4 --> 2UI.1
 	2STK.5 --> 2GEO.8
 	2STK.5 --> 2STK.6
+	2STK.5 --> 2STK.7
 	2GEO.8 --> M2
 	2STK.6 --> 2GLY.1
 	2STK.6 --> 2UI.1
@@ -257,9 +260,9 @@ graph LR
 	2MAP.2 --> M2
 	3PER.1 --> 3SHR.1
 	3SHR.1 --> M3
-	class 1ENG.16,2GEO.6,2LEX.2,2LEX.3,2MAP.1,2NAR.1,2NAR.3,2STK.3,2STK.4,2STK.5,3PER.1 todo
+	class 1ENG.16,2GEO.6,2LEX.2,2LEX.3,2MAP.1,2NAR.1,2NAR.3,2STK.3,2STK.4,2STK.7,3PER.1 todo
 	class 1ENG.17,1ENG.19,1ENG.20,1ENG.21,2GEO.7,2GEO.8,2GLY.1,2GLY.2,2GLY.3,2GLY.4,2LEX.4,2LEX.5,2LEX.6,2MAP.2,2NAR.2,2NAR.4,2SIM.1,2STK.6,2UI.1,2UI.2,2UI.3,3SHR.1 blocked
-	class 1ENG.1,1ENG.10,1ENG.11,1ENG.12,1ENG.13,1ENG.14,1ENG.15,1ENG.18,1ENG.2,1ENG.3,1ENG.4,1ENG.5,1ENG.6,1ENG.7,1ENG.8,1ENG.9,1UI.1,1UI.2,1UI.3,1UI.4,2GEO.1,2GEO.2,2GEO.3,2GEO.4,2GEO.5,2LEX.1,2STK.1,2STK.2 done
+	class 1ENG.1,1ENG.10,1ENG.11,1ENG.12,1ENG.13,1ENG.14,1ENG.15,1ENG.18,1ENG.2,1ENG.3,1ENG.4,1ENG.5,1ENG.6,1ENG.7,1ENG.8,1ENG.9,1UI.1,1UI.2,1UI.3,1UI.4,2GEO.1,2GEO.2,2GEO.3,2GEO.4,2GEO.5,2LEX.1,2STK.1,2STK.2,2STK.5 done
 ```
 
 ---
