@@ -6,9 +6,9 @@ import { inventoryOf, genStem, RENAME_CUT } from "./naming";
 import { intelligibility } from "./intelligibility";
 import { resolveBorrow } from "./borrowing";
 import { severePairs, pairThreshold, resolveCollision } from "./collision";
-import { heirCandidates } from "./stakes";
+import { heirCandidates, bumpMomentum, decayMomentum } from "./stakes";
 import { resolveContact, shouldOpenRoute, routeKey, CONTACT_YIELD, CONTACT_TRADE_LOSS, ROUTE_TURNS } from "./contact";
-import type { Anchor, Branch, GameState, HistoryEntry, Lexicon, PendingFocusChoice } from "./types";
+import type { Anchor, Branch, GameState, HistoryEntry, Lexicon, PendingFocusChoice, RuleCategory } from "./types";
 
 // One generation resolves: autonomous drift → collision resolution → rename check →
 // passive spread → contact event → lexical borrowing → assimilation death →
@@ -35,9 +35,11 @@ export function resolveGeneration(s: GameState): GameState {
   leavesOf(branches).forEach((L) => {
     if (s.touched[L.id]) return;
     const iso = isolationScore(L.id, L.territory, s.world.edges, owner);
-    const rule = driftRule(L.lex, seed, turn, L.id, iso); if (!rule) return;
+    const rule = driftRule(L.lex, seed, turn, L.id, iso, L.momentum); if (!rule) return;
     const terrain = dominantTerrain(L.id, L.territory, s.world.edges, owner);
-    branches[L.id] = { ...branches[L.id], lex: applyRuleToLex(L.lex, rule, { terrain, seed, turn, branchId: L.id }).lex, history: [...branches[L.id].history, { name: rule.name, note: rule.note, drift: true }] };
+    // 2STK.3 §3: autonomous drift bumps momentum at half weight (decision §9.15) —
+    // untouched branches slowly acquire a self-reinforcing category profile.
+    branches[L.id] = bumpMomentum({ ...branches[L.id], lex: applyRuleToLex(L.lex, rule, { terrain, seed, turn, branchId: L.id }).lex, history: [...branches[L.id].history, { name: rule.name, note: rule.note, drift: true }] }, rule.category, false);
     log.push(`${L.name} drifted (${rule.name.toLowerCase()})`);
   });
 
@@ -246,15 +248,18 @@ export function resolveGeneration(s: GameState): GameState {
 
   // one birth drift step for a freshly-copied sibling lexicon; null rule (unreachable
   // backstop, 1eng-11 spike §6) leaves the sibling an exact parent copy, never throws.
+  // A newborn sibling has no momentum history yet (empty {} — see the born-branch
+  // literal below), so this call's momentum arg is always a no-op multiplier of 1;
+  // still passed through for signature consistency with the other driftRule call site.
   const divergeAtBirth = (
-    lex: Lexicon, childId: number, territory: number[], owner: Record<number, number>,
-  ): { lex: Lexicon; entry: HistoryEntry | null } => {
+    lex: Lexicon, childId: number, territory: number[], owner: Record<number, number>, momentum: Branch["momentum"],
+  ): { lex: Lexicon; entry: HistoryEntry | null; category: RuleCategory | null } => {
     const iso = isolationScore(childId, territory, s.world.edges, owner);
-    const rule = driftRule(lex, seed, turn, childId, iso);
-    if (!rule) return { lex, entry: null };
+    const rule = driftRule(lex, seed, turn, childId, iso, momentum);
+    if (!rule) return { lex, entry: null, category: null };
     const terrain = dominantTerrain(childId, territory, s.world.edges, owner);
     const next = applyRuleToLex(lex, rule, { terrain, seed, turn, branchId: childId }).lex;
-    return { lex: next, entry: { name: rule.name, note: `at fracture: ${rule.note}`, drift: true } };
+    return { lex: next, entry: { name: rule.name, note: `at fracture: ${rule.note}`, drift: true }, category: rule.category };
   };
 
   leavesOf(branches).forEach((L) => {
@@ -274,7 +279,8 @@ export function resolveGeneration(s: GameState): GameState {
         // measure drift from the moment it became its own lineage, not the parent's.
         // 2LEX.2: collisionPressure inherited whole — the community carried the
         // ambiguity across the split (2lex-1 spike §3.2).
-        branches[id] = { id, name, parentId: parent.id, depth: parent.depth + 1, splitIndex: parent.history.length, history: [...parent.history], lex: startLex, territory: comp, pressure: 0, anchors: [{ lex: startLex, turn, historyIndex: parent.history.length, driftFromPrev: 0 }], assimilationPressure: 0, collisionPressure: { ...parent.collisionPressure } };
+        // 2STK.3: a newborn sibling starts with no momentum — it hasn't drifted yet.
+        branches[id] = { id, name, parentId: parent.id, depth: parent.depth + 1, splitIndex: parent.history.length, history: [...parent.history], lex: startLex, territory: comp, pressure: 0, anchors: [{ lex: startLex, turn, historyIndex: parent.history.length, driftFromPrev: 0 }], assimilationPressure: 0, collisionPressure: { ...parent.collisionPressure }, momentum: {} };
       });
       branches[L.id] = { ...parent, territory: main };
       // parent keeps its component; siblings own theirs — ownerMap reflects the
@@ -283,8 +289,9 @@ export function resolveGeneration(s: GameState): GameState {
       const owner2 = ownerMap(branches);
       born.forEach((id) => {
         const child = branches[id];
-        const { lex, entry } = divergeAtBirth(child.lex, id, child.territory, owner2);
-        branches[id] = { ...child, lex, history: entry ? [...child.history, entry] : child.history };
+        const { lex, entry, category } = divergeAtBirth(child.lex, id, child.territory, owner2, child.momentum);
+        const updated = { ...child, lex, history: entry ? [...child.history, entry] : child.history };
+        branches[id] = category ? bumpMomentum(updated, category, false) : updated;
       });
       if (names.length) log.push(`${parent.name} fractured → ${names.join(", ")}`);
       // 2STK.2 §2.2: the self just split. Focus provisionally stays on the
@@ -301,6 +308,11 @@ export function resolveGeneration(s: GameState): GameState {
     if (kids.length) selectedId = kids[0].id;
     else { const living = leavesOf(branches); if (living.length) selectedId = living[0].id; }
   }
+  // 2STK.3 §3: momentum decays toward 1 every generation, for every branch (dead
+  // branches decay too — cheap, and means a later-revived lineage never carries a
+  // frozen-mid-decay artefact if the model changes; living or not, this is a pure
+  // per-turn tick like mourning/routes below).
+  Object.values(branches).forEach((b) => (branches[b.id] = decayMomentum(b)));
   // 2STK.2: mourning ticks down toward expiry alongside every other per-turn clock.
   const mourning = s.mourning && turn + 1 >= s.mourning.untilTurn ? null : s.mourning;
   // 2STK.5 §5: routes lapse and are renewed by fresh successes — prune expired keys

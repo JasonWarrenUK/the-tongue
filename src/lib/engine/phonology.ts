@@ -247,10 +247,14 @@ export function biasedMult(category: RuleCategory, iso: number): number {
   const tilt = 1 - 2 * iso; // contact tilt ∈ [-1,+1]: +1 fully open, -1 fully walled
   return Math.min(2, Math.max(0.5, 1 + BIAS_STRENGTH * CATEGORY_AFFINITY[category] * tilt));
 }
-export function driftRule(lex: Lexicon, seed: number, turn: number, branchId: number, iso: number): Rule | null {
+// 2STK.3: momentumMult is an optional per-category multiplier (branch's momentum
+// state, category -> mult) joining biasedMult in the weighted pick — see stakes.ts.
+// Omitted entirely for callers with no branch momentum to consult (fixtures, the
+// pre-2STK.3 call shape); every category then reads as its implicit 1.
+export function driftRule(lex: Lexicon, seed: number, turn: number, branchId: number, iso: number, momentumMult?: Partial<Record<RuleCategory, number>>): Rule | null {
   const firing = firingRules(lex);
   if (!firing.length) return null;
-  const weighted = firing.map((x) => ({ rule: x.rule, weight: x.rule.w * biasedMult(x.rule.category, iso) }));
+  const weighted = firing.map((x) => ({ rule: x.rule, weight: x.rule.w * biasedMult(x.rule.category, iso) * (momentumMult?.[x.rule.category] ?? 1) }));
   const total = weighted.reduce((a, x) => a + x.weight, 0);
   let roll = hashRand(seed + 7, turn * 131 + 17, branchId * 911 + 3) * total;
   for (const x of weighted) { roll -= x.weight; if (roll <= 0) return x.rule; }
