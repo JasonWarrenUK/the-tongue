@@ -20,12 +20,19 @@
          constraint). "likely"/(forecast) name their own uncertainty deliberately —
          the pair/odds are live-recomputed from CURRENT state, but resolveGeneration
          resolves post-spread/post-drift, so a spread this generation can move the
-         pair and drift can shift the odds — see game.svelte.ts pendingContact. -->
+         pair and drift can shift the odds — see game.svelte.ts pendingContact.
+         odds === 0 is the 2STK.7 absorbing-state deadlock (a fully-diverged pair can
+         never roll a success), so it gets its own copy/colour rather than reading as
+         just another unlikely forecast. -->
     {#if contact && contactNames}
       <span class="text-xs text-muted" title="forecast from current borders — a spread or drift this generation can change it">
-        <span class="text-positive not-italic">⇄</span>
-        likely {contact.kind}: {contactNames[0]}–{contactNames[1]}
-        <span class="tabular-nums {contact.odds >= 0.5 ? 'text-positive' : 'text-warn'}">{Math.round(contact.odds * 100)}%</span>
+        <span class="not-italic {contact.odds === 0 ? 'text-warn' : contact.odds >= 0.5 ? 'text-positive' : 'text-warn'}">⇄</span>
+        {#if contact.odds === 0}
+          {contactNames[0]}–{contactNames[1]}: too divergent to make contact
+        {:else}
+          likely {contact.kind}: {contactNames[0]}–{contactNames[1]}
+          <span class="tabular-nums {contact.odds >= 0.5 ? 'text-positive' : 'text-warn'}">{Math.round(contact.odds * 100)}%</span>
+        {/if}
         <span class="italic">(forecast)</span>
       </span>
     {/if}
