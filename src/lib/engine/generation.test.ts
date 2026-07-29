@@ -5,7 +5,8 @@ import { intelligibility } from "./intelligibility";
 import { basePool, ASSIM_TURNS } from "./geography";
 import { routeKey, routeOpen, CONTACT_YIELD, CONTACT_TRADE_LOSS, ROUTE_TURNS } from "./contact";
 import { pairThreshold } from "./collision";
-import type { GameState, Lexicon, Branch, Adjacency, Edge } from "./types";
+import { branchDefaults, worldDefaults } from "../../../tests/fixtures/branch";
+import type { GameState, Lexicon, Branch, Adjacency, Edge, WordOrder } from "./types";
 
 // 1ENG.9/1ENG.10 — fracture divergence-at-birth + lineage-continuation + rename. These
 // tests hand-build a minimal GameState (not the seed-driven world gen) whose geometry
@@ -50,10 +51,10 @@ function fractureState(lex: Lexicon = MIXED_LEX): GameState {
   const branch: Branch = {
     id: 0, name: "Aenic", parentId: null, depth: 0, splitIndex: 0, history: [],
     lex: lex.map((e) => ({ concept: e.concept, word: [...e.word] })),
-    territory: [0, 1, 2, 3], pressure: 0, anchors: birthAnchor(lex), assimilationPressure: 0, collisionPressure: {}, momentum: {},
+    territory: [0, 1, 2, 3], pressure: 0, anchors: birthAnchor(lex), ...branchDefaults,
   };
   return {
-    world: { seed: 1234, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1, 2, 3].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst" },
+    world: { seed: 1234, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1, 2, 3].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst", ...worldDefaults },
     branches: { 0: branch }, rootId: 0, selectedId: 0,
     nextId: 1, turn: 0,
     settings: { pool: 10, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
@@ -223,11 +224,11 @@ describe("1ENG.10 lineage-continuation fracture", () => {
     const mkBranch = (id: number, name: string, territory: number[]): Branch => ({
       id, name, parentId: null, depth: 0, splitIndex: 0, history: [],
       lex: MIXED_LEX.map((e) => ({ concept: e.concept, word: [...e.word] })),
-      territory, pressure: 0, anchors: birthAnchor(MIXED_LEX), assimilationPressure: 0, collisionPressure: {}, momentum: {},
+      territory, pressure: 0, anchors: birthAnchor(MIXED_LEX), ...branchDefaults,
     });
 
     const s: GameState = {
-      world: { seed: 4321, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1, 2, 3, 4, 5, 6, 7].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst" },
+      world: { seed: 4321, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1, 2, 3, 4, 5, 6, 7].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst", ...worldDefaults },
       branches: { 0: mkBranch(0, "Aenic", [0, 1, 2, 3]), 1: mkBranch(1, "Boran", [4, 5, 6, 7]) },
       rootId: 0, selectedId: 0,
       nextId: 2, turn: 0,
@@ -253,16 +254,154 @@ describe("1ENG.10 lineage-continuation fracture", () => {
   });
 });
 
+// 1ENG.19 (1eng-14 spike §5, §7) — fracture-birth syntax inheritance and reanalysis.
+describe("1ENG.19 fracture-birth syntax inheritance & reanalysis", () => {
+  test("a born sibling inherits the parent's wordOrder/frameWeights/proDrop by default", () => {
+    // fractureState's default branch (world.ts's flat-genesis shape isn't used here —
+    // this fixture hand-builds branches, so wordOrder/frameWeights/proDrop come from
+    // branchDefaults: SOV/AdjN, [1,1,1,1], proDrop false) — a reanalysis flip is rare
+    // (ORDER_INNOVATE_RATE = 0.08), so most seeds leave the child's order untouched.
+    const s = fractureState();
+    const out = resolveGeneration(s);
+    const kid = childrenOf(out, 0)[0];
+    const parent = out.branches[0];
+    // whichever the outcome, the child's order is always one of the three valid
+    // values and never undefined — the inheritance/reanalysis path always sets it.
+    expect(["SOV", "SVO", "VSO"]).toContain(kid.wordOrder.basic);
+    expect(["AdjN", "NAdj"]).toContain(kid.wordOrder.adj);
+    expect(kid.proDrop).toBe(parent.proDrop); // proDrop never flips (not an axis)
+  });
+
+  test("frameWeights is copied, not shared: mutating the child's array leaves the parent's untouched", () => {
+    const out = resolveGeneration(fractureState());
+    const kid = childrenOf(out, 0)[0];
+    const parent = out.branches[0];
+    expect(kid.frameWeights).not.toBe(parent.frameWeights); // distinct array identity
+    expect(kid.frameWeights).toEqual(parent.frameWeights); // same values at birth
+    const beforeMutation = parent.frameWeights[0];
+    kid.frameWeights[0] = 99;
+    expect(parent.frameWeights[0]).toBe(beforeMutation); // parent's own array is unaffected
+  });
+
+  test("reanalysis fires at approximately ORDER_INNOVATE_RATE across many seeded fractures, and flips exactly one axis", () => {
+    const N = 400;
+    let flips = 0;
+    for (let seed = 1; seed <= N; seed++) {
+      const s = fractureState();
+      s.world.seed = seed;
+      const out = resolveGeneration(s);
+      const kid = childrenOf(out, 0)[0];
+      const parent = out.branches[0];
+      const basicFlipped = kid.wordOrder.basic !== parent.wordOrder.basic;
+      const adjFlipped = kid.wordOrder.adj !== parent.wordOrder.adj;
+      if (basicFlipped || adjFlipped) {
+        flips++;
+        // "flips exactly one axis": never both at once.
+        expect(basicFlipped && adjFlipped).toBe(false);
+      }
+    }
+    const rate = flips / N;
+    // ORDER_INNOVATE_RATE = 0.08; a 400-seed sweep should land within a wide but
+    // meaningful band around it (loose enough to avoid sweep-size flakiness, tight
+    // enough to catch a materially wrong rate or a broken fire-roll comparison).
+    expect(rate).toBeGreaterThan(0.03);
+    expect(rate).toBeLessThan(0.16);
+  });
+
+  test("a fired reanalysis is logged", () => {
+    // sweep for a seed that fires, then assert the log line — same pattern as the
+    // rate sweep above, just stopping at the first hit.
+    for (let seed = 1; seed <= 400; seed++) {
+      const s = fractureState();
+      s.world.seed = seed;
+      const out = resolveGeneration(s);
+      const kid = childrenOf(out, 0)[0];
+      const parent = out.branches[0];
+      if (kid.wordOrder.basic !== parent.wordOrder.basic || kid.wordOrder.adj !== parent.wordOrder.adj) {
+        expect(out.log.some((l) => l.includes("speak in a new order"))).toBe(true);
+        return;
+      }
+    }
+    throw new Error("no reanalysis fired in 400 seeds — sweep range or rate assumption is wrong");
+  });
+});
+
+// 1ENG.19 (1eng-14 spike §4.1, §7 testing block) — the behavioural claim the whole
+// mechanic exists to deliver: in an SOV branch, verbs (always utterance-final, ceiling
+// multiplier) erode faster than pronouns (never utterance-final, floor multiplier),
+// and under VSO the gap narrows sharply — the verb moves to initial position (floor
+// multiplier on boundary deletion instead of ceiling) while the pronoun's single slot
+// (F1's S) becomes medial (0/0, ungated baseline) rather than gaining protection, so
+// the asymmetry is SOV-specific rather than a fixed verb-vs-pronoun property. Exercised
+// through the REAL turn loop (resolveGeneration, untouched autonomous drift, driftRule's
+// full stochastic rule selection included) — this is the end-to-end proof, seed-averaged
+// to smooth the rule-selection noise the unit-level tests (syntax.test.ts, phonology.
+// test.ts) don't have to contend with.
+describe("1ENG.19 word-order-conditioned erosion asymmetry", () => {
+  // Real CONCEPT_CLASS members so the syntax gate actually engages. A uniform starting
+  // shape for every word (no cluster/coda) isolates the syntax effect from confounds a
+  // varied shape would introduce (different rules being eligible on different words).
+  const VERBS = ["eat", "drink", "see", "sleep"];
+  const PRONOUNS = ["i", "you", "we"];
+  const SHAPE = ["t", "a", "p", "e"];
+
+  function orderState(basic: WordOrder["basic"], seed: number): GameState {
+    const lex: Lexicon = [...VERBS, ...PRONOUNS].map((concept) => ({ concept, word: [...SHAPE] }));
+    return {
+      world: { seed, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [{ id: 0, x: 0, y: 0 }], edges: [], adj: { 0: [] }, start: 0, compoundOrder: "modFirst", wordOrder: { basic, adj: "AdjN" } },
+      branches: { 0: {
+        id: 0, name: "Aenic", parentId: null, depth: 0, splitIndex: 0, history: [],
+        lex, territory: [0], pressure: 0,
+        anchors: [{ lex, turn: 0, historyIndex: 0, driftFromPrev: 0 }],
+        ...branchDefaults, wordOrder: { basic, adj: "AdjN" },
+      } },
+      rootId: 0, selectedId: 0, nextId: 1, turn: 0,
+      settings: { pool: 999, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
+      pool: 999, touched: {}, log: [],
+      focusId: 0, mourning: null, pendingFocusChoice: null, ended: false, routes: {},
+    };
+  }
+
+  const meanLen = (s: GameState, concepts: string[]): number =>
+    concepts.reduce((sum, c) => sum + s.branches[0].lex.find((e) => e.concept === c)!.word.length, 0) / concepts.length;
+
+  // seed-averaged erosion gap (pronoun length - verb length, both starting equal) for
+  // one order over a short horizon (long enough for the gate to bite, short enough
+  // that neither class has fully bottomed out at the vowel floor, which would erase
+  // the signal by flooring both classes at the same length).
+  function meanGap(basic: WordOrder["basic"], seeds: number, turns: number): number {
+    let total = 0;
+    for (let seed = 1; seed <= seeds; seed++) {
+      let s = orderState(basic, seed);
+      for (let turn = 0; turn < turns; turn++) s = resolveGeneration({ ...s, touched: {} });
+      total += meanLen(s, PRONOUNS) - meanLen(s, VERBS);
+    }
+    return total / seeds;
+  }
+
+  test("SOV: verbs (always final, ceiling mult) erode measurably faster than pronouns (never final, floor mult)", () => {
+    const gap = meanGap("SOV", 150, 8);
+    expect(gap).toBeGreaterThan(0.3); // pronouns end up strictly longer than verbs, on average
+  });
+
+  test("VSO narrows the SOV gap sharply: the verb's advantage shrinks once it is no longer utterance-final", () => {
+    const sovGap = meanGap("SOV", 150, 8);
+    const vsoGap = meanGap("VSO", 150, 8);
+    expect(vsoGap).toBeGreaterThanOrEqual(0); // verbs never erode MORE than pronouns under VSO either
+    expect(vsoGap).toBeLessThan(sovGap); // but the SOV-specific advantage is materially reduced
+  });
+});
+
 describe("1ENG.10 divergence-threshold rename", () => {
   function driftingState(): GameState {
     const { adj, edges } = lineAdjacency();
     const branch: Branch = {
       id: 0, name: "Aenic", parentId: null, depth: 0, splitIndex: 0, history: [],
       lex: MIXED_LEX.map((e) => ({ concept: e.concept, word: [...e.word] })),
-      territory: [0], pressure: 0, anchors: birthAnchor(MIXED_LEX), assimilationPressure: 0, collisionPressure: {}, momentum: {},
+      territory: [0], pressure: 0, anchors: birthAnchor(MIXED_LEX), ...branchDefaults,
     };
     return {
-      world: { seed: 99, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1, 2, 3].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst" },
+      world: { seed: 99, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1, 2, 3].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst", ...worldDefaults },
       branches: { 0: branch }, rootId: 0, selectedId: 0,
       nextId: 1, turn: 0,
       settings: { pool: 999, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
@@ -303,10 +442,10 @@ describe("2STK.3 drift momentum (step 1 + repool)", () => {
     const branch: Branch = {
       id: 0, name: "Aenic", parentId: null, depth: 0, splitIndex: 0, history: [],
       lex: MIXED_LEX.map((e) => ({ concept: e.concept, word: [...e.word] })),
-      territory: [0], pressure: 0, anchors: birthAnchor(MIXED_LEX), assimilationPressure: 0, collisionPressure: {}, momentum: {},
+      territory: [0], pressure: 0, anchors: birthAnchor(MIXED_LEX), ...branchDefaults,
     };
     return {
-      world: { seed: 99, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1, 2, 3].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst" },
+      world: { seed: 99, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1, 2, 3].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst", ...worldDefaults },
       branches: { 0: branch }, rootId: 0, selectedId: 0,
       nextId: 1, turn: 0,
       settings: { pool: 999, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
@@ -379,10 +518,10 @@ describe("2GEO.5 lexical borrowing (step 3.5)", () => {
     const mk = (id: number, territory: number[], lex: Lexicon): Branch => ({
       id, name: id === 0 ? "Aenic" : "Boran", parentId: null, depth: 0, splitIndex: 0, history: [],
       lex: lex.map((e) => ({ concept: e.concept, word: [...e.word] })),
-      territory, pressure: 0, anchors: birthAnchor(lex), assimilationPressure: 0, collisionPressure: {}, momentum: {},
+      territory, pressure: 0, anchors: birthAnchor(lex), ...branchDefaults,
     });
     return {
-      world: { seed: 3, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst" },
+      world: { seed: 3, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst", ...worldDefaults },
       branches: { 0: mk(0, [0], BORROW_LEX_A), 1: mk(1, [1], BORROW_LEX_B) },
       rootId: 0, selectedId: 0,
       nextId: 2, turn: 0,
@@ -448,10 +587,10 @@ describe("2GEO.5 lexical borrowing (step 3.5)", () => {
     const branch: Branch = {
       id: 0, name: "Aenic", parentId: null, depth: 0, splitIndex: 0, history: [],
       lex: BORROW_LEX_A.map((e) => ({ concept: e.concept, word: [...e.word] })),
-      territory: [0], pressure: 0, anchors: birthAnchor(BORROW_LEX_A), assimilationPressure: 0, collisionPressure: {}, momentum: {},
+      territory: [0], pressure: 0, anchors: birthAnchor(BORROW_LEX_A), ...branchDefaults,
     };
     const s: GameState = {
-      world: { seed: 3, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1, 2, 3].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst" },
+      world: { seed: 3, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1, 2, 3].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst", ...worldDefaults },
       branches: { 0: branch }, rootId: 0, selectedId: 0,
       nextId: 1, turn: 0,
       settings: { pool: 999, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
@@ -504,11 +643,11 @@ describe("2STK.5 contact events & trade routes (step 3.25)", () => {
     const mk = (id: number, lex: Lexicon): Branch => ({
       id, name: id === 0 ? "Aenic" : "Boran", parentId: null, depth: 0, splitIndex: 0, history: [],
       lex: lex.map((e) => ({ concept: e.concept, word: [...e.word] })), territory: [id], pressure: 0,
-      anchors: birthAnchor(lex), assimilationPressure: 0, collisionPressure: {}, momentum: {},
+      anchors: birthAnchor(lex), ...branchDefaults,
     });
     const pool = opts.pool ?? 10;
     return {
-      world: { seed, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst" },
+      world: { seed, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst", ...worldDefaults },
       branches: { 0: mk(0, lexA), 1: mk(1, lexB) },
       rootId: 0, selectedId: 0, nextId: 2, turn,
       settings: { pool, growth: opts.growth ?? 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
@@ -585,10 +724,10 @@ describe("2STK.5 contact events & trade routes (step 3.25)", () => {
       const mk = (id: number, territory: number[], lex: Lexicon, pressure: number): Branch => ({
         id, name: id === 0 ? "Small" : "Large", parentId: null, depth: 0, splitIndex: 0, history: [],
         lex: lex.map((e) => ({ concept: e.concept, word: [...e.word] })), territory, pressure: 0,
-        anchors: birthAnchor(lex), assimilationPressure: pressure, collisionPressure: {}, momentum: {},
+        anchors: birthAnchor(lex), ...branchDefaults, assimilationPressure: pressure,
       });
       return {
-        world: { seed, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1, 2, 3, 4].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst" },
+        world: { seed, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1, 2, 3, 4].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst", ...worldDefaults },
         branches: { 0: mk(0, [0], smallLex, smallPressure), 1: mk(1, [1, 2, 3, 4], LEX, 0) },
         rootId: 0, selectedId: 0, nextId: 2, turn,
         settings: { pool: 999, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
@@ -633,10 +772,10 @@ describe("2STK.5 contact events & trade routes (step 3.25)", () => {
     const mk = (id: number, lex: Lexicon): Branch => ({
       id, name: id === 0 ? "Aenic" : "Boran", parentId: null, depth: 0, splitIndex: 0, history: [],
       lex: lex.map((e) => ({ concept: e.concept, word: [...e.word] })), territory: [id], pressure: 0,
-      anchors: birthAnchor(lex), assimilationPressure: 0, collisionPressure: {}, momentum: {},
+      anchors: birthAnchor(lex), ...branchDefaults,
     });
     const s: GameState = {
-      world: { seed: 3, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst" },
+      world: { seed: 3, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst", ...worldDefaults },
       branches: { 0: mk(0, A), 1: mk(1, B) }, rootId: 0, selectedId: 0, nextId: 2, turn: 0,
       settings: { pool: 10, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
       pool: 10, touched: { 0: true, 1: true }, log: [], routes: {},
@@ -677,10 +816,10 @@ describe("2LEX.2 collision resolution", () => {
       id: 0, name: "Aenic", parentId: null, depth: 0, splitIndex: 0, history: [],
       lex: opts.lex ?? COLL_LEX, territory: [0], pressure: 0,
       anchors: [{ lex: opts.lex ?? COLL_LEX, turn: 0, historyIndex: 0, driftFromPrev: 0 }],
-      assimilationPressure: 0, collisionPressure: opts.collisionPressure ?? {}, momentum: {},
+      ...branchDefaults, collisionPressure: opts.collisionPressure ?? {},
     };
     return {
-      world: { seed: 1, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [{ id: 0, x: 0, y: 0 }], edges: [], adj: { 0: [] }, start: 0, compoundOrder: "modFirst" },
+      world: { seed: 1, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [{ id: 0, x: 0, y: 0 }], edges: [], adj: { 0: [] }, start: 0, compoundOrder: "modFirst", ...worldDefaults },
       branches: { 0: branch }, rootId: 0, selectedId: 0, nextId: 1, turn: 0,
       settings: { pool: 10, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
       pool: 10, touched: { 0: true }, log: [],
@@ -821,16 +960,16 @@ describe("2LEX.2 collision resolution", () => {
       id: 0, name: "Aenic", parentId: null, depth: 0, splitIndex: 0, history: [],
       lex, territory: [0], pressure: 0,
       anchors: [{ lex, turn: 0, historyIndex: 0, driftFromPrev: 0 }],
-      assimilationPressure: 0, collisionPressure: opts.collisionPressure ?? {}, momentum: {},
+      ...branchDefaults, collisionPressure: opts.collisionPressure ?? {},
     };
     const neighbour: Branch = {
       id: 1, name: "Boran", parentId: null, depth: 0, splitIndex: 0, history: [],
       lex: neighbourLex, territory: [1], pressure: 0,
       anchors: [{ lex: neighbourLex, turn: 0, historyIndex: 0, driftFromPrev: 0 }],
-      assimilationPressure: 0, collisionPressure: {}, momentum: {},
+      ...branchDefaults,
     };
     return {
-      world: { seed: 1, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst" },
+      world: { seed: 1, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst", ...worldDefaults },
       branches: { 0: branch, 1: neighbour }, rootId: 0, selectedId: 0, nextId: 2, turn: 0,
       settings: { pool: 10, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
       pool: 10, touched: { 0: true, 1: true }, log: [],

@@ -1,18 +1,20 @@
 import { pick } from "./rng";
 import type { Inventory, Template, Lexicon, Terrain } from "./types";
 
-export const CONCEPTS = ["water","fire","stone","tree","leaf","root","seed","fish","bird","dog","wolf","hand","eye","ear","tooth","bone","blood","skin","meat","sun","moon","star","sky","rain","wind","hill","river","path","house","night","day","snow"];
+// The 32 original concepts, now the noun class's membership rather than the whole
+// substrate (1ENG.19 grew CONCEPTS to cover verb/pronoun/adjective too — see below).
+// Never reorder: indices 0..31 are load-bearing (2LEX.1's yieldingConcept tie-break,
+// borrowing.ts's CONCEPTS-order iteration).
+const NOUNS = ["water","fire","stone","tree","leaf","root","seed","fish","bird","dog","wolf","hand","eye","ear","tooth","bone","blood","skin","meat","sun","moon","star","sky","rain","wind","hill","river","path","house","night","day","snow"];
 
 // 2LEX.2 word classes (1ENG.14's grammar substrate), introduced early for the
 // collision-severity class gate (2lex-1 spike §3.1: same-class collisions are the
-// ones a language actually fights to avoid — Wedel et al. 2013). Covers the full
-// 48-concept substrate 1ENG.19 will grow CONCEPTS into; the 16 non-noun entries are
-// inert until then (every current CONCEPTS entry is a noun). Must stay in lockstep
-// with the CLASSES map in docs/spikes/assets/2lex-1-semantic-distance-gen.ts, which
-// generated the shipped semantic-distance.json from exactly this grouping.
+// ones a language actually fights to avoid — Wedel et al. 2013). Must stay in
+// lockstep with the CLASSES map in docs/spikes/assets/2lex-1-semantic-distance-gen.ts,
+// which generated the shipped semantic-distance.json from exactly this grouping.
 export type ConceptClass = "noun" | "verb" | "pronoun" | "adjective";
 const CLASS_MEMBERS: Record<ConceptClass, string[]> = {
-  noun: CONCEPTS,
+  noun: NOUNS,
   verb: ["eat", "drink", "see", "sleep", "die", "give", "go", "say", "finish"],
   pronoun: ["i", "you", "we"],
   adjective: ["big", "small", "new", "old"],
@@ -22,10 +24,14 @@ export const CONCEPT_CLASS: Record<string, ConceptClass> = Object.fromEntries(
 );
 // Canonical order over the FULL 48-concept substrate (noun/verb/pronoun/adjective,
 // same order as CLASS_MEMBERS/the distance-table generator's CLASSES), for collision.ts
-// to enumerate/tie-break candidates across every class rather than just CONCEPTS' 32
-// nouns — matters today only for the currently-inert verb/pronoun/adjective classes,
-// but must be right now so 1ENG.19 doesn't inherit a silent gap.
+// to enumerate/tie-break candidates across every class rather than just the 32 nouns.
 export const SUBSTRATE_ORDER: string[] = Object.values(CLASS_MEMBERS).flat();
+// 1ENG.19: CONCEPTS IS the substrate now — genLexicon generates a word for every
+// class, not just nouns. Indices 0..31 are unchanged (SUBSTRATE_ORDER opens with the
+// noun list), so every index-based tie-break survives untouched. A copy, not an alias
+// of SUBSTRATE_ORDER: two exported arrays sharing referential identity is a trap for
+// a future `CONCEPTS.push(...)`.
+export const CONCEPTS = [...SUBSTRATE_ORDER];
 
 // 2GEO.3 Axis B — physical terrain sets per-concept salience; salient concepts
 // resist drift/loss. Graded: core-salient 0.5, secondary 0.25, else 0.
@@ -57,6 +63,12 @@ export function salienceRetention(concept: string, terrain: Terrain): number {
 // WOLD finding that basic vocabulary resists borrowing (2geo-4 spike §2, §3.1).
 export function borrowableConcepts(lenderTerrain: Terrain): string[] {
   return CONCEPTS.filter((c) => salienceRetention(c, lenderTerrain) > 0);
+}
+
+// 1ENG.19: a class's members in SUBSTRATE_ORDER, for PhrasePanel's deterministic
+// slot fill (the Nth noun slot in a frame takes the Nth noun in this list).
+export function conceptsOfClass(cls: ConceptClass): string[] {
+  return CLASS_MEMBERS[cls];
 }
 
 // 1ENG.12 renewal phones (1eng-11 spike §4.4) — seeded into starting inventories, not

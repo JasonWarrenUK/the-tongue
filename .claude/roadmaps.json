@@ -156,8 +156,8 @@
 					},
 					{
 						"id": "1ENG.19",
-						"description": "Implement the 1ENG.14 substrate and conditioning (stage A) — `CONCEPTS` 32→48 (9 verbs incl. `finish`, 3 pronouns, 4 adjectives), new `syntax.ts` (`FRAMES`, `frameOrder`, `positionProfile`, `walkFrameWeights`, `followerVowelShare`, `syntaxMult`, `SYNTAX_STRENGTH`, `FRAME_WALK`, `ORDER_INNOVATE_RATE`), `Branch.wordOrder`/`frameWeights`/`proDrop` seeded and inherited, the fracture-birth reanalysis flip, the `applyRuleToLex` syntax gate at both drift call sites, the new `fortify`/`aphaer` initial-position rules and `PhrasePanel.svelte`. Breaking: three required Branch fields, `CONCEPTS` growth and two new `RULES` entries shift goldens — contract specified in the amended 1ENG.14 spike. **Note:** `CONCEPT_CLASS`/`SUBSTRATE_ORDER` already landed in `lexicon.ts` via 2LEX.2 (covering the full 48-concept substrate ahead of `CONCEPTS` growing into it), so this task only needs to grow `CONCEPTS` — the class gate activates for the new concepts automatically, no new class table to write",
-						"status": "todo",
+						"description": "Implement the 1ENG.14 substrate and conditioning (stage A) — `CONCEPTS` 32→48 (9 verbs incl. `finish`, 3 pronouns, 4 adjectives), new `syntax.ts` (`FRAMES`, `frameOrder`, `positionProfile`, `walkFrameWeights`, `followerVowelShare`, `syntaxMult`, `SYNTAX_STRENGTH`, `FRAME_WALK`, `ORDER_INNOVATE_RATE`), `Branch.wordOrder`/`frameWeights`/`proDrop` seeded and inherited, the fracture-birth reanalysis flip, the `applyRuleToLex` syntax gate at both drift call sites, the new `fortify`/`aphaer` initial-position rules and `PhrasePanel.svelte`. Breaking: three required Branch fields, `CONCEPTS` growth and two new `RULES` entries shift goldens — contract specified in the amended 1ENG.14 spike. **Note:** `CONCEPT_CLASS`/`SUBSTRATE_ORDER` already landed in `lexicon.ts` via 2LEX.2 (covering the full 48-concept substrate ahead of `CONCEPTS` growing into it), so this task only needs to grow `CONCEPTS` — the class gate activates for the new concepts automatically, no new class table to write. **Done** — two deliberate deviations from the spike's literal wording, both ledgered: the player-preview path shows a `Candidate.syntax` multiplier rather than live-gating (the gate's block roll isn't keyed on the rule, so gating all 19 candidates' previews at once would freeze the same word index regardless of which rule is picked); `fortify` got a new `fortition` category at `CATEGORY_AFFINITY` 0.0 (deliberately neutral — no evidence either direction on the contact axis) rather than reusing `lenition` (its opposite) or `epenthesis` (mislabels the mechanism)",
+						"status": "done",
 						"dependsOn": [
 							"1ENG.14",
 							"2LEX.2"
@@ -166,7 +166,7 @@
 					{
 						"id": "1ENG.20",
 						"description": "Implement the 1ENG.15 paradigm model — new `morphology.ts` (`seedParadigm`, `affixContext`, `tickParadigm`, `inflect`, `PATHWAY`, `RENEWAL_TURNS`/`FUSE_TURNS`), `applyRuleToAffix` in `phonology.ts` (edge-injected transducer variant, vowel floor lifted), `Branch.paradigm` (breaking: required field), the rule-driven paradigm tick inside drift (step 1), genesis seeding in `world.ts`, fracture deep-copy inheritance, pro-drop licensing and the PhrasePanel/paradigm-chip rendering. Affix erosion is emergent (no backstop; 2SIM.1 carries the acceptance criterion) — contract specified in the amended 1ENG.15 spike",
-						"status": "blocked",
+						"status": "todo",
 						"dependsOn": [
 							"1ENG.15",
 							"1ENG.19"
@@ -181,6 +181,13 @@
 							"1ENG.20",
 							"2GEO.5"
 						]
+					},
+					{
+						"id": "1ENG.22",
+						"description": "Fix unbounded per-turn family-tree/era-collapse render cost — `game.svelte.ts`'s `eraGraph` (`$derived.by`) recomputes `naming.ts`'s `eraStages`/`buildEraLayout` for every branch (living and dead) from scratch on every turn, and `Branch.anchors` is never pruned, so both the per-branch era-chain computation and the full tree-layout recursion grow unboundedly with turn count and branch count. Reproduced via a Playwright stress test on a 5-living-branch state: per-`endGeneration()` cost climbed from ~57ms to 200-280ms and heap peaks from ~30MB to ~340MB over 400 turns with degrading GC recovery, consistent with a real tab crash reported in manual play. Predates 1ENG.19 (introduced by 1ENG.10); 1ENG.19's own additions were isolated and cleared of blame via direct stress testing. Candidate fixes: memoize per-branch era stages keyed on `anchors.length`, cap/collapse tree depth for very old lineages, or prune anchors past what the display collapse can ever surface",
+						"status": "todo",
+						"dependsOn": [],
+						"assignee": "Jason Warren"
 					}
 				]
 			},
@@ -425,7 +432,8 @@
 						"dependsOn": [
 							"2GEO.5",
 							"2LEX.2",
-							"1ENG.20"
+							"1ENG.20",
+							"1ENG.22"
 						]
 					},
 					{

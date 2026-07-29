@@ -274,15 +274,23 @@ export interface Branch {
 **Testing (per repo convention):**
 
 - `CONCEPT_CLASS` total over all 48; existing 32 indices unchanged (regression pin).
-- `positionProfile` equal-weight goldens for all six order combinations against the §3.4 table, computed by hand; weighted cases spot-checked (doubling F1's weight raises verb final share under SOV); pro-drop removes pronoun exposure.
+- `positionProfile` equal-weight goldens for all six order combinations against the §3.4 table, computed by hand; weighted cases spot-checked (doubling F3's weight raises SOV noun final share); pro-drop removes pronoun exposure.
 - `walkFrameWeights`: deterministic under seed; respects the floor; fresh salt collides with no existing draw (registry regression).
 - `followerVowelShare`: 0 for always-final classes; responds to lexicon change (a fixture where noun forms flip to vowel-initial raises the share for whatever precedes nouns).
 - `syntaxMult`: clamps at [0.5, 1.5]; position-blind rules always 1; liaison scaling only on final-C deletion rules; `fortify` scales with initial share, `aphaer` against it.
 - New rules: `fortify` turns initial j/w to ʒ/v and never fires medially; `aphaer` deletes an initial vowel only before C and respects the vowel floor.
-- Drift integration: SOV fixture branch erodes verb finals measurably faster than pronoun finals over N turns; VSO reverses the asymmetry.
+- Drift integration: SOV fixture branch erodes verb finals measurably faster than pronoun finals over N turns; VSO narrows the asymmetry.
 - Reanalysis flip: fires at `ORDER_INNOVATE_RATE` frequency across many seeded fractures; flips exactly one axis; logged.
 - Determinism: fixed-seed replay byte-identical; new world-gen draws pinned.
 - Stage B: rigidification fires once and only after sustained paradigm absence; revokes `proDrop` on the same collapse; contact alignment respects the cut and the salt-collision regression guard.
+
+> **Revised (1ENG.19 implementation).** Three corrections from this section's original text, all confirmed against the shipped implementation:
+>
+> **The weighted spot-check above was wrong.** The original text read "doubling F1's weight raises verb final share under SOV" — that cannot happen, because SOV verbs are already 1.0 final (both F1 and F2's verb slots are frame-final under SOV), and a share already at its ceiling cannot rise further from any reweighting. The corrected checks: doubling F3's weight raises SOV noun final share 0.4 → 0.5 (more attributive-NP usage means more of the noun class's occurrences are the frame-final N); doubling F1's weight LOWERS SOV noun final share 0.4 → 0.333 (F1's O noun slot is medial, so weighting it more heavily dilutes the final share coming from F3/F4); doubling F1's weight LOWERS SVO verb final share 0.5 → 0.333 (F1's V slot is medial under SVO, F2's is final — weighting F1 more heavily dilutes the average).
+>
+> **The player-preview path shows a multiplier, not a live gate.** §4.1's "the gate applies in both the autonomous drift path and the player-preview path" turned out to conflict with how the preview actually works: the gate's block roll is keyed on `(seed, turn, branchId, wordIndex)`, not on the rule, and the picker (`Changes.svelte`) previews all ~19 candidate rules simultaneously against the same turn. Live-gating every preview would freeze the same word index across every rule regardless of which one the player picks — a visible artefact ("word 7 never changes this turn, whatever I do") with no counterpart in the real turn loop, where exactly one rule fires per branch per turn. Shipped instead: `previewLex`/`collDelta`/`apply` stay exact and ungated (identical to pre-1ENG.19 behaviour), and `Candidate` gains a `syntax` number — the mean `syntaxMult` across the words a rule fires on — rendered beside the existing momentum multiplier. The probabilistic gate lives only in `generation.ts`'s autonomous drift. This is arguably a more honest reading of "prices what will actually happen": the player sees the real positional tilt as a number rather than a single sampled outcome they can't re-roll.
+>
+> **`fortify` needed a category the spike didn't specify.** §4.3 left the choice open. Shipped: a new `RuleCategory` value, `"fortition"`, with `CATEGORY_AFFINITY` set to `0.0` — deliberately neutral rather than a guessed constant. `fortify`'s sources are about prosodic prominence (word-initial strengthening), not contact intensity, so the terrain-bias axis genuinely has no evidence to offer either direction; `lenition` (fortition's opposite) would have corrupted 2STK.3's momentum semantics, and `epenthesis` mislabels the mechanism despite a superficially similar isolation-favoured direction.
 
 ---
 
@@ -302,6 +310,9 @@ export interface Branch {
 | Apheresis scaled against utterance-initial share | **mechanism reading, flagged** | the sources attest unstressed-initial loss in connected speech; the position-scaling law is our inference from that, not a stated finding |
 | Fracture-birth reanalysis flip | **plausible mechanism, flagged** | reanalysis in new communities is creole/koine-adjacent evidence; the uniform flip direction is a deliberate diversity choice, noting real new varieties skew SVO |
 | `SYNTAX_STRENGTH`, `FRAME_WALK`, `ORDER_INNOVATE_RATE`, `ORDER_TURNS`, `ORDER_CONTACT_CUT`, the seed skew | **first-pass tuning** | same treatment as `BIAS_STRENGTH` and `COLLISION_TURNS` |
+| `FRAME_FLOOR` (frame-weight walk floor) | **first-pass tuning** | this section named a floor without a value; shipped at 0.1 against a genesis weight of 1.0 — roughly 45 consecutive negative walk steps to reach, a genuine backstop rather than a routinely-hit clamp |
+| `fortify`'s `RuleCategory` (`"fortition"`) affinity | **abstraction, flagged** | set to 0.0, deliberately neutral — the contact-bias axis has no attested evidence either direction for initial fortition (its sources are prosodic, not contact-driven), so 0 encodes "no claim" rather than an invented tilt |
+| The player-preview path's syntax display | **abstraction** | shows the mean `syntaxMult` as a number rather than sampling the same per-word block roll autonomous drift uses — see the §7 revision note above for why the literal reading produced a UI artefact |
 
 ---
 

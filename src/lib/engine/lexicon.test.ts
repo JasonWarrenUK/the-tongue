@@ -1,8 +1,27 @@
 import { describe, test, expect } from "bun:test";
-import { CONCEPTS, salienceRetention, borrowableConcepts } from "./lexicon";
+import { CONCEPTS, CONCEPT_CLASS, salienceRetention, borrowableConcepts } from "./lexicon";
 import type { Terrain } from "./types";
 
 const TERRAINS: Terrain[] = ["plain", "hill", "mountain", "water"];
+const NOUNS_GOLDEN = ["water","fire","stone","tree","leaf","root","seed","fish","bird","dog","wolf","hand","eye","ear","tooth","bone","blood","skin","meat","sun","moon","star","sky","rain","wind","hill","river","path","house","night","day","snow"];
+
+// 1ENG.19: CONCEPTS grew from the 32 original nouns to the full 48-concept substrate
+// (nouns + verbs + pronouns + adjectives). The regression pin the spike §7 testing
+// block asks for: indices 0..31 unchanged, exactly 32 nouns, total class coverage.
+describe("1ENG.19: CONCEPTS is the 48-concept substrate", () => {
+  test("CONCEPTS has 48 entries", () => expect(CONCEPTS.length).toBe(48));
+  test("indices 0..31 are unchanged from the pre-1ENG.19 noun list", () => {
+    expect(CONCEPTS.slice(0, 32)).toEqual(NOUNS_GOLDEN);
+  });
+  test("CONCEPT_CLASS covers every CONCEPTS entry", () => {
+    CONCEPTS.forEach((c) => expect(CONCEPT_CLASS[c]).toBeDefined());
+  });
+  test("exactly 32 nouns, 9 verbs, 3 pronouns, 4 adjectives", () => {
+    const counts: Record<string, number> = { noun: 0, verb: 0, pronoun: 0, adjective: 0 };
+    CONCEPTS.forEach((c) => { counts[CONCEPT_CLASS[c]]++; });
+    expect(counts).toEqual({ noun: 32, verb: 9, pronoun: 3, adjective: 4 });
+  });
+});
 
 describe("salienceRetention", () => {
   test("core-salient concept returns 0.5", () => {
@@ -72,5 +91,16 @@ describe("borrowableConcepts", () => {
 
   test("hill mirrors mountain (same salience source)", () => {
     expect(borrowableConcepts("hill").sort()).toEqual(borrowableConcepts("mountain").sort());
+  });
+
+  // 1ENG.19 (spike §3.1): the new verb/pronoun/adjective concepts carry zero terrain
+  // salience, so borrowability falls out unchanged — verbs and pronouns are never
+  // borrowable, matching Tadmor's basic-vocabulary borrowability hierarchy.
+  test("every borrowable concept, on every terrain, is a noun", () => {
+    for (const terrain of TERRAINS) {
+      for (const concept of borrowableConcepts(terrain)) {
+        expect(CONCEPT_CLASS[concept]).toBe("noun");
+      }
+    }
   });
 });

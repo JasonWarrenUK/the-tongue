@@ -1,6 +1,7 @@
 import { hashRand } from "./rng";
 import { salienceRetention } from "./lexicon";
-import type { Phone, PhoneType, Patch, Rule, RuleCategory, Lexicon, Terrain, Seg, XformResult } from "./types";
+import { syntaxMult } from "./syntax";
+import type { Phone, PhoneType, Patch, Rule, RuleCategory, Lexicon, Terrain, Seg, XformResult, WordOrder, FrameWeights } from "./types";
 
 const C = (id: string, place: string, manner: string, voice: boolean): Phone =>
   ({ id, g: id, type: "C", place, manner, voice, obstruent: manner === "stop" || manner === "fric" });
@@ -118,6 +119,21 @@ export const RULES: Rule[] = [
     w:2, category:"deletion",
     match:(p)=>isC(p)&&!!p.obstruent, pre:isV, post:bound,
     xform:()=>({ delete:true }), lengthensPrev:true },
+  // 1ENG.19 (1eng-14 spike §4.3) — the engine's first pre:bound rules. The positional
+  // audit found word-initial position wholly inert: eight rules act at word ends,
+  // none at the start. Real initial position is the STRONG position (word-initial
+  // consonants lengthen cross-linguistically; fortition concentrates there, cf.
+  // Spanish /j/ -> [ʝ]) and still occasionally loses material in connected speech
+  // (apheresis: esquire -> squire). Both carry w=1, the lowest weight in RULES: true
+  // fortition is attested but genuinely rare, and the ledger says so.
+  { id:"fortify", name:"Initial fortition", note:"glide → voiced fricative / # _  (j→ʒ, w→v)",
+    w:1, category:"fortition",
+    match:(p)=>isC(p)&&p.manner==="glide", pre:bound, post:null,
+    xform:()=>({ manner:"fric" }) },
+  { id:"aphaer", name:"Apheresis", note:"initial vowel → ∅ / # _ C  (esquire → squire)",
+    w:1, category:"deletion",
+    match:isV, pre:bound, post:isC,
+    xform:()=>({ delete:true }) },
 ];
 export const RULE_BY_ID: Record<string, Rule> = Object.fromEntries(RULES.map((r) => [r.id, r]));
 
@@ -204,15 +220,41 @@ export function stepToward(a: string[], b: string[]): string[] {
 // so salient-domain concepts resist drift. Omitted for firingRules' selection
 // pass so drift-rule weighting stays terrain-agnostic, matching pre-2GEO.3 behaviour.
 export interface SalienceContext { terrain: Terrain; seed: number; turn: number; branchId: number }
-export function applyRuleToLex(lex: Lexicon, rule: Rule, salience?: SalienceContext): { lex: Lexicon; fires: number } {
+// 1ENG.14 §4.1 — the syntax gate's read-only view of a branch's grammar, widened
+// with the seed triple the per-word roll needs (mirrors SalienceContext's shape).
+// Field names match syntax.ts's BranchSyntax (wordOrder/frameWeights/proDrop) so a
+// SyntaxContext IS a BranchSyntax structurally and passes straight to syntaxMult.
+export interface SyntaxContext {
+  wordOrder: WordOrder; frameWeights: FrameWeights; proDrop: boolean;
+  seed: number; turn: number; branchId: number;
+}
+export interface RuleContext { salience?: SalienceContext; syntax?: SyntaxContext }
+
+export function applyRuleToLex(lex: Lexicon, rule: Rule, ctx?: RuleContext): { lex: Lexicon; fires: number } {
   let fires = 0;
   const next = lex.map((e, i) => {
     const r = applyRuleToWord(e.word, rule);
     if (!r.changed) return { ...e, word: r.ids };
-    if (salience) {
-      const retention = salienceRetention(e.concept, salience.terrain);
-      const roll = hashRand(salience.seed + 13, salience.turn * 151 + 29, salience.branchId * 733 + i);
+    if (ctx?.salience) {
+      const retention = salienceRetention(e.concept, ctx.salience.terrain);
+      const roll = hashRand(ctx.salience.seed + 13, ctx.salience.turn * 151 + 29, ctx.salience.branchId * 733 + i);
       if (roll < retention) return e; // blocked: word keeps its pre-rule form
+    }
+    // 1ENG.14 §4.1 — the syntax gate. syntaxMult ∈ [0.5, 1.5] is a RATE multiplier,
+    // but this pass is a per-word BLOCK roll, so m < 1 becomes a block probability
+    // (1 - m); m > 1 is a no-op here (a rule can't fire MORE than once on a word it
+    // already fires on) — the lever is one-sided by construction, and over a lexicon
+    // and many turns that asymmetry alone yields the differential erosion §4.1
+    // claims (a position-favoured class is never blocked; a disfavoured one often is).
+    // Separate roll, fresh salt, independent of the salience roll above: salience and
+    // position are two distinct causes of resistance, and folding them into one roll
+    // would make a salient-and-final word behave as if one cause cancelled the other.
+    if (ctx?.syntax) {
+      const m = syntaxMult(rule, e.concept, ctx.syntax, lex);
+      if (m < 1) {
+        const roll = hashRand(ctx.syntax.seed + 29, ctx.syntax.turn * 167 + 37, ctx.syntax.branchId * 601 + i);
+        if (roll < 1 - m) return e;
+      }
     }
     fires++;
     return { ...e, word: r.ids };
@@ -242,6 +284,11 @@ export const BIAS_STRENGTH = 0.7;
 export const CATEGORY_AFFINITY: Record<RuleCategory, number> = {
   deletion: 1.0, lenition: 0.7, assimilation: 0.4, vowelShift: -1.0,
   epenthesis: -0.8, // isolation-favoured (complexity-building) — 1eng-11 spike §5
+  // 1ENG.19: deliberately neutral, not a guessed constant. fortify's sources (§4.3)
+  // are about prosodic prominence, not contact intensity — the terrain bias axis has
+  // no evidence to offer either direction, so 0 is the principled "no tilt" rather
+  // than an invented one. biasedMult(fortition, iso) === 1 for every iso.
+  fortition: 0.0,
 };
 export function biasedMult(category: RuleCategory, iso: number): number {
   const tilt = 1 - 2 * iso; // contact tilt ∈ [-1,+1]: +1 fully open, -1 fully walled

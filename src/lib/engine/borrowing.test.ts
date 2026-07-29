@@ -2,6 +2,7 @@ import { describe, test, expect } from "bun:test";
 import { resolveBorrow, BORROW_RATE, BORROW_FAITHFUL_CUT } from "./borrowing";
 import { formSimilarity } from "./intelligibility";
 import { CONCEPTS } from "./lexicon";
+import { branchDefaults } from "../../../tests/fixtures/branch";
 import type { Branch, Edge, Lexicon } from "./types";
 
 // Two water-terrain-adjacent branches, A (id 0, territory [0]) and B (id 1, territory
@@ -12,7 +13,7 @@ import type { Branch, Edge, Lexicon } from "./types";
 function mkBranch(id: number, territory: number[], lex: Lexicon): Branch {
   return {
     id, name: `Branch${id}`, parentId: null, depth: 0, splitIndex: 0, history: [],
-    lex, territory, pressure: 0, anchors: [], assimilationPressure: 0, collisionPressure: {}, momentum: {},
+    lex, territory, pressure: 0, anchors: [], ...branchDefaults,
   };
 }
 

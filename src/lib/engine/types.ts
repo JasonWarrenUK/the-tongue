@@ -13,7 +13,10 @@ export interface Patch {
   height?: string; back?: boolean; round?: boolean; long?: boolean;
   diph?: boolean; nucleus?: string; offglide?: string;
 }
-export type RuleCategory = "lenition" | "deletion" | "assimilation" | "vowelShift" | "epenthesis";
+// 1ENG.19 (1eng-14 spike §4.3): "fortition" covers fortify, the engine's one
+// strengthening rule so far — deliberately kept apart from "lenition" (its opposite)
+// so 2STK.3 momentum can't read a lenition streak as a reason to fortify more.
+export type RuleCategory = "lenition" | "deletion" | "assimilation" | "vowelShift" | "epenthesis" | "fortition";
 
 // 1ENG.12: a single output segment. `from:"self"` = resolve as (input phone features
 // + patch) — the pre-1ENG.12 applyXform semantics. `from:"abs"` = a brand-new segment
@@ -55,11 +58,25 @@ export type Adjacency = Record<number, AdjEntry[]>;
 export interface Inventory { vowels: string[]; consonants: string[] }
 export interface Template { onset: "req" | "opt"; coda: "none" | "opt"; clusters: boolean; label: string }
 
+// 1ENG.19 (1eng-14 spike §3.3): the two order parameters a branch's grammar sets.
+// `basic` orders F1/F2 and derives F4's genitive order; `adj` is independent (Dryer:
+// adjective order doesn't correlate reliably with basic order, so it isn't derived).
+export interface WordOrder { basic: "SOV" | "SVO" | "VSO"; adj: "AdjN" | "NAdj" }
+// 1ENG.19 (spike §3.2): per-frame usage weight [F1, F2, F3, F4], normalised in use
+// (positionProfile divides by its own total) and floor-clamped by syntax.ts's
+// walkFrameWeights so no frame ever vanishes. Declared here rather than in syntax.ts
+// so Branch can reference it without syntax.ts importing Branch back — syntax.ts
+// re-exports it to satisfy its own module contract.
+export type FrameWeights = [number, number, number, number];
+
 export interface World {
   seed: number; inv: Inventory; tmpl: Template; lex: Lexicon;
   regions: Region[]; edges: Edge[]; adj: Adjacency; start: number;
   // 2LEX.2: compound headedness, seeded once at genesis (see CompoundOrder above).
   compoundOrder: CompoundOrder;
+  // 1ENG.19: the GENESIS word order (mirrors world.lex -> root.lex): the root branch
+  // copies this at birth, then wordOrder becomes per-branch and mutable (spike §3.3).
+  wordOrder: WordOrder;
 }
 export interface HistoryEntry { name: string; note: string; drift?: boolean; borrow?: boolean }
 // 1ENG.10 rename mechanic: a frozen lexicon snapshot marking a divergence-threshold
@@ -92,6 +109,16 @@ export interface Branch {
   // Joins biasedMult in driftRule's weighted pick — naturalness weight (Rule.w) stays
   // dominant, momentum is a tilt on top, never a gate. See phonology.ts.
   momentum: Partial<Record<RuleCategory, number>>;
+  // 1ENG.19 (spike §3.3): per-branch, mutable word order — unlike the per-world
+  // compoundOrder, siblings can diverge in order after fracture (§5's reanalysis is
+  // stage A's one mutation; stage B/1ENG.21 adds rigidification and contact alignment).
+  wordOrder: WordOrder;
+  // 1ENG.19 (spike §3.2): frame-usage weights, seeded flat at genesis and walked each
+  // turn (syntax.ts walkFrameWeights). Inherited (copied, not shared) at fracture.
+  frameWeights: FrameWeights;
+  // 1ENG.19 (spike §3.5): the null-subject parameter. Inert `false` everywhere until
+  // 1ENG.20 ships the agreement paradigm that licenses it (Taraldsen's generalisation).
+  proDrop: boolean;
 }
 export interface Settings {
   pool: number; growth: number; overhead: number; changeCost: number; spreadEvery: number;
@@ -135,4 +162,11 @@ export interface FreeRegion { region: number; cost: number; passable: boolean }
 // rule's category (stakes.ts momentumMult) — shown beside the candidate in the picker
 // so the tendency a rule would reinforce is visible at decision time (spike §1's
 // cross-cutting visibility constraint).
-export interface Candidate { rule: Rule; fires: number; collDelta: number; momentum: number }
+// 1ENG.19: syntax is the mean syntaxMult across the words this rule fires on (see
+// game.svelte.ts candidates). Deliberately a NUMBER, not a live gate on this preview —
+// the gate's block roll is keyed on (seed, turn, branchId, wordIndex), not on the
+// rule, so gating all 19 candidates' previews would freeze the same word index across
+// every rule regardless of which one the player picks. Showing the multiplier instead
+// keeps previewLex/collDelta/apply exact and gives the player MORE honest information
+// about the positional lever than a sampled diff would (1eng-14 spike §4.1 amendment).
+export interface Candidate { rule: Rule; fires: number; collDelta: number; momentum: number; syntax: number }

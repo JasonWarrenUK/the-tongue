@@ -15,7 +15,7 @@
     </span>
   </div>
   <div class="space-y-2">
-    {#each candidates as { rule, fires, collDelta, momentum } (rule.id)}
+    {#each candidates as { rule, fires, collDelta, momentum, syntax } (rule.id)}
       {@const afford = stepCost <= pool}
       <div role="button" tabindex="0" onmouseenter={() => onpreview(rule.id)} onmouseleave={() => onpreview(null)} onclick={() => onpreview(rule.id)}
         onkeydown={(ev) => { if ((ev.key === "Enter" || ev.key === " ") && ev.target === ev.currentTarget) { ev.preventDefault(); onpreview(rule.id); } }}
@@ -29,6 +29,7 @@
           <span class="font-mono text-xs text-muted">{rule.note}</span>
           <span class="flex items-center gap-1.5 shrink-0">
             {#if momentum > 1}<span class="text-xs text-accent" title="{rule.category} momentum">{rule.category} ×{momentum.toFixed(1)}</span>{/if}
+            {#if syntax !== 1}<span class="text-xs {syntax > 1 ? 'text-accent' : 'text-muted'}" title="position-scaled by this branch's word order">syntax ×{syntax.toFixed(1)}</span>{/if}
             <span class="text-xs {collDelta > 0 ? 'text-warn' : 'text-positive'}">{fires}w {collDelta > 0 ? `+${collDelta}` : "·"}</span>
           </span>
         </div>

@@ -8,6 +8,7 @@ import { buildEraLayout } from "./engine/tree";
 import { reachMult, COST_CAP, MOURN_TURNS, momentumMult, bumpMomentum } from "./engine/stakes";
 import { resolveContact } from "./engine/contact";
 import { severePairs, pairThreshold, yieldingConcept, modifierCandidates, compoundWord } from "./engine/collision";
+import { syntaxMult } from "./engine/syntax";
 import type { GameState, Settings, Candidate } from "./engine/types";
 import type { EraStage } from "./engine/naming";
 import type { ContactResult } from "./engine/contact";
@@ -29,10 +30,19 @@ class Game {
   sel = $derived(this.st.branches[this.st.selectedId]);
   leaves = $derived(leavesOf(this.st.branches));
   baseColl = $derived(collisionPairs(this.sel.lex));
+  // 1ENG.19 (spike §4.1, amended): previewLex/collDelta/apply stay exact and UNGATED
+  // (see the Candidate.syntax comment in types.ts for why) — `after` here is the same
+  // ungated result apply() will actually produce. `syntax` is the mean syntaxMult over
+  // the concepts this rule fires on, shown as a plain number so the positional lever
+  // is visible without a sampled diff.
   candidates = $derived.by<Candidate[]>(() =>
     RULES.map((rule) => {
       const { lex: after, fires } = applyRuleToLex(this.sel.lex, rule);
-      return { rule, fires, collDelta: collisionPairs(after) - this.baseColl, momentum: momentumMult(this.sel, rule.category) };
+      const firing = this.sel.lex.filter((e, i) => formOf(e.word) !== formOf(after[i].word));
+      const syntax = firing.length
+        ? firing.reduce((sum, e) => sum + syntaxMult(rule, e.concept, this.sel, this.sel.lex), 0) / firing.length
+        : 1;
+      return { rule, fires, collDelta: collisionPairs(after) - this.baseColl, momentum: momentumMult(this.sel, rule.category), syntax };
     }).filter((c) => c.fires > 0)
   );
   previewLex = $derived(this.preview ? applyRuleToLex(this.sel.lex, RULE_BY_ID[this.preview]).lex : null);

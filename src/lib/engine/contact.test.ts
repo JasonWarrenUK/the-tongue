@@ -3,6 +3,7 @@ import { resolveContact, borderingPairs, routeKey, routeOpen, CONTACT_YIELD, CON
 import { hashRand } from "./rng";
 import { intelligibility } from "./intelligibility";
 import * as fixtures from "../../../tests/fixtures/geography";
+import { branchDefaults, worldDefaults } from "../../../tests/fixtures/branch";
 import type { Branch, GameState, Lexicon } from "./types";
 
 // 2STK.5 §5/§8 (docs/spikes/2stk-1-rule-choice-stakes.md). Local mkBranch/mkState
@@ -20,7 +21,7 @@ const DIVERGENT_LEX: Lexicon = [
 function mkBranch(id: number, territory: number[], lex: Lexicon = LEX): Branch {
   return {
     id, name: `B${id}`, parentId: null, depth: 0, splitIndex: 0, history: [],
-    lex, territory, pressure: 0, anchors: [], assimilationPressure: 0, collisionPressure: {}, momentum: {},
+    lex, territory, pressure: 0, anchors: [], ...branchDefaults,
   };
 }
 function mkState(
@@ -28,7 +29,7 @@ function mkState(
   opts: { seed?: number; turn?: number } = {},
 ): GameState {
   return {
-    world: { seed: opts.seed ?? 1, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [], edges, adj: {}, start: 0, compoundOrder: "modFirst" },
+    world: { seed: opts.seed ?? 1, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [], edges, adj: {}, start: 0, compoundOrder: "modFirst", ...worldDefaults },
     branches, rootId: 0, selectedId: 0, nextId: Object.keys(branches).length, turn: opts.turn ?? 0,
     settings: { pool: 10, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
     pool: 10, touched: {}, log: [], focusId: 0, mourning: null, pendingFocusChoice: null, ended: false, routes: {},
