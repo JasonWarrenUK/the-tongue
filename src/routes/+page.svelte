@@ -8,6 +8,7 @@
   import FamilyTree from "$lib/components/FamilyTree.svelte";
   import IntelMatrix from "$lib/components/IntelMatrix.svelte";
   import WordTable from "$lib/components/WordTable.svelte";
+  import PhrasePanel from "$lib/components/PhrasePanel.svelte";
   import Changes from "$lib/components/Changes.svelte";
   import HistoryList from "$lib/components/HistoryList.svelte";
   import FocusDialog from "$lib/components/FocusDialog.svelte";
@@ -77,6 +78,9 @@
           severeConcepts={game.severeConcepts} pressureLabel={game.pressureLabel} />
       </div>
       <div class="md:col-span-2 space-y-4">
+        <Panel title="Phrases">
+          <PhrasePanel lex={game.sel.lex} order={game.sel.wordOrder} weights={game.sel.frameWeights} proDrop={game.sel.proDrop} />
+        </Panel>
         <Changes candidates={game.candidates} preview={game.preview} stepCost={game.stepCost}
           overheadDue={game.overheadDue} pool={game.st.pool} reach={game.reach} isFocal={game.isFocal}
           onpreview={(id) => (game.preview = id)} onapply={(id) => game.apply(id)} />
