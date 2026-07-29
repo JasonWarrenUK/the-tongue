@@ -1,6 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import { inventoryOf, genStem, blendStems, eraLabels, eraStages, eventDensityPolicy, protoBlendFor, RENAME_CUT, STAGE_CUT } from "./naming";
 import { BY_ID } from "./phonology";
+import { branchDefaults } from "../../../tests/fixtures/branch";
 import type { Anchor, Branch, Lexicon } from "./types";
 
 const MIXED_LEX: Lexicon = [
@@ -13,7 +14,7 @@ const MIXED_LEX: Lexicon = [
 function mkBranch(overrides: Partial<Branch> = {}): Branch {
   return {
     id: 0, name: "Aenic", parentId: null, depth: 0, splitIndex: 0, history: [],
-    lex: MIXED_LEX, territory: [0], pressure: 0, anchors: [], assimilationPressure: 0, collisionPressure: {}, momentum: {}, ...overrides,
+    lex: MIXED_LEX, territory: [0], pressure: 0, anchors: [], ...branchDefaults, ...overrides,
   };
 }
 function anchor(driftFromPrev: number, turn: number): Anchor {

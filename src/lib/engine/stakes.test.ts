@@ -1,6 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import { blendDistance, reachMult, heirCandidates, momentumMult, bumpMomentum, decayMomentum, REACH_CAP, HEIR_CUT, COST_CAP, MOMENTUM_CAP, MOMENTUM_GAIN, MOMENTUM_DECAY } from "./stakes";
 import { kinshipDistance } from "./tree";
+import { branchDefaults, worldDefaults } from "../../../tests/fixtures/branch";
 import type { Branch, GameState, Lexicon } from "./types";
 
 // 2STK.2 §2 — focal identity & reach. A small hand-built family tree:
@@ -31,7 +32,7 @@ function mkBranch(id: number, parentId: number | null, depth: number, lex: Lexic
     lex: lex.map((e) => ({ concept: e.concept, word: [...e.word] })),
     territory: [id], pressure: 0,
     anchors: [{ lex: lex.map((e) => ({ concept: e.concept, word: [...e.word] })), turn: 0, historyIndex: 0, driftFromPrev: 0 }],
-    assimilationPressure: 0, collisionPressure: {}, momentum: {},
+    ...branchDefaults,
   };
 }
 
@@ -44,7 +45,7 @@ const branches: Record<number, Branch> = {
 
 function baseState(overrides: Partial<GameState> = {}): GameState {
   return {
-    world: { seed: 1, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [], edges: [], adj: {}, start: 0, compoundOrder: "modFirst" },
+    world: { seed: 1, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [], edges: [], adj: {}, start: 0, compoundOrder: "modFirst", ...worldDefaults },
     branches, rootId: 0, selectedId: 0, nextId: 4, turn: 5,
     settings: { pool: 999, growth: 1, overhead: 1, changeCost: 2, spreadEvery: 999 },
     pool: 999, touched: {}, log: [],

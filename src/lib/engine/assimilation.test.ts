@@ -2,6 +2,7 @@ import { describe, test, expect } from "bun:test";
 import { resolveGeneration } from "./generation";
 import { ASSIM_TURNS } from "./geography";
 import { isLeaf, leavesOf } from "./tree";
+import { branchDefaults, worldDefaults } from "../../../tests/fixtures/branch";
 import type { GameState, Lexicon, Branch, Adjacency, Edge } from "./types";
 
 // 1ENG.10 follow-up — language-shift/assimilation death. A small branch bordering a
@@ -43,7 +44,7 @@ function smallVsLarge(opts: { smallLex?: Lexicon; smallTerritory?: number[]; lar
   const small: Branch = {
     id: 0, name: "Small", parentId: null, depth: 0, splitIndex: 0, history: [],
     lex: smallLex.map((e) => ({ concept: e.concept, word: [...e.word] })),
-    territory: smallTerritory, pressure: 0, anchors: birthAnchor(smallLex), assimilationPressure: 0, collisionPressure: {}, momentum: {},
+    territory: smallTerritory, pressure: 0, anchors: birthAnchor(smallLex), ...branchDefaults,
   };
   const large: Branch = {
     // 2STK.2: parentId links to `small` (rather than a second null root) so the
@@ -52,10 +53,10 @@ function smallVsLarge(opts: { smallLex?: Lexicon; smallTerritory?: number[]; lar
     // are always fracture-born from a common ancestor, never two unrelated roots).
     id: 1, name: "Large", parentId: 0, depth: 1, splitIndex: 0, history: [],
     lex: LEX.map((e) => ({ concept: e.concept, word: [...e.word] })),
-    territory: largeTerritory, pressure: 0, anchors: birthAnchor(LEX), assimilationPressure: 0, collisionPressure: {}, momentum: {},
+    territory: largeTerritory, pressure: 0, anchors: birthAnchor(LEX), ...branchDefaults,
   };
   return {
-    world: { seed: 1, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1, 2, 3, 4].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst" },
+    world: { seed: 1, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1, 2, 3, 4].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst", ...worldDefaults },
     branches: { 0: small, 1: large }, rootId: 0, selectedId: 0,
     nextId: 2, turn: 0,
     // spreadEvery high enough that spread never fires across these test runs, isolating
@@ -153,10 +154,10 @@ describe("assimilation: safety guard", () => {
     const lone: Branch = {
       id: 0, name: "Lone", parentId: null, depth: 0, splitIndex: 0, history: [],
       lex: LEX.map((e) => ({ concept: e.concept, word: [...e.word] })),
-      territory: [0], pressure: 0, anchors: birthAnchor(LEX), assimilationPressure: 0, collisionPressure: {}, momentum: {},
+      territory: [0], pressure: 0, anchors: birthAnchor(LEX), ...branchDefaults,
     };
     const s: GameState = {
-      world: { seed: 1, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [{ id: 0, x: 0, y: 0 }], edges, adj, start: 0, compoundOrder: "modFirst" },
+      world: { seed: 1, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [{ id: 0, x: 0, y: 0 }], edges, adj, start: 0, compoundOrder: "modFirst", ...worldDefaults },
       branches: { 0: lone }, rootId: 0, selectedId: 0, nextId: 1, turn: 0,
       settings: { pool: 999, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
       pool: 999, touched: { 0: true }, log: [],

@@ -1,6 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import { buildEraLayout } from "./tree";
 import { eraStages } from "./naming";
+import { branchDefaults } from "../../../tests/fixtures/branch";
 import type { Branch, Anchor, Lexicon } from "./types";
 
 // Family-tree fix: buildEraLayout expands each branch into a chain of era-node rows
@@ -15,7 +16,7 @@ function anchor(driftFromPrev: number, historyIndex: number): Anchor {
 function mkBranch(overrides: Partial<Branch> = {}): Branch {
   return {
     id: 0, name: "Root", parentId: null, depth: 0, splitIndex: 0, history: [],
-    lex: LEX, territory: [0], pressure: 0, anchors: [anchor(0, 0)], assimilationPressure: 0, collisionPressure: {}, momentum: {}, ...overrides,
+    lex: LEX, territory: [0], pressure: 0, anchors: [anchor(0, 0)], ...branchDefaults, ...overrides,
   };
 }
 
