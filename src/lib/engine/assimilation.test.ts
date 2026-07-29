@@ -43,7 +43,7 @@ function smallVsLarge(opts: { smallLex?: Lexicon; smallTerritory?: number[]; lar
   const small: Branch = {
     id: 0, name: "Small", parentId: null, depth: 0, splitIndex: 0, history: [],
     lex: smallLex.map((e) => ({ concept: e.concept, word: [...e.word] })),
-    territory: smallTerritory, pressure: 0, anchors: birthAnchor(smallLex), assimilationPressure: 0, collisionPressure: {},
+    territory: smallTerritory, pressure: 0, anchors: birthAnchor(smallLex), assimilationPressure: 0, collisionPressure: {}, momentum: {},
   };
   const large: Branch = {
     // 2STK.2: parentId links to `small` (rather than a second null root) so the
@@ -52,7 +52,7 @@ function smallVsLarge(opts: { smallLex?: Lexicon; smallTerritory?: number[]; lar
     // are always fracture-born from a common ancestor, never two unrelated roots).
     id: 1, name: "Large", parentId: 0, depth: 1, splitIndex: 0, history: [],
     lex: LEX.map((e) => ({ concept: e.concept, word: [...e.word] })),
-    territory: largeTerritory, pressure: 0, anchors: birthAnchor(LEX), assimilationPressure: 0, collisionPressure: {},
+    territory: largeTerritory, pressure: 0, anchors: birthAnchor(LEX), assimilationPressure: 0, collisionPressure: {}, momentum: {},
   };
   return {
     world: { seed: 1, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1, 2, 3, 4].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst" },
@@ -153,7 +153,7 @@ describe("assimilation: safety guard", () => {
     const lone: Branch = {
       id: 0, name: "Lone", parentId: null, depth: 0, splitIndex: 0, history: [],
       lex: LEX.map((e) => ({ concept: e.concept, word: [...e.word] })),
-      territory: [0], pressure: 0, anchors: birthAnchor(LEX), assimilationPressure: 0, collisionPressure: {},
+      territory: [0], pressure: 0, anchors: birthAnchor(LEX), assimilationPressure: 0, collisionPressure: {}, momentum: {},
     };
     const s: GameState = {
       world: { seed: 1, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [{ id: 0, x: 0, y: 0 }], edges, adj, start: 0, compoundOrder: "modFirst" },

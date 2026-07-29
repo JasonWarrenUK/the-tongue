@@ -15,7 +15,7 @@ function anchor(driftFromPrev: number, historyIndex: number): Anchor {
 function mkBranch(overrides: Partial<Branch> = {}): Branch {
   return {
     id: 0, name: "Root", parentId: null, depth: 0, splitIndex: 0, history: [],
-    lex: LEX, territory: [0], pressure: 0, anchors: [anchor(0, 0)], assimilationPressure: 0, collisionPressure: {}, ...overrides,
+    lex: LEX, territory: [0], pressure: 0, anchors: [anchor(0, 0)], assimilationPressure: 0, collisionPressure: {}, momentum: {}, ...overrides,
   };
 }
 

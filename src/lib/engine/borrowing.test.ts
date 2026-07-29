@@ -12,7 +12,7 @@ import type { Branch, Edge, Lexicon } from "./types";
 function mkBranch(id: number, territory: number[], lex: Lexicon): Branch {
   return {
     id, name: `Branch${id}`, parentId: null, depth: 0, splitIndex: 0, history: [],
-    lex, territory, pressure: 0, anchors: [], assimilationPressure: 0, collisionPressure: {},
+    lex, territory, pressure: 0, anchors: [], assimilationPressure: 0, collisionPressure: {}, momentum: {},
   };
 }
 

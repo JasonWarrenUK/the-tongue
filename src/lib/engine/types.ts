@@ -85,6 +85,13 @@ export interface Branch {
   // or either concept stops being severe. Children inherit it whole at fracture — the
   // community carried the ambiguity across the split.
   collisionPressure: Record<string, number>;
+  // 2STK.3 (2stk-1 spike §3): a decaying per-category multiplier ∈ [1, MOMENTUM_CAP];
+  // an absent category reads as 1 (no tendency set yet). Player-applied rules bump
+  // their category at full weight, autonomous drift at half (stakes.ts bumpMomentum);
+  // every repool decays all present categories back toward 1 (stakes.ts decayMomentum).
+  // Joins biasedMult in driftRule's weighted pick — naturalness weight (Rule.w) stays
+  // dominant, momentum is a tilt on top, never a gate. See phonology.ts.
+  momentum: Partial<Record<RuleCategory, number>>;
 }
 export interface Settings {
   pool: number; growth: number; overhead: number; changeCost: number; spreadEvery: number;
@@ -124,4 +131,8 @@ export interface GameState {
   routes: Record<string, number>;
 }
 export interface FreeRegion { region: number; cost: number; passable: boolean }
-export interface Candidate { rule: Rule; fires: number; collDelta: number }
+// 2STK.3: momentum is the selected branch's current per-category multiplier for this
+// rule's category (stakes.ts momentumMult) — shown beside the candidate in the picker
+// so the tendency a rule would reinforce is visible at decision time (spike §1's
+// cross-cutting visibility constraint).
+export interface Candidate { rule: Rule; fires: number; collDelta: number; momentum: number }

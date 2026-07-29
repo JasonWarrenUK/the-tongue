@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { blendDistance, reachMult, heirCandidates, REACH_CAP, HEIR_CUT, COST_CAP } from "./stakes";
+import { blendDistance, reachMult, heirCandidates, momentumMult, bumpMomentum, decayMomentum, REACH_CAP, HEIR_CUT, COST_CAP, MOMENTUM_CAP, MOMENTUM_GAIN, MOMENTUM_DECAY } from "./stakes";
 import { kinshipDistance } from "./tree";
 import type { Branch, GameState, Lexicon } from "./types";
 
@@ -31,7 +31,7 @@ function mkBranch(id: number, parentId: number | null, depth: number, lex: Lexic
     lex: lex.map((e) => ({ concept: e.concept, word: [...e.word] })),
     territory: [id], pressure: 0,
     anchors: [{ lex: lex.map((e) => ({ concept: e.concept, word: [...e.word] })), turn: 0, historyIndex: 0, driftFromPrev: 0 }],
-    assimilationPressure: 0, collisionPressure: {},
+    assimilationPressure: 0, collisionPressure: {}, momentum: {},
   };
 }
 
@@ -151,5 +151,60 @@ describe("cost-cap contract (mirrors the game.svelte.ts call-site formula)", () 
     const base = 2;
     const cost = Math.min(COST_CAP * base, base * reachMult(s, 5));
     expect(cost).toBeLessThanOrEqual(COST_CAP * base + 1e-9);
+  });
+});
+
+// 2STK.3 §3 — drift momentum: a decaying per-category multiplier, player-weighted
+// accrual (drift at half), feeding driftRule's weighted pick (see phonology.test.ts
+// for the selection-bias side of the contract).
+describe("momentumMult", () => {
+  test("an absent category reads as 1", () => expect(momentumMult(branches[0], "lenition")).toBe(1));
+  test("a present category reads its stored value", () => {
+    const b: Branch = { ...branches[0], momentum: { lenition: 1.6 } };
+    expect(momentumMult(b, "lenition")).toBe(1.6);
+  });
+});
+
+describe("bumpMomentum", () => {
+  test("full weight (player-applied) adds MOMENTUM_GAIN", () => {
+    const b = bumpMomentum(branches[0], "deletion", true);
+    expect(momentumMult(b, "deletion")).toBeCloseTo(1 + MOMENTUM_GAIN, 5);
+  });
+  test("half weight (autonomous drift) adds half MOMENTUM_GAIN", () => {
+    const b = bumpMomentum(branches[0], "deletion", false);
+    expect(momentumMult(b, "deletion")).toBeCloseTo(1 + MOMENTUM_GAIN / 2, 5);
+  });
+  test("caps at MOMENTUM_CAP under repeated full-weight bumps", () => {
+    let b = branches[0];
+    for (let i = 0; i < 50; i++) b = bumpMomentum(b, "deletion", true);
+    expect(momentumMult(b, "deletion")).toBe(MOMENTUM_CAP);
+  });
+  test("bumping one category leaves other categories and other branches untouched", () => {
+    const b = bumpMomentum(branches[0], "deletion", true);
+    expect(momentumMult(b, "lenition")).toBe(1);
+    expect(momentumMult(branches[1], "deletion")).toBe(1); // original object, not mutated
+  });
+});
+
+describe("decayMomentum", () => {
+  test("decays a present category toward 1 by MOMENTUM_DECAY", () => {
+    const b: Branch = { ...branches[0], momentum: { vowelShift: 1.6 } };
+    const decayed = decayMomentum(b);
+    expect(momentumMult(decayed, "vowelShift")).toBeCloseTo(1.6 - MOMENTUM_DECAY, 5);
+  });
+  test("never decays below 1 and drops the key once it reaches baseline", () => {
+    const b: Branch = { ...branches[0], momentum: { vowelShift: 1 + MOMENTUM_DECAY / 2 } };
+    const decayed = decayMomentum(b);
+    expect(momentumMult(decayed, "vowelShift")).toBe(1);
+    expect(decayed.momentum.vowelShift).toBeUndefined();
+  });
+  test("a branch with no momentum decays to an empty record without throwing", () => {
+    expect(() => decayMomentum(branches[0])).not.toThrow();
+    expect(decayMomentum(branches[0]).momentum).toEqual({});
+  });
+  test("repeated decay from cap eventually returns to exactly 1 (converges, never oscillates)", () => {
+    let b: Branch = { ...branches[0], momentum: { epenthesis: MOMENTUM_CAP } };
+    for (let i = 0; i < 50; i++) b = decayMomentum(b);
+    expect(momentumMult(b, "epenthesis")).toBe(1);
   });
 });

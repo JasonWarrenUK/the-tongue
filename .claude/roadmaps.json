@@ -277,7 +277,7 @@
 					{
 						"id": "2STK.3",
 						"description": "Implement drift momentum (2stk-1 spike §3) — `Branch.momentum` per `RuleCategory`, player-weighted accrual (drift at half), per-turn decay, `momentumMult` joining `biasedMult` in `driftRule` (naturalness stays dominant), momentum shown in the rule picker",
-						"status": "todo",
+						"status": "done",
 						"dependsOn": [
 							"2STK.1"
 						]
@@ -310,7 +310,7 @@
 					{
 						"id": "2STK.6",
 						"description": "Implement the treasury-and-laboratory economy (2stk-1 spike §6) — steepened size-scaled rule costs (`SIZE_COST` on `overheadFor`), isolation-scaled extra drift rate, stacked cost-multiplier cap (`COST_CAP`), the scarcity-guarantee sweep, and re-verification of the 1ENG.11 ossification sweeps under momentum and rate caps",
-						"status": "blocked",
+						"status": "todo",
 						"dependsOn": [
 							"2STK.1",
 							"2STK.2",

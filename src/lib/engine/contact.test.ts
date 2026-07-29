@@ -20,7 +20,7 @@ const DIVERGENT_LEX: Lexicon = [
 function mkBranch(id: number, territory: number[], lex: Lexicon = LEX): Branch {
   return {
     id, name: `B${id}`, parentId: null, depth: 0, splitIndex: 0, history: [],
-    lex, territory, pressure: 0, anchors: [], assimilationPressure: 0, collisionPressure: {},
+    lex, territory, pressure: 0, anchors: [], assimilationPressure: 0, collisionPressure: {}, momentum: {},
   };
 }
 function mkState(
