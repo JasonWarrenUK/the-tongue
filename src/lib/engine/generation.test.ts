@@ -128,6 +128,23 @@ describe("1ENG.10 lineage-continuation fracture", () => {
     expect(JSON.stringify(kid.lex) === JSON.stringify(parentLexBefore) || kid.history.length > kid.splitIndex).toBe(true);
   });
 
+  // 2STK.3 §3: a sibling born at fracture takes its own birth-divergence drift step
+  // (above), which must bump ITS momentum, not the continuing parent's — same seed
+  // that pins the divergence above also pins this.
+  test("a sibling that diverges at birth accrues momentum from its own birth-divergence rule", () => {
+    const out = resolveGeneration(fractureState());
+    const kid = childrenOf(out, 0)[0];
+    expect(kid.history.length).toBeGreaterThan(kid.splitIndex); // birth-divergence fired (pinned above)
+    const kidMult = Object.values(kid.momentum);
+    // one repool decay (0.1) has already run on the returned state — see the decay-
+    // timing note beside the repool decay pass in generation.ts — so a half-weight
+    // bump (+0.15) nets to just above 1, not the full +0.15.
+    expect(kidMult.some((m) => m > 1)).toBe(true);
+    // the continuing parent took NO birth-divergence step (pinned by the lexicon-
+    // untouched test above), so its momentum must still be empty.
+    expect(out.branches[0].momentum).toEqual({});
+  });
+
   test("splitIndex marks the exact parent/child history boundary for the new sibling", () => {
     const before = fractureState();
     const parentHistory = before.branches[0].history;

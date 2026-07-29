@@ -291,6 +291,10 @@ export function resolveGeneration(s: GameState): GameState {
         const child = branches[id];
         const { lex, entry, category } = divergeAtBirth(child.lex, id, child.territory, owner2, child.momentum);
         const updated = { ...child, lex, history: entry ? [...child.history, entry] : child.history };
+        // 2STK.3: this half-weight bump (+MOMENTUM_GAIN/2) takes one repool decay tick
+        // (-MOMENTUM_DECAY, below) before the turn returns, same as every other
+        // branch's momentum this generation — so the sibling's very first accrual
+        // nets to a smaller visible gain than the raw half-weight bump would suggest.
         branches[id] = category ? bumpMomentum(updated, category, false) : updated;
       });
       if (names.length) log.push(`${parent.name} fractured → ${names.join(", ")}`);
