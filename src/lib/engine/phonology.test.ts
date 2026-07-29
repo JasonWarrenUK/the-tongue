@@ -2,7 +2,7 @@ import { describe, test, expect } from "bun:test";
 import { driftRule, biasedMult, firingRules, applyRuleToLex, applyRuleToWord, RULE_BY_ID, RULES, MAX_LEN, stepToward, BY_ID } from "./phonology";
 import { hashRand } from "./rng";
 import { formSimilarity } from "./intelligibility";
-import type { Lexicon } from "./types";
+import type { Lexicon, WordOrder } from "./types";
 
 // Mixed lexicon: some words end in a mid vowel (fires both apoc [deletion] and
 // raise [vowelShift]), some end in a consonant (fires finalC [deletion]) — so
@@ -161,7 +161,7 @@ describe("applyRuleToLex salience gating (2GEO.3)", () => {
 
   test("non-salient concept (retention 0) is never blocked: matches ungated output every turn", () => {
     for (let turn = 0; turn < 50; turn++) {
-      const gated = applyRuleToLex(LEX, apoc, { terrain: "mountain", seed, turn, branchId });
+      const gated = applyRuleToLex(LEX, apoc, { salience: { terrain: "mountain", seed, turn, branchId } });
       const ungated = applyRuleToLex(LEX, apoc);
       expect(gated.lex[1].word).toEqual(ungated.lex[1].word);
     }
@@ -171,7 +171,7 @@ describe("applyRuleToLex salience gating (2GEO.3)", () => {
     let stoneChanged = 0, unrelatedChanged = 0;
     const sweep = 300;
     for (let turn = 0; turn < sweep; turn++) {
-      const { lex } = applyRuleToLex(LEX, apoc, { terrain: "mountain", seed, turn, branchId });
+      const { lex } = applyRuleToLex(LEX, apoc, { salience: { terrain: "mountain", seed, turn, branchId } });
       if (lex[0].word.length < LEX[0].word.length) stoneChanged++;
       if (lex[1].word.length < LEX[1].word.length) unrelatedChanged++;
     }
@@ -181,7 +181,7 @@ describe("applyRuleToLex salience gating (2GEO.3)", () => {
   });
 
   test("determinism: same salience context → identical output across repeated calls", () => {
-    const ctx = { terrain: "mountain" as const, seed, turn: 12, branchId };
+    const ctx = { salience: { terrain: "mountain" as const, seed, turn: 12, branchId } };
     const a = applyRuleToLex(LEX, apoc, ctx);
     const b = applyRuleToLex(LEX, apoc, ctx);
     expect(a.lex).toEqual(b.lex);
@@ -194,6 +194,78 @@ describe("applyRuleToLex salience gating (2GEO.3)", () => {
     const firing = firingRules(LEX);
     const apocEntry = firing.find((f) => f.rule.id === "apoc");
     expect(apocEntry?.fires).toBe(2);
+  });
+});
+
+// 1ENG.19 (1eng-14 spike §4.3) — fortify/aphaer, the engine's first pre:bound rules.
+describe("fortify / aphaer (1ENG.19 initial-position rules)", () => {
+  test("fortify: initial j -> ʒ, initial w -> v", () => {
+    expect(applyRuleToWord(["j", "a", "t"], RULE_BY_ID["fortify"])).toEqual({ ids: ["ʒ", "a", "t"], changed: true });
+    expect(applyRuleToWord(["w", "a", "t"], RULE_BY_ID["fortify"])).toEqual({ ids: ["v", "a", "t"], changed: true });
+  });
+  test("fortify never fires medially or finally — pre:bound is strictly word-initial", () => {
+    expect(applyRuleToWord(["a", "j", "a"], RULE_BY_ID["fortify"]).changed).toBe(false);
+    expect(applyRuleToWord(["t", "a", "j"], RULE_BY_ID["fortify"]).changed).toBe(false);
+  });
+  test("aphaer: initial vowel deletes before a consonant", () => {
+    expect(applyRuleToWord(["a", "t", "a"], RULE_BY_ID["aphaer"])).toEqual({ ids: ["t", "a"], changed: true });
+  });
+  test("aphaer respects the vowel floor: refuses when deletion would empty the word of vowels", () => {
+    expect(applyRuleToWord(["a", "t"], RULE_BY_ID["aphaer"]).changed).toBe(false);
+  });
+  test("aphaer never fires before a vowel (post:isC, not post:bound)", () => {
+    expect(applyRuleToWord(["a", "a", "t"], RULE_BY_ID["aphaer"]).changed).toBe(false);
+  });
+  test("aphaer fires on the initial position only, even in a longer word", () => {
+    expect(applyRuleToWord(["a", "t", "a", "t", "a"], RULE_BY_ID["aphaer"])).toEqual({ ids: ["t", "a", "t", "a"], changed: true });
+  });
+});
+
+// 1ENG.19 (1eng-14 spike §4.1) — the syntax gate inside applyRuleToLex. Mirrors the
+// salience-gate sweep above: a class the branch's word order disfavours in this
+// position drifts strictly less often than one it favours, over a turn sweep.
+describe("applyRuleToLex syntax gating (1ENG.19)", () => {
+  const seed = 5, branchId = 0;
+  const SOV: WordOrder = { basic: "SOV", adj: "AdjN" };
+  const weights: [number, number, number, number] = [1, 1, 1, 1];
+  // apoc (apocope) is post:bound, position-blind at the rule level — the syntax gate
+  // is what makes an SOV verb (final=1.0, ceiling mult 1.5, never blocked) erode
+  // faster than an SOV pronoun (final=0, floor mult 0.5, often blocked).
+  // trailing vowel with a spare vowel earlier in the word, so apoc's deletion never
+  // trips the vowel-floor guard (a bare CV word has no vowel to spare).
+  const LEX: Lexicon = [
+    { concept: "eat", word: ["t", "a", "p", "e"] }, // verb — always utterance-final under SOV
+    { concept: "i", word: ["k", "o", "s", "a"] },   // pronoun — never utterance-final under SOV
+  ];
+
+  test("SOV verb (favoured) drifts strictly more often than SOV pronoun (disfavoured) over a sweep", () => {
+    let verbChanged = 0, pronounChanged = 0;
+    const sweep = 300;
+    for (let turn = 0; turn < sweep; turn++) {
+      const { lex } = applyRuleToLex(LEX, RULE_BY_ID["apoc"], {
+        syntax: { wordOrder: SOV, frameWeights: weights, proDrop: false, seed, turn, branchId },
+      });
+      if (lex[0].word.length < LEX[0].word.length) verbChanged++;
+      if (lex[1].word.length < LEX[1].word.length) pronounChanged++;
+    }
+    expect(verbChanged).toBe(sweep); // ceiling mult (1.5) — never blocked (m > 1 is a no-op block-wise)
+    expect(pronounChanged).toBeLessThan(verbChanged); // floor mult (0.5) — blocked roughly half the time
+    expect(pronounChanged).toBeGreaterThan(0); // not fully frozen — the lever never zeroes
+  });
+
+  test("no syntax context: behaviour is identical to pre-1ENG.19 (salience-only path unaffected)", () => {
+    const gated = applyRuleToLex(LEX, RULE_BY_ID["apoc"]);
+    const ungated = applyRuleToLex(LEX, RULE_BY_ID["apoc"]);
+    expect(gated.lex).toEqual(ungated.lex);
+    expect(gated.fires).toBe(ungated.fires);
+  });
+
+  test("determinism: same syntax context -> identical output across repeated calls", () => {
+    const ctx = { syntax: { wordOrder: SOV, frameWeights: weights, proDrop: false, seed, turn: 9, branchId } };
+    const a = applyRuleToLex(LEX, RULE_BY_ID["apoc"], ctx);
+    const b = applyRuleToLex(LEX, RULE_BY_ID["apoc"], ctx);
+    expect(a.lex).toEqual(b.lex);
+    expect(a.fires).toBe(b.fires);
   });
 });
 

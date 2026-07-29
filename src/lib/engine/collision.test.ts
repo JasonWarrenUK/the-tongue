@@ -45,7 +45,16 @@ describe("semantic-distance.json integrity", () => {
   test("CONCEPT_CLASS covers every table concept and every CONCEPTS entry", () => {
     const fromTable = new Set(Object.keys(TABLE).flatMap((k) => k.split("|")));
     fromTable.forEach((c) => expect(CONCEPT_CLASS[c]).toBeDefined());
-    CONCEPTS.forEach((c) => expect(CONCEPT_CLASS[c]).toBe("noun"));
+    // 1ENG.19: CONCEPTS grew to the full 48-concept substrate, so it's no longer
+    // all-noun — the invariant that survives is total coverage, not uniform class.
+    CONCEPTS.forEach((c) => expect(CONCEPT_CLASS[c]).toBeDefined());
+  });
+
+  test("1ENG.19: CONCEPTS is the 48-concept substrate; indices 0..31 (the original nouns) unchanged", () => {
+    const NOUNS_GOLDEN = ["water","fire","stone","tree","leaf","root","seed","fish","bird","dog","wolf","hand","eye","ear","tooth","bone","blood","skin","meat","sun","moon","star","sky","rain","wind","hill","river","path","house","night","day","snow"];
+    expect(CONCEPTS.length).toBe(48);
+    expect(CONCEPTS.slice(0, 32)).toEqual(NOUNS_GOLDEN);
+    expect(CONCEPTS.filter((c) => CONCEPT_CLASS[c] === "noun").length).toBe(32);
   });
 });
 
