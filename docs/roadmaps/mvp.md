@@ -41,6 +41,7 @@ A seeded, deterministic language-evolution simulator: sound-change rules drift a
 - [x] **1ENG.19** — Implement the 1ENG.14 substrate and conditioning (stage A) — `CONCEPTS` 32→48 (9 verbs incl. `finish`, 3 pronouns, 4 adjectives), new `syntax.ts` (`FRAMES`, `frameOrder`, `positionProfile`, `walkFrameWeights`, `followerVowelShare`, `syntaxMult`, `SYNTAX_STRENGTH`, `FRAME_WALK`, `ORDER_INNOVATE_RATE`), `Branch.wordOrder`/`frameWeights`/`proDrop` seeded and inherited, the fracture-birth reanalysis flip, the `applyRuleToLex` syntax gate at both drift call sites, the new `fortify`/`aphaer` initial-position rules and `PhrasePanel.svelte`. Breaking: three required Branch fields, `CONCEPTS` growth and two new `RULES` entries shift goldens — contract specified in the amended 1ENG.14 spike. **Note:** `CONCEPT_CLASS`/`SUBSTRATE_ORDER` already landed in `lexicon.ts` via 2LEX.2 (covering the full 48-concept substrate ahead of `CONCEPTS` growing into it), so this task only needs to grow `CONCEPTS` — the class gate activates for the new concepts automatically, no new class table to write. **Revised during implementation:** the player-preview path shows a `Candidate.syntax` multiplier rather than live-gating the picker (the gate's block roll isn't keyed on the rule, so gating all 19 candidates simultaneously would freeze the same word index regardless of which rule is picked); `fortify` got a new `fortition` `RuleCategory` at `CATEGORY_AFFINITY` 0.0 (deliberately neutral) rather than reusing `lenition` or `epenthesis` _(depends on 1ENG.14)_
 - [ ] **1ENG.20** — Implement the 1ENG.15 paradigm model — new `morphology.ts` (`seedParadigm`, `affixContext`, `tickParadigm`, `inflect`, `PATHWAY`, `RENEWAL_TURNS`/`FUSE_TURNS`), `applyRuleToAffix` in `phonology.ts` (edge-injected transducer variant, vowel floor lifted), `Branch.paradigm` (breaking: required field), the rule-driven paradigm tick inside drift (step 1), genesis seeding in `world.ts`, fracture deep-copy inheritance, pro-drop licensing and the PhrasePanel/paradigm-chip rendering. Affix erosion is emergent (no backstop; 2SIM.1 carries the acceptance criterion) — contract specified in the amended 1ENG.15 spike _(depends on 1ENG.15, 1ENG.19)_
 - [ ] **1ENG.21** — Implement 1ENG.14 stage B: word-order pressure drivers — new turn-loop step 3.75 with the morphological-collapse rigidification driver (reads 1ENG.20's paradigm state, revokes pro-drop; `ORDER_TURNS` clock) and the intense-contact alignment driver (reads 2GEO.5's `pairContact`; `ORDER_CONTACT_CUT`), `Branch.orderPressure`/`orderContactPressure` and UI warnings mirroring fracture/assimilation. The divergent fracture-birth reanalysis flip ships earlier in stage A — contract specified in the amended 1ENG.14 spike _(blocked — depends on 1ENG.19, 1ENG.20, 2GEO.5)_
+- [ ] **1ENG.22** — Fix unbounded per-turn family-tree/era-collapse render cost — `game.svelte.ts`'s `eraGraph` (`$derived.by`) recomputes `naming.ts`'s `eraStages`/`buildEraLayout` for every branch (living and dead) from scratch on every turn, and `Branch.anchors` is never pruned, so both the per-branch era-chain computation and the full tree-layout recursion grow unboundedly with turn count and branch count. Reproduced via a Playwright stress test on a 5-living-branch state: per-`endGeneration()` cost climbed from ~57ms to 200-280ms and heap peaks from ~30MB to ~340MB over 400 turns with degrading GC recovery, consistent with a real tab crash reported in manual play. Predates 1ENG.19 (introduced by 1ENG.10); 1ENG.19's own additions were isolated and cleared of blame via direct stress testing. Candidate fixes: memoize per-branch era stages keyed on `anchors.length`, cap/collapse tree depth for very old lineages, or prune anchors past what the display collapse can ever surface
 
 ---
 
@@ -76,7 +77,7 @@ A seeded, deterministic language-evolution simulator: sound-change rules drift a
 - [ ] **2UI.1** — UI completeness audit across all components — existing panels plus new biome/stakes/glyph/lexicon data — verify every player-facing decision has a legible data source _(blocked — depends on 2STK.4, 2STK.6, 2GLY.4, 2LEX.2)_
 - [ ] **2UI.2** — Build onboarding — inline explainers, full tutorial mode, and a UI layout rethink, informed by the audit findings _(blocked — depends on 2UI.1)_
 - [ ] **2UI.3** — Retire the economy config panel from the player-facing surface (keep behind a dev flag); replace with difficulty presets once the economy purchases real consequences via the stakes mechanic (design-analysis roadmap edit 3) _(blocked — depends on 2STK.6)_
-- [ ] **2SIM.1** — Integration pacing census — re-run the census harness with every mechanic active (borrowing, collision repair, syntax gating, paradigms): combined event density per branch-turn, collision dynamics at 48 concepts under the class-gate + distance model, affix lifetime distribution with the explicit acceptance criterion that grammaticalisation cycles observably turn (else the 1ENG.15 backstop question reopens with data in hand), and a tuning pass across the constant family (`COLLISION_TURNS`, `SEVERITY_CUT`, `BORROW_RATE`, `SYNTAX_STRENGTH`, `FRAME_WALK`, `ORDER_*`) _(blocked — depends on 2GEO.5, 2LEX.2, 1ENG.20)_
+- [ ] **2SIM.1** — Integration pacing census — re-run the census harness with every mechanic active (borrowing, collision repair, syntax gating, paradigms): combined event density per branch-turn, collision dynamics at 48 concepts under the class-gate + distance model, affix lifetime distribution with the explicit acceptance criterion that grammaticalisation cycles observably turn (else the 1ENG.15 backstop question reopens with data in hand), and a tuning pass across the constant family (`COLLISION_TURNS`, `SEVERITY_CUT`, `BORROW_RATE`, `SYNTAX_STRENGTH`, `FRAME_WALK`, `ORDER_*`) _(blocked — depends on 2GEO.5, 2LEX.2, 1ENG.20, 1ENG.22)_
 - [ ] **2NAR.1** — Design spike: the seed text — a fixed proverb composed from six to eight lexicon concepts at world gen, rendered per branch every generation by looking up each concept's current form; pure display over existing state, no new simulation machinery. Shown on branch selection, side by side at fracture events, and proposed as the shareable image for Milestone 3 (design-analysis §1)
 - [ ] **2NAR.2** — Implement the seed text *(placeholder — depends on 2NAR.1)*. Deepens for free once 1ENG.19's word order lands (the text would inherit real syntax), a non-blocking enrichment rather than a prerequisite _(blocked — depends on 2NAR.1)_
 - [ ] **2NAR.3** — Design spike: the chronicle — replace the one-line end-of-turn log with a generated chronicle narrating each resolution in era-named prose (fracture, assimilation, borrowing); doubles as the run's exportable history (design-analysis §7)
@@ -131,6 +132,7 @@ graph LR
 	1ENG.15["1ENG.15: Design spike: morphological renewal (a…"]
 	1ENG.16["1ENG.16: Research spike: survey Zompist conlang…"]
 	1ENG.17["1ENG.17: Implement chosen improvements from the…"]
+	1ENG.22["1ENG.22: Fix unbounded per-turn family-tree/era…"]
 	2GEO.1["2GEO.1: Design spike: terrain→sound-change bias…"]
 	2GEO.2["2GEO.2: Implement terrain-biased rule weighting…"]
 	2GEO.3["2GEO.3: Implement biome-driven vocabulary resis…"]
@@ -198,6 +200,8 @@ graph LR
 	1ENG.15 --> 1ENG.20
 	1ENG.16 --> 1ENG.17
 	1ENG.17 --> M1
+	1ENG.22 --> M1
+	1ENG.22 --> 2SIM.1
 	2GEO.1 --> 2GEO.2
 	2GEO.1 --> 2GEO.3
 	2GEO.2 --> 2GEO.4
@@ -261,7 +265,7 @@ graph LR
 	2MAP.2 --> M2
 	3PER.1 --> 3SHR.1
 	3SHR.1 --> M3
-	class 1ENG.16,1ENG.20,2GEO.6,2LEX.3,2LEX.5,2MAP.1,2NAR.1,2NAR.3,2STK.4,2STK.6,2STK.7,3PER.1 todo
+	class 1ENG.16,1ENG.20,1ENG.22,2GEO.6,2LEX.3,2LEX.5,2MAP.1,2NAR.1,2NAR.3,2STK.4,2STK.6,2STK.7,3PER.1 todo
 	class 1ENG.17,1ENG.21,2GEO.7,2GEO.8,2GLY.1,2GLY.2,2GLY.3,2GLY.4,2LEX.4,2LEX.6,2MAP.2,2NAR.2,2NAR.4,2SIM.1,2UI.1,2UI.2,2UI.3,3SHR.1 blocked
 	class 1ENG.1,1ENG.10,1ENG.11,1ENG.12,1ENG.13,1ENG.14,1ENG.15,1ENG.18,1ENG.19,1ENG.2,1ENG.3,1ENG.4,1ENG.5,1ENG.6,1ENG.7,1ENG.8,1ENG.9,1UI.1,1UI.2,1UI.3,1UI.4,2GEO.1,2GEO.2,2GEO.3,2GEO.4,2GEO.5,2LEX.1,2LEX.2,2STK.1,2STK.2,2STK.3,2STK.5 done
 ```
