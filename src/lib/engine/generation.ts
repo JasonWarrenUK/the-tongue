@@ -8,7 +8,8 @@ import { resolveBorrow } from "./borrowing";
 import { severePairs, pairThreshold, resolveCollision } from "./collision";
 import { heirCandidates, bumpMomentum, decayMomentum } from "./stakes";
 import { resolveContact, shouldOpenRoute, routeKey, CONTACT_YIELD, CONTACT_TRADE_LOSS, ROUTE_TURNS } from "./contact";
-import type { Anchor, Branch, GameState, HistoryEntry, Lexicon, PendingFocusChoice, RuleCategory } from "./types";
+import { walkFrameWeights, ORDER_INNOVATE_RATE } from "./syntax";
+import type { Anchor, Branch, GameState, HistoryEntry, Lexicon, PendingFocusChoice, RuleCategory, WordOrder, FrameWeights } from "./types";
 
 // One generation resolves: autonomous drift → collision resolution → rename check →
 // passive spread → contact event → lexical borrowing → assimilation death →
@@ -33,13 +34,26 @@ export function resolveGeneration(s: GameState): GameState {
   // 1. drift untouched leaves (terrain-biased: 2GEO.2 — see 2geo-1-terrain-sound-change spike)
   const owner = ownerMap(branches);
   leavesOf(branches).forEach((L) => {
+    // 1ENG.19 (spike §3.2): the frame-weight walk ticks for EVERY living leaf,
+    // touched or not — usage frequencies drift with the speech community, not with
+    // whether the player intervened this turn (unlike drift itself, which `touched`
+    // explicitly holds). Ticked BEFORE the drift below so this turn's syntax gate
+    // reads this turn's weights, not last turn's — otherwise the PhrasePanel (which
+    // reads the post-walk weights) would visibly disagree with the erosion it explains.
+    branches[L.id] = { ...branches[L.id], frameWeights: walkFrameWeights(branches[L.id].frameWeights, seed, turn, L.id) };
     if (s.touched[L.id]) return;
+    const b = branches[L.id];
     const iso = isolationScore(L.id, L.territory, s.world.edges, owner);
     const rule = driftRule(L.lex, seed, turn, L.id, iso, L.momentum); if (!rule) return;
     const terrain = dominantTerrain(L.id, L.territory, s.world.edges, owner);
     // 2STK.3 §3: autonomous drift bumps momentum at half weight (decision §9.15) —
     // untouched branches slowly acquire a self-reinforcing category profile.
-    branches[L.id] = bumpMomentum({ ...branches[L.id], lex: applyRuleToLex(L.lex, rule, { terrain, seed, turn, branchId: L.id }).lex, history: [...branches[L.id].history, { name: rule.name, note: rule.note, drift: true }] }, rule.category, false);
+    branches[L.id] = bumpMomentum({ ...b,
+      lex: applyRuleToLex(L.lex, rule, {
+        salience: { terrain, seed, turn, branchId: L.id },
+        syntax: { wordOrder: b.wordOrder, frameWeights: b.frameWeights, proDrop: b.proDrop, seed, turn, branchId: L.id },
+      }).lex,
+      history: [...b.history, { name: rule.name, note: rule.note, drift: true }] }, rule.category, false);
     log.push(`${L.name} drifted (${rule.name.toLowerCase()})`);
   });
 
@@ -253,13 +267,45 @@ export function resolveGeneration(s: GameState): GameState {
   // still passed through for signature consistency with the other driftRule call site.
   const divergeAtBirth = (
     lex: Lexicon, childId: number, territory: number[], owner: Record<number, number>, momentum: Branch["momentum"],
+    syntax: { wordOrder: WordOrder; frameWeights: FrameWeights; proDrop: boolean },
   ): { lex: Lexicon; entry: HistoryEntry | null; category: RuleCategory | null } => {
     const iso = isolationScore(childId, territory, s.world.edges, owner);
     const rule = driftRule(lex, seed, turn, childId, iso, momentum);
     if (!rule) return { lex, entry: null, category: null };
     const terrain = dominantTerrain(childId, territory, s.world.edges, owner);
-    const next = applyRuleToLex(lex, rule, { terrain, seed, turn, branchId: childId }).lex;
+    // the child diverges under its OWN (possibly just-reanalysed) order — that's the
+    // whole point of rolling reanalysis before this call, not after.
+    const next = applyRuleToLex(lex, rule, {
+      salience: { terrain, seed, turn, branchId: childId },
+      syntax: { ...syntax, seed, turn, branchId: childId },
+    }).lex;
     return { lex: next, entry: { name: rule.name, note: `at fracture: ${rule.note}`, drift: true }, category: rule.category };
+  };
+
+  // 1ENG.19 (1eng-14 spike §5) — fracture-birth reanalysis, stage A's one order
+  // mutation. Both stage-B drivers (1ENG.21) are convergent — rigidification always
+  // lands on SVO, contact pulls neighbours together — so left alone the world's order
+  // diversity can only shrink. This is the divergent counterweight: a new speech
+  // community has a small seeded chance of flipping exactly one order axis (creole/
+  // koine formation reanalyses inherited syntax; child acquisition in emerging
+  // varieties drives the innovation). Salt (seed+37, turn*193+59, childId*1013+k):
+  // disjoint on the first coordinate from every other registered family (spread/
+  // genStem: seed, drift: seed+7, salience: seed+13, borrow: seed+19, contact:
+  // seed+23, syntax gate: seed+29, frame walk: seed+31).
+  const reanalyse = (order: WordOrder, childId: number): { order: WordOrder; flipped: boolean } => {
+    const fire = hashRand(seed + 37, turn * 193 + 59, childId * 1013 + 7);
+    if (fire >= ORDER_INNOVATE_RATE) return { order, flipped: false };
+    // "flips exactly one axis": pick the axis (uniform), then pick a NEW value on it
+    // from the alternatives EXCLUDING the current one — so a fire always produces an
+    // observable change; a same-value redraw would make the measured rate silently
+    // undershoot ORDER_INNOVATE_RATE. Uniform over axes and values is a deliberate
+    // diversity choice (spike §5): real new-community varieties themselves skew SVO,
+    // but the mechanic exists specifically to counter that convergent pull.
+    const axis = hashRand(seed + 37, turn * 193 + 59, childId * 1013 + 8) < 0.5 ? "basic" : "adj";
+    if (axis === "adj") return { order: { ...order, adj: order.adj === "AdjN" ? "NAdj" : "AdjN" }, flipped: true };
+    const alts = (["SOV", "SVO", "VSO"] as const).filter((v) => v !== order.basic);
+    const pick = alts[Math.floor(hashRand(seed + 37, turn * 193 + 59, childId * 1013 + 9) * alts.length)];
+    return { order: { ...order, basic: pick }, flipped: true };
   };
 
   leavesOf(branches).forEach((L) => {
@@ -275,12 +321,18 @@ export function resolveGeneration(s: GameState): GameState {
         const id = nextId++;
         const name = genStem(inventoryOf(parent.lex), seed, id); names.push(name); born.push(id);
         const startLex = parent.lex.map((e) => ({ concept: e.concept, word: [...e.word] }));
+        // 1ENG.19: the three syntax fields inherit whole — the community carried its
+        // grammar across the split — then the reanalysis roll may flip one order axis.
+        // frameWeights is COPIED (a fresh array), not shared: the sibling's own future
+        // walkFrameWeights ticks must never mutate the parent's tuple.
+        const { order, flipped } = reanalyse(parent.wordOrder, id);
+        if (flipped) log.push(`the young of ${parent.name} speak in a new order`);
         // birth anchor: the sibling's starting lexicon, so subsequent rename checks
         // measure drift from the moment it became its own lineage, not the parent's.
         // 2LEX.2: collisionPressure inherited whole — the community carried the
         // ambiguity across the split (2lex-1 spike §3.2).
         // 2STK.3: a newborn sibling starts with no momentum — it hasn't drifted yet.
-        branches[id] = { id, name, parentId: parent.id, depth: parent.depth + 1, splitIndex: parent.history.length, history: [...parent.history], lex: startLex, territory: comp, pressure: 0, anchors: [{ lex: startLex, turn, historyIndex: parent.history.length, driftFromPrev: 0 }], assimilationPressure: 0, collisionPressure: { ...parent.collisionPressure }, momentum: {} };
+        branches[id] = { id, name, parentId: parent.id, depth: parent.depth + 1, splitIndex: parent.history.length, history: [...parent.history], lex: startLex, territory: comp, pressure: 0, anchors: [{ lex: startLex, turn, historyIndex: parent.history.length, driftFromPrev: 0 }], assimilationPressure: 0, collisionPressure: { ...parent.collisionPressure }, momentum: {}, wordOrder: order, frameWeights: [...parent.frameWeights] as FrameWeights, proDrop: parent.proDrop };
       });
       branches[L.id] = { ...parent, territory: main };
       // parent keeps its component; siblings own theirs — ownerMap reflects the
@@ -289,7 +341,8 @@ export function resolveGeneration(s: GameState): GameState {
       const owner2 = ownerMap(branches);
       born.forEach((id) => {
         const child = branches[id];
-        const { lex, entry, category } = divergeAtBirth(child.lex, id, child.territory, owner2, child.momentum);
+        const { lex, entry, category } = divergeAtBirth(child.lex, id, child.territory, owner2, child.momentum,
+          { wordOrder: child.wordOrder, frameWeights: child.frameWeights, proDrop: child.proDrop });
         const updated = { ...child, lex, history: entry ? [...child.history, entry] : child.history };
         // 2STK.3: this half-weight bump (+MOMENTUM_GAIN/2) takes one repool decay tick
         // (-MOMENTUM_DECAY, below) before the turn returns, same as every other
