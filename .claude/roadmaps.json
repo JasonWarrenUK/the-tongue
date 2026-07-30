@@ -138,8 +138,8 @@
 					},
 					{
 						"id": "1ENG.16",
-						"description": "Research spike: survey Zompist conlang tools ([SCA](https://www.zompist.com/sca2.html), [Gen](https://www.zompist.com/gen.html), [Phono](https://www.zompist.com/phono.html), [GGG](https://www.zompist.com/ggg.html), [GTG](https://www.zompist.com/gtg.html), [MG](https://www.zompist.com/mg.html)) for mechanisms and approaches applicable to our own engine — sound-change rule notation and batch application (SCA), procedural word/name generation (Gen), phonology description conventions (Phono), and general conlanging methodology (GGG, GTG, MG); produce a build-ready contract for 1ENG.17 identifying which findings are worth adopting",
-						"status": "todo",
+						"description": "Research spike: survey Mark Rosenfelder's Zompist conlang artefacts for mechanisms applicable to our engine — sound-change rule notation and batch application ([SCA²](https://www.zompist.com/sca2.html)), procedural word generation ([gen](https://www.zompist.com/gen.html)), inventory presentation ([Phono](https://www.zompist.com/phono.html)), the three syntax gadgets ([GGG](https://www.zompist.com/ggg.html), [GTG](https://www.zompist.com/gtg.html), [MG](https://www.zompist.com/mg.html)), and the diachronic methodology of the [Language Construction Kit](https://www.zompist.com/kit.html) — producing a build-ready contract for 1ENG.17 identifying which findings are worth adopting. **Corrected during the survey:** the original task description mis-described three of its six URLs — GGG/GTG/MG are syntax demonstrators (generative grammar, tree derivation, Minimalist grammar), not conlanging methodology, and Phono is an inventory-table formatter, not a description convention; the methodology text is the LCK, which the original description omitted. Outcome: three adoptions (frequency-ranked phoneme selection, distance conditioning, metathesis), six documented rejections — notably SCA²'s category correspondence, which our feature-based `xform` already generalises — and the finding that SCA² has no probabilistic rule application at all, where our salience/syntax gates model lexical diffusion (`docs/spikes/1eng-16-zompist-tools-survey.md`)",
+						"status": "done",
 						"dependsOn": [
 							"1ENG.13",
 							"1ENG.14",
@@ -148,8 +148,8 @@
 					},
 					{
 						"id": "1ENG.17",
-						"description": "Implement chosen improvements from the Zompist tools survey *(placeholder — depends on 1ENG.16)*",
-						"status": "blocked",
+						"description": "Implement the three adoptions from the Zompist survey (1eng-16 spike §7), three independent slices: (1) frequency-ranked phoneme selection — gen's geometric dropoff as `pickRanked` in `rng.ts` (single-draw inverse-CDF, so inventory size can't shift downstream world-gen draws), replacing `pick` at `genSyllable`'s four call sites; (2) distance conditioning — an optional `Rule.distance` predicate scanning to the word edge (SCA²'s `…`) with `xform`'s ctx widened to carry the found segment, plus a new `umlaut` rule, making long-distance assimilation expressible for the first time; (3) metathesis — a neighbour-consuming `Seg` variant riding 1ENG.12's existing `Seg[]` output shape, plus a `metath` rule. Breaking: slice 1 changes what every seed generates (`feat(engine)!:`); slices 2 and 3 are additive (no test asserts a rule count, verified at survey time) though drift-replay goldens shift as `driftRule`'s weighted total changes",
+						"status": "todo",
 						"dependsOn": [
 							"1ENG.16"
 						]
@@ -188,6 +188,18 @@
 						"status": "todo",
 						"dependsOn": [],
 						"assignee": "Jason Warren"
+					},
+					{
+						"id": "1ENG.23",
+						"description": "Design spike: per-branch phoneme inventories — `Branch` holds a lexicon but never an inventory, so a branch whose every /p/ has spirantised still nominally \"has\" /p/, and sound change can never be represented as a *phonemic* event. Mergers (two phonemes collapsing to one) and splits (an allophone phonemicising) are the two basic units of historical phonology and neither is expressible today; the engine models only their lexical consequence (homophony → 2LEX.2 repair). Surface: derive a live inventory from each branch's lexicon (cheap, no new state) or store and mutate one (allows allophony, costs a required `Branch` field); survey the ripple across `genStem` (naming.ts reads `World.inv`, which is the GENESIS inventory for every branch regardless of how far it has drifted), the borrowing adaptation path, and any future glyph work (2GLY.3 explicitly ties glyph reassignment to phone split/merge, so it needs this to exist first). Surfaced by the 1ENG.16 survey (spike §9) — the one gap that comparison exposed rather than confirmed",
+						"status": "todo",
+						"dependsOn": []
+					},
+					{
+						"id": "1ENG.24",
+						"description": "Design spike: stress, and the sound changes that need it — the engine has no stress model, so the whole family of stress-conditioned change is inexpressible: loss of unstressed syllables (the engine of Latin → French, and named in the LCK's own catalogue), unstressed vowel reduction to schwa, and stress-conditioned resistance to erosion. Blocked on a prerequisite the engine lacks generally: words are flat `string[]` segment lists with no runtime syllable structure, so syllabification (onset/nucleus/coda parsing over a live word) must be specified first and would also serve any future weight-sensitive rule. Should cover: a per-branch stress rule (initial/final/penultimate/weight-sensitive, seeded and inheritable like `wordOrder`), how stress interacts with 1ENG.14's position profiles (both condition erosion, and they must compose rather than double-count), and whether stress placement itself drifts. Surfaced by the 1ENG.16 survey (spike §9)",
+						"status": "todo",
+						"dependsOn": []
 					}
 				]
 			},
@@ -503,6 +515,33 @@
 							"3PER.1"
 						],
 						"notes": "Placeholder — deferred from Milestone 2"
+					}
+				]
+			},
+			{
+				"id": "M4",
+				"name": "Beyond Current Scope",
+				"goal": "A holding area, not a milestone that ships: work deliberately deferred beyond the current roadmap after a spike judged it too costly for its value *now*, rather than unscheduled by omission. Nothing here is committed to, and nothing here gates M1-M3. The point is that the reasoning survives — each entry records why it was set aside and what would have to exist first — so a future decision to pick it up starts from the analysis instead of rediscovering it.",
+				"tasks": [
+					{
+						"id": "4PHON.1",
+						"description": "Design spike: tonogenesis — tone arising from lost segmental contrasts (the Sinitic and Vietnamese histories are largely tonogenetic; the LCK names it as a change type worth modelling). **Deliberately deferred beyond the current roadmap, not merely unscheduled:** tone is suprasegmental, so it needs a new axis on `Phone`, a tone-bearing-unit notion (which needs the syllabification 1ENG.24 must specify first), a reckoning with all 21 rules, and a decision about how `intelligibility.ts`'s Levenshtein metric should weigh a tone difference against a segment difference — that last one is a genuine design question, since tone differences are perceptually salient in ways a naive edit distance would understate. Recorded so the 1ENG.16 survey's judgement (cost, not merit) stays on the record rather than being rediscovered. Revisit no earlier than 1ENG.24, and only once M1-M3 have shipped",
+						"status": "deferred",
+						"dependsOn": [
+							"1ENG.24"
+						]
+					},
+					{
+						"id": "4GLY.1",
+						"description": "Writing-system variance beyond phonemic — logographic, alphabetic and abjad glyph sets coexisting per branch, so a script's *type* can diverge as well as its shapes. Flagged during the 2GLY interview and deliberately scoped down to phonemic-only for Milestone 2; recorded here rather than dropped because the 2GLY spike's shape-drift and reassignment model assumes a phonemic script throughout, so lifting that assumption later is a redesign of 2GLY.1's ruleset, not an extension of it",
+						"status": "deferred",
+						"dependsOn": []
+					},
+					{
+						"id": "4PHON.2",
+						"description": "Climate/terrain-coded phonology — the claim that physical environment shapes a language's sound inventory (e.g. tone correlating with humidity, sonority with ambient noise). **Contested in real linguistics**, which is why it sits here rather than in the 2GEO line: 2GEO.1 deliberately split terrain's influence into a social contact/isolation axis (sound change) and a physical axis (semantic salience), both defensible, and specifically avoided asserting that terrain shapes phonology directly. If ever pursued, treat as flavour and ledger it as such — the engine's honesty ledgers exist precisely so a mechanic like this can't quietly present itself as attested",
+						"status": "deferred",
+						"dependsOn": []
 					}
 				]
 			}
