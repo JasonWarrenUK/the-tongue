@@ -192,3 +192,25 @@ describe("buildEraLayout: columns", () => {
     expect(layout.pos["1:0"].col).not.toBe(layout.pos["2:0"].col);
   });
 });
+
+describe("buildEraLayout: EraNode carries the stage's anchorIndex (1ENG.22 era-viewer click contract)", () => {
+  test("each node's stage is the exact stage object at stageIndex in stagesByBranch, anchorIndex included", () => {
+    // FamilyTree.svelte's click handler reads node.stage.anchorIndex to decide whether
+    // a click opens the read-only era view (non-null) or behaves as normal branch
+    // selection (null, the living tip) — this is the round-trip that contract depends on.
+    const root = mkBranch({ anchors: [anchor(0, 0), anchor(0.6, 10), anchor(0.5, 20)] });
+    const branches = { 0: root };
+    const stages = eraStages(root, { alive: true, protoBlend: null });
+    const stagesByBranch = { 0: stages };
+    const layout = buildEraLayout(branches, 0, stagesByBranch);
+    layout.nodes.forEach((node) => {
+      expect(node.stage).toBe(stages[node.stageIndex]);
+      expect(node.stage.anchorIndex).toBe(stages[node.stageIndex].anchorIndex);
+    });
+    // concretely: the two non-terminal stages have a real anchorIndex, the terminal
+    // (tip) stage's is null.
+    expect(layout.nodes[0].stage.anchorIndex).toBe(1); // Old: named[0] -> real index 1 (birth sliced off)
+    expect(layout.nodes[1].stage.anchorIndex).toBe(2); // Middle: named[1] -> real index 2
+    expect(layout.nodes[2].stage.anchorIndex).toBeNull(); // tip
+  });
+});

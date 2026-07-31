@@ -1,7 +1,8 @@
 import { hashRand } from "./rng";
 import { intelligibility } from "./intelligibility";
 import { BY_ID } from "./phonology";
-import type { Anchor, Branch, Inventory, Lexicon } from "./types";
+import { leavesOf, isLeaf } from "./tree";
+import type { Branch, Inventory, Lexicon } from "./types";
 
 // 1ENG.10 naming subsystem. Three independent pieces:
 //   - genStem: phonotactic branch-name generation (replaces NAME_POOL)
@@ -79,8 +80,16 @@ export function blendStems(a: string, b: string): string {
 
 // --- perspective-collapse (render-time era naming) --------------------------
 
-export interface EraBucket { anchors: Anchor[]; label: "old" | "middle" | "late" | "tip" }
-export type CollapsePolicy = (anchors: Anchor[]) => EraBucket[];
+// 1ENG.22: a scalar-only projection of an Anchor, carrying its true index back into
+// `branch.anchors` (anchorIndex) so a stage built from marks can still recover its
+// frozen lexicon on demand. The collapse (below) never needs to read `Anchor.lex` at
+// all — reading it reactively from game.svelte.ts is what turned a few MB of retained
+// snapshots into hundreds of MB of Svelte proxy overhead (measured; see 1ENG.22 spike
+// notes). Keeping the policy scalar-only is what makes eraStages safe to call every
+// render without touching lexicon data.
+export interface AnchorMark { historyIndex: number; driftFromPrev: number; anchorIndex: number }
+export interface EraBucket { marks: AnchorMark[]; label: "old" | "middle" | "late" | "tip" }
+export type CollapsePolicy = (marks: AnchorMark[]) => EraBucket[];
 
 // Historically-different-language cutoff, shared with the Proto-qualification check —
 // same order of magnitude as the app's existing "different language" framing.
@@ -95,21 +104,32 @@ export const RENAME_CUT = 0.85;
 // being millennia old) rather than pure distance-from-tip. Logarithmic distance is only
 // the fallback spacing when drift is roughly uniform. Anchors are oldest-first; the
 // living tip is not itself an anchor (it's the branch's current lex).
-export const eventDensityPolicy: CollapsePolicy = (anchors) => {
-  if (!anchors.length) return [];
+//
+// 1ENG.22: boundary membership here is deliberately NOT pruned or cached across calls —
+// `keep = ceil(log2(n+1))` and each anchor's rank-by-driftFromPrev both grow as anchors
+// accrue, and the forced newest-index boundary moves every time a new anchor lands.
+// Neither side dominates, so which anchors surface as boundaries is non-monotonic: an
+// anchor that is not currently a boundary can become one again later (verified: a
+// randomised sweep over 2000 synthetic anchor chains found anchors resurfacing as
+// boundaries well after dropping out, and the union of ever-surfaced indices over a
+// full run is 100% of anchors). That rules out "drop the lex of anchors that aren't
+// boundaries right now" as a safe pruning strategy — see AnchorMark's comment for what
+// actually fixes the heap cost instead.
+export const eventDensityPolicy: CollapsePolicy = (marks) => {
+  if (!marks.length) return [];
   // Rank anchors by driftFromPrev (discontinuity strength) descending; keep the top
   // log2(n)+1 as bucket boundaries, always keeping the oldest and newest so the chain
   // still spans from root to tip.
-  const keep = Math.max(1, Math.ceil(Math.log2(anchors.length + 1)));
-  const ranked = anchors.map((a, i) => ({ a, i })).sort((x, y) => y.a.driftFromPrev - x.a.driftFromPrev);
+  const keep = Math.max(1, Math.ceil(Math.log2(marks.length + 1)));
+  const ranked = marks.map((a, i) => ({ a, i })).sort((x, y) => y.a.driftFromPrev - x.a.driftFromPrev);
   const boundaryIdx = new Set(ranked.slice(0, keep).map((r) => r.i));
-  boundaryIdx.add(0); boundaryIdx.add(anchors.length - 1);
+  boundaryIdx.add(0); boundaryIdx.add(marks.length - 1);
   const cuts = [...boundaryIdx].sort((x, y) => x - y);
 
   const buckets: EraBucket[] = [];
   cuts.forEach((cut, bi) => {
     const start = bi === 0 ? 0 : cuts[bi - 1] + 1;
-    buckets.push({ anchors: anchors.slice(start, cut + 1), label: "old" }); // label assigned below
+    buckets.push({ marks: marks.slice(start, cut + 1), label: "old" }); // label assigned below
   });
   // relabel by position: oldest bucket -> old, newest -> late (liveness decided by caller), between -> middle
   buckets.forEach((b, i) => { b.label = i === 0 ? "old" : i === buckets.length - 1 ? "late" : "middle"; });
@@ -124,7 +144,12 @@ export interface EraName { text: string; bucket: EraBucket["label"] | "tip" }
 // `parent.history.length` counter, so the two are directly comparable). loIndex is
 // inclusive, hiIndex exclusive; the terminal stage (living tip, or a dead lineage's
 // Late stage) owns everything after its lower bound, hence +Infinity.
-export interface EraStage extends EraName { loIndex: number; hiIndex: number }
+//
+// 1ENG.22 era-viewer: anchorIndex is the true index into `branch.anchors` of this
+// stage's frozen snapshot — null for the living tip, which has no anchor (it's the
+// branch's current lex). This is the one link a UI needs to recover the era's lexicon
+// on demand; nothing else here ever reads Anchor.lex.
+export interface EraStage extends EraName { loIndex: number; hiIndex: number; anchorIndex: number | null }
 
 // Tree context needed to resolve Proto-vs-Old and Late-vs-Modern, both of which depend
 // on facts the branch itself doesn't carry (whether it still has a living descendant,
@@ -145,8 +170,15 @@ export function eraStages(branch: Branch, ctx: EraContext, policy: CollapsePolic
   // still just itself, shown bare — so the birth-only anchor is not display-worthy on
   // its own. A dead lineage with only a birth anchor (fractured, then died out before
   // ever renaming) still surfaces it as its one and only named stage.
-  const named = ctx.alive ? branch.anchors.slice(1) : branch.anchors;
-  const buckets = policy(named);
+  //
+  // sliceOffset tracks how far `named`'s indices are shifted from `branch.anchors`'
+  // real indices (1 when alive, since slice(1) drops the birth anchor; 0 when dead) —
+  // this is the only place that offset is known, so anchorIndex below is computed here
+  // rather than trying to recover it from a bucket after the fact.
+  const sliceOffset = ctx.alive ? 1 : 0;
+  const named = branch.anchors.slice(sliceOffset);
+  const marks: AnchorMark[] = named.map((a, i) => ({ historyIndex: a.historyIndex, driftFromPrev: a.driftFromPrev, anchorIndex: i + sliceOffset }));
+  const buckets = policy(marks);
   // "frequent renames" (1ENG.10 pace decision) means a lineage often accrues several
   // middle buckets — a plain "Middle X" repeated verbatim for each is indistinguishable
   // in the full chronology, so disambiguate with an ordinal once there's more than one.
@@ -170,18 +202,20 @@ export function eraStages(branch: Branch, ctx: EraContext, policy: CollapsePolic
     // its own last-anchor historyIndex; only a dead lineage's last bucket (no tip
     // follows) owns everything onward, hence +Infinity.
     const isLastBucket = i === buckets.length - 1;
-    const hiIndex = isLastBucket && !ctx.alive ? Infinity : b.anchors[b.anchors.length - 1].historyIndex;
+    const lastMark = b.marks[b.marks.length - 1];
+    const hiIndex = isLastBucket && !ctx.alive ? Infinity : lastMark.historyIndex;
+    const anchorIndex = lastMark.anchorIndex;
     prevHi = hiIndex;
-    if (isOldest && ctx.protoBlend) return { text: ctx.protoBlend, bucket: "old", loIndex, hiIndex };
-    if (isOldest) return { text: `Old ${branch.name}`, bucket: "old", loIndex, hiIndex };
-    if (b.label === "late" && !ctx.alive) return { text: `Late ${branch.name}`, bucket: "late", loIndex, hiIndex };
+    if (isOldest && ctx.protoBlend) return { text: ctx.protoBlend, bucket: "old", loIndex, hiIndex, anchorIndex };
+    if (isOldest) return { text: `Old ${branch.name}`, bucket: "old", loIndex, hiIndex, anchorIndex };
+    if (b.label === "late" && !ctx.alive) return { text: `Late ${branch.name}`, bucket: "late", loIndex, hiIndex, anchorIndex };
     middleSeen++;
     const ordinal = middleCount > 1 ? ` (${middleSeen}/${middleCount})` : "";
-    return { text: `Middle ${branch.name}${ordinal}`, bucket: "middle", loIndex, hiIndex };
+    return { text: `Middle ${branch.name}${ordinal}`, bucket: "middle", loIndex, hiIndex, anchorIndex };
   });
   if (ctx.alive) {
     const loIndex = out.length ? out[out.length - 1].hiIndex : 0;
-    out.push({ text: branch.name, bucket: "tip", loIndex, hiIndex: Infinity });
+    out.push({ text: branch.name, bucket: "tip", loIndex, hiIndex: Infinity, anchorIndex: null });
   }
   return out;
 }
@@ -217,4 +251,41 @@ export function protoBlendFor(descendantLeaves: Branch[]): string | null {
     }
   }
   return bestPair ? blendStems(bestPair[0].name, bestPair[1].name) : null;
+}
+
+// 1ENG.22: eraContexts computes every branch's EraContext in a single whole-tree pass,
+// replacing the three near-identical per-branch derivations that used to live in
+// game.svelte.ts (displayNames/eraGraph/selEra), each of which called `leavesOf(branches)`
+// and `descendsFrom` inside its own per-branch loop. The expensive part is protoBlendFor's
+// O(leaves^2) intelligibility sweep, run once per DEAD branch — hoisting `leavesOf` out
+// of that loop and replacing the `leavesOf().filter(descendsFrom)` scan (itself O(leaves)
+// per branch, so O(branches * leaves) overall) with one upward parentId walk per leaf
+// (each leaf pushes itself onto every ancestor's descendant list, O(leaves * depth)
+// total) is what the measured ~2x comes from. protoBlendFor itself is reused unchanged —
+// same tie-break, same export, same tests — so this is purely a fan-in of its inputs.
+export function eraContexts(branches: Record<number, Branch>): Record<number, EraContext> {
+  const leaves = leavesOf(branches);
+  // descendant leaf-lists per branch id, built bottom-up so a leaf's own walk populates
+  // every ancestor in one pass rather than each ancestor re-scanning every leaf.
+  const descendantLeaves: Record<number, Branch[]> = {};
+  Object.keys(branches).forEach((id) => (descendantLeaves[Number(id)] = []));
+  leaves.forEach((leaf) => {
+    let cur: Branch | undefined = leaf;
+    while (cur) {
+      descendantLeaves[cur.id].push(leaf);
+      cur = cur.parentId === null ? undefined : branches[cur.parentId];
+    }
+  });
+  const out: Record<number, EraContext> = {};
+  Object.values(branches).forEach((b) => {
+    const alive = isLeaf(branches, b.id);
+    // protoBlendFor's own tie-break (worst intelligibility, then larger combined
+    // territory) is preserved as long as candidates are considered in a stable order —
+    // iterating in `leaves` order here matches what the old per-branch
+    // `leavesOf(branches).filter(descendsFrom)` produced, since filter preserves the
+    // source array's order.
+    const protoBlend = alive ? null : protoBlendFor(descendantLeaves[b.id]);
+    out[b.id] = { alive, protoBlend };
+  });
+  return out;
 }
