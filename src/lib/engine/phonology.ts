@@ -191,6 +191,42 @@ export function applyRuleToWord(ids: string[], rule: Rule): { ids: string[]; cha
   return { ids: out, changed };
 }
 
+// 1ENG.20 (1eng-15 spike §3.4) — applyRuleToWord's transducer loop, with one edge open
+// to the affix and the other injected: a suffix's RIGHT edge is the real word boundary
+// (post:bound rules see it naturally, since the affix genuinely IS at the word's end),
+// but its LEFT context is stem-internal, not a boundary — injecting `ctx` there (the
+// majority stem-final phone, from affixContext below) means pre:bound can never
+// spuriously fire on it. A prefix mirrors this: its LEFT edge is real, its RIGHT
+// context is injected. Two differences from applyRuleToWord's loop, not a wrapper
+// around it: the injected inner context, and the lifted vowel floor (an affix may
+// legitimately erode to [] — that IS cell death, not a discarded rule application).
+// The MAX_LEN growth ceiling is kept: break/paragoge can legitimately grow an affix,
+// but not without bound.
+export function applyRuleToAffix(ids: string[], rule: Rule, edge: "suffix" | "prefix", ctx: Phone | null): string[] {
+  const ph = ids.map((id) => BY_ID[id]);
+  const out: string[] = [];
+  for (let i = 0; i < ph.length; i++) {
+    const p = ph[i];
+    // suffix: left (pre) is injected at i===0, right (post) is the real boundary at the
+    // last index. prefix: mirrored — right (post) is injected at the last index, left
+    // (pre) is the real boundary at i===0.
+    const pre = edge === "suffix" ? (i > 0 ? ph[i - 1] : ctx) : (i > 0 ? ph[i - 1] : null);
+    const post = edge === "suffix" ? (i < ph.length - 1 ? ph[i + 1] : null) : (i < ph.length - 1 ? ph[i + 1] : ctx);
+    const hit = rule.match(p) && (rule.pre ? rule.pre(pre) : true) && (rule.post ? rule.post(post) : true);
+    if (!hit) { out.push(p.id); continue; }
+    for (const s of normalise(rule.xform(p, { pre, post }))) {
+      const nid = resolveSeg(p, s);
+      if (nid !== null) out.push(nid); // unresolvable/deleted seg dropped — no floor to protect
+    }
+    if (rule.lengthensPrev && out.length > 0) {
+      const long = applyXform(BY_ID[out[out.length - 1]], { long: true });
+      if (long !== null) out[out.length - 1] = long;
+    }
+  }
+  if (out.length > MAX_LEN && out.length > ids.length) return ids; // ceiling only — no vowel floor
+  return out;
+}
+
 // 2GEO.4/2GEO.5 — one leftmost edit from `a` toward `b`: substitute the first
 // differing segment; if `a` is a prefix of `b`, append b's next segment; if `a` is
 // longer, delete `a`'s first surplus segment. Deterministic (no RNG), and one call

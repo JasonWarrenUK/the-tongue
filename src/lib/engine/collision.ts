@@ -81,8 +81,11 @@ export function modifierCandidates(yielding: string, pair: [string, string]): st
 // Clip a modifier to its onset-plus-first-vowel prefix (<=3 segs under the widest
 // template, (C)(C)V(C)); a diphthong/long vowel is one Phone so it doesn't inflate the
 // count. Capped explicitly rather than merely assumed, since a renewal rule (epenthesis)
-// could in principle stack extra initial consonants.
-function clip(modifier: string[]): string[] {
+// could in principle stack extra initial consonants. Exported for morphology.ts
+// (1ENG.20): the spike names this exact rule ("the same first-vowel-prefix rule 2LEX.1
+// uses for compound modifiers") for minting affixes from their pathway source words —
+// one clipping concept across the engine, not a second implementation.
+export function clip(modifier: string[]): string[] {
   const v = modifier.findIndex((id) => BY_ID[id].type === "V");
   return v < 0 ? modifier.slice(0, 3) : modifier.slice(0, Math.min(v + 1, 3));
 }
