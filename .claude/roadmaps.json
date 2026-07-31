@@ -196,10 +196,18 @@
 						"dependsOn": []
 					},
 					{
-						"id": "1ENG.24",
-						"description": "Design spike: stress, and the sound changes that need it — the engine has no stress model, so the whole family of stress-conditioned change is inexpressible: loss of unstressed syllables (the engine of Latin → French, and named in the LCK's own catalogue), unstressed vowel reduction to schwa, and stress-conditioned resistance to erosion. Blocked on a prerequisite the engine lacks generally: words are flat `string[]` segment lists with no runtime syllable structure, so syllabification (onset/nucleus/coda parsing over a live word) must be specified first and would also serve any future weight-sensitive rule. Should cover: a per-branch stress rule (initial/final/penultimate/weight-sensitive, seeded and inheritable like `wordOrder`), how stress interacts with 1ENG.14's position profiles (both condition erosion, and they must compose rather than double-count), and whether stress placement itself drifts. Surfaced by the 1ENG.16 survey (spike §9)",
+						"id": "1ENG.25",
+						"description": "Design spike: runtime syllabification — onset/nucleus/coda parsing over a live word (currently a flat `string[]` segment list with no runtime syllable structure). Shared prerequisite named by both 1ENG.24 (stress-conditioned change) and 4PHON.1 (tonogenesis, suprasegmental): both need a tone/stress-bearing-unit notion that only syllable structure can provide. Should cover: a syllabification algorithm over `Phone`/`Seg` sequences (sonority-based onset maximisation vs. a language-specific parse driven by the branch's `Template`), how the result composes with 1ENG.12's variable-length `Seg[]` rule outputs (a rule that inserts/deletes a segment must not desync a cached syllabification), and whether syllable boundaries are recomputed every rule application or only at drift/turn boundaries. Surfaced by the 1ENG.16 survey (spike §9, line 410) as the blocking prerequisite for 1ENG.24",
 						"status": "todo",
 						"dependsOn": []
+					},
+					{
+						"id": "1ENG.24",
+						"description": "Design spike: stress, and the sound changes that need it — the engine has no stress model, so the whole family of stress-conditioned change is inexpressible: loss of unstressed syllables (the engine of Latin → French, and named in the LCK's own catalogue), unstressed vowel reduction to schwa, and stress-conditioned resistance to erosion. Blocked on a prerequisite the engine lacks generally: words are flat `string[]` segment lists with no runtime syllable structure, so syllabification (onset/nucleus/coda parsing over a live word) must be specified first and would also serve any future weight-sensitive rule. Should cover: a per-branch stress rule (initial/final/penultimate/weight-sensitive, seeded and inheritable like `wordOrder`), how stress interacts with 1ENG.14's position profiles (both condition erosion, and they must compose rather than double-count), and whether stress placement itself drifts. Surfaced by the 1ENG.16 survey (spike §9)",
+						"status": "blocked",
+						"dependsOn": [
+							"1ENG.25"
+						]
 					}
 				]
 			},
