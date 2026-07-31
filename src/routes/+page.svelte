@@ -100,10 +100,16 @@
         {/if}
       </div>
       <div class="md:col-span-2 space-y-4">
-        <Panel title="Phrases">
-          <PhrasePanel lex={game.sel.lex} order={game.sel.wordOrder} weights={game.sel.frameWeights} proDrop={game.sel.proDrop} />
-        </Panel>
+        <!-- 1ENG.20: gated like Changes below, not rendered unconditionally as before —
+             anchors freeze a lexicon snapshot but no paradigm snapshot, so under
+             game.viewing there is no frozen grammar to show; rendering the LIVE
+             paradigm against a dead lexicon would be a lie about which era it's from.
+             (Pre-existing inconsistency: PhrasePanel used to render regardless.) -->
         {#if !game.viewing}
+          <Panel title="Phrases">
+            <PhrasePanel lex={game.sel.lex} order={game.sel.wordOrder} weights={game.sel.frameWeights}
+              proDrop={game.sel.proDrop} paradigm={game.sel.paradigm} />
+          </Panel>
           <Changes candidates={game.candidates} preview={game.preview} stepCost={game.stepCost}
             overheadDue={game.overheadDue} pool={game.st.pool} reach={game.reach} isFocal={game.isFocal}
             onpreview={(id) => (game.preview = id)} onapply={(id) => game.apply(id)} />
