@@ -7,7 +7,7 @@ description: 1ENG.16 research spike; a survey of Mark Rosenfelder's seven Zompis
 > [!IMPORTANT]
 > **Goal:** Survey Mark Rosenfelder's conlang toolchain for mechanisms worth adopting, and produce a contract concrete enough for [1ENG.17](../roadmaps/mvp.md) to implement without further design work. Unlike the design spikes ([1ENG.14](./1eng-14-syntax-conditioned-sound-change.md), [2LEX.1](./2lex-1-homophone-collision-resolution.md)), this one starts from an existing artefact rather than a gap: the question is not "what should we build" but "what has the reference implementation in this space already worked out, and where are we behind it".
 >
-> The answer is narrower than the task description assumed, and worth stating up front: **on rule expressiveness our feature-based model is ahead of SCA²'s string model, and the one place we are clearly behind is the naïve uniform phoneme draw in `genLexicon`.** Three adoptions, four documented rejections, one roadmap correction.
+> The answer is narrower than the task description assumed, and worth stating up front: **on rule expressiveness our feature-based model is ahead of SCA²'s string model, and the one place we are clearly behind is the naïve uniform phoneme draw in `genLexicon`.** Three adoptions, six documented rejections, one roadmap correction.
 
 ---
 
@@ -277,7 +277,7 @@ Verified against 400k draws on a 10-member list before writing this contract, so
 
 The last member is the one deviation from the pure geometric series (.041 against its series value of .012): it absorbs the entire remaining tail, which is what keeps the total exactly 1 and makes the function total for `u → 1`. `u = 0` returns index 0, and a 1-member list always returns its only member.
 
-**Changed — [`src/lib/engine/lexicon.ts`](../../src/lib/engine/lexicon.ts)**: `genSyllable`'s three phoneme draws (onset, cluster, nucleus, coda) switch `pick` → `pickRanked`. The two `genInventory` calls (`DIPHTHONGS`, `LONG_VOWELS`) stay uniform — those lists are not in frequency order, and the choice of *which* diphthong a world has is not a frequency question.
+**Changed — [`src/lib/engine/lexicon.ts`](../../src/lib/engine/lexicon.ts)**: `genSyllable`'s four phoneme draws (onset, cluster, nucleus, coda) switch `pick` → `pickRanked`. The two `genInventory` calls (`DIPHTHONGS`, `LONG_VOWELS`) stay uniform — those lists are not in frequency order, and the choice of *which* diphthong a world has is not a frequency question.
 
 `pick` itself stays exported and unchanged: `naming.ts` has its own `pickAt`, and leaving `pick` in place keeps the diff to the four call sites that should change.
 
@@ -360,7 +360,7 @@ export type Seg =
 ```ts
 { id:"metath", name:"Metathesis", note:"C r → r C / _  (brid → bird)",
   w:1, category:"assimilation",
-  match:(p)=>isC(p)&&p.manner!=="liquid", pre:null, post:(p)=>isC(p)&&p!.manner==="liquid",
+  match:(p)=>isC(p)&&p.manner!=="liquid", pre:null, post:(p)=>isC(p)&&p.manner==="liquid",
   xform:()=>[
     { from:"post", patch:{}, consumes:true },
     { from:"self", patch:{} },
