@@ -58,32 +58,56 @@
          width far sooner than the map or the matrix do. -->
     <div class="mt-4"><Panel title="Family tree">
       <FamilyTree branches={game.st.branches} selectedId={game.st.selectedId} focusId={game.st.focusId}
-        touched={game.st.touched} eraGraph={game.eraGraph} onselect={(id) => game.selectBranch(id)} />
+        touched={game.st.touched} eraGraph={game.eraGraph} viewing={game.viewing}
+        onselect={(id, stageIndex) => game.viewEra(id, stageIndex)} />
     </Panel></div>
 
     <div class="grid md:grid-cols-5 gap-5 mt-4 items-start">
       <div class="md:col-span-3 sticky top-2 z-10 bg-bg self-start">
-        <div class="flex items-center justify-between mb-2">
-          <h2 class="text-accent font-medium flex items-center gap-2">
-            <!-- branchColor generates arbitrary per-branch hues procedurally — not a theme colour -->
-            <span class="inline-block w-3 h-3 rounded-sm" style="background:{`hsl(${(game.sel.id * 61 + 25) % 360} 48% 56%)`}"></span>
-            <span title={game.selEra.map((s) => s.text).join(" → ")}>{game.selEra[game.selEra.length - 1]?.text ?? game.sel.name}</span>
-            {#if game.isFocal}<span class="text-positive text-xs" title="the self">◆ self</span>{/if}
-            <span class="text-muted font-normal text-xs">· {game.sel.territory.length} region{game.sel.territory.length !== 1 ? "s" : ""} · {game.st.touched[game.st.selectedId] ? "held" : "will drift"}</span>
-          </h2>
-          {#if game.fracturing}<span class="text-xs text-warn">⚠ will fracture at gen end</span>{/if}
-          {#if game.assimilatingInto}<span class="text-xs text-warn">⚠ assimilating into {game.assimilatingInto} — drift or expand to resist</span>{/if}
-        </div>
-        <WordTable lex={game.sel.lex} previewLex={game.previewLex} curHomo={game.curHomo} prevHomo={game.prevHomo}
-          severeConcepts={game.severeConcepts} pressureLabel={game.pressureLabel} />
+        {#if game.viewing}
+          <!-- 1ENG.22 era-viewer: a read-only look at a frozen earlier era. Live facts
+               (region count, will-drift/held, fracture/assimilation warnings) are
+               deliberately hidden here — they describe the branch NOW, not the era
+               being shown, and would be lies painted over history. -->
+          {@const v = game.viewing}
+          {@const anchor = game.viewedStage?.anchorIndex != null ? game.st.branches[v.branchId]?.anchors[game.viewedStage.anchorIndex] : null}
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="text-accent font-medium flex items-center gap-2">
+              <span class="inline-block w-3 h-3 rounded-sm" style="background:{`hsl(${(v.branchId * 61 + 25) % 360} 48% 56%)`}"></span>
+              <span>{game.viewedStage?.text}</span>
+              {#if anchor}<span class="text-muted font-normal text-xs">· frozen at turn {anchor.turn}</span>{/if}
+            </h2>
+            <button class="text-xs text-accent underline" onclick={() => game.selectBranch(v.branchId)}>
+              ← back to {game.displayNames[v.branchId] ?? game.st.branches[v.branchId]?.name}
+            </button>
+          </div>
+          <WordTable lex={game.viewedLex ?? []} previewLex={null} curHomo={game.viewedHomo ?? new Set()}
+            prevHomo={null} severeConcepts={new Set()} pressureLabel={{}} />
+        {:else}
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="text-accent font-medium flex items-center gap-2">
+              <!-- branchColor generates arbitrary per-branch hues procedurally — not a theme colour -->
+              <span class="inline-block w-3 h-3 rounded-sm" style="background:{`hsl(${(game.sel.id * 61 + 25) % 360} 48% 56%)`}"></span>
+              <span title={game.selEra.map((s) => s.text).join(" → ")}>{game.selEra[game.selEra.length - 1]?.text ?? game.sel.name}</span>
+              {#if game.isFocal}<span class="text-positive text-xs" title="the self">◆ self</span>{/if}
+              <span class="text-muted font-normal text-xs">· {game.sel.territory.length} region{game.sel.territory.length !== 1 ? "s" : ""} · {game.st.touched[game.st.selectedId] ? "held" : "will drift"}</span>
+            </h2>
+            {#if game.fracturing}<span class="text-xs text-warn">⚠ will fracture at gen end</span>{/if}
+            {#if game.assimilatingInto}<span class="text-xs text-warn">⚠ assimilating into {game.assimilatingInto} — drift or expand to resist</span>{/if}
+          </div>
+          <WordTable lex={game.sel.lex} previewLex={game.previewLex} curHomo={game.curHomo} prevHomo={game.prevHomo}
+            severeConcepts={game.severeConcepts} pressureLabel={game.pressureLabel} />
+        {/if}
       </div>
       <div class="md:col-span-2 space-y-4">
         <Panel title="Phrases">
           <PhrasePanel lex={game.sel.lex} order={game.sel.wordOrder} weights={game.sel.frameWeights} proDrop={game.sel.proDrop} />
         </Panel>
-        <Changes candidates={game.candidates} preview={game.preview} stepCost={game.stepCost}
-          overheadDue={game.overheadDue} pool={game.st.pool} reach={game.reach} isFocal={game.isFocal}
-          onpreview={(id) => (game.preview = id)} onapply={(id) => game.apply(id)} />
+        {#if !game.viewing}
+          <Changes candidates={game.candidates} preview={game.preview} stepCost={game.stepCost}
+            overheadDue={game.overheadDue} pool={game.st.pool} reach={game.reach} isFocal={game.isFocal}
+            onpreview={(id) => (game.preview = id)} onapply={(id) => game.apply(id)} />
+        {/if}
         <HistoryList history={game.sel.history} splitIndex={game.sel.splitIndex} />
       </div>
     </div>
