@@ -190,7 +190,12 @@ class Game {
     const rule = RULE_BY_ID[ruleId]; const after = applyRuleToLex(b.lex, rule).lex;
     // 2STK.3 §3: player-applied rules bump momentum at full weight (decision §9.15).
     const bumped = bumpMomentum({ ...b, lex: after, history: [...b.history, { name: rule.name, note: rule.note }] }, rule.category, true);
+    // 1ENG.20: record which rule the player applied, so step 1's paradigm tick can
+    // tick this touched branch's grammar with the SAME rule (spike §4: touching a
+    // branch's sound change doesn't pause its grammar, it directs it). The tick stays
+    // one locus (generation.ts step 1), not duplicated here.
     this.st = { ...s, pool: s.pool - cost, touched: { ...s.touched, [s.selectedId]: true },
+      appliedRules: { ...s.appliedRules, [s.selectedId]: ruleId },
       branches: { ...s.branches, [s.selectedId]: bumped } };
     this.preview = null;
     // 2LEX.2 §3.6: diff severe pairs before/after — the same before/after comparison

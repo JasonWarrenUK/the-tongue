@@ -2,6 +2,7 @@ import { mulberry32 } from "./rng";
 import { genInventory, genTemplate, genLexicon } from "./lexicon";
 import { genRegions } from "./geography";
 import { genStem } from "./naming";
+import { seedParadigm, licensesProDrop } from "./morphology";
 import type { CompoundOrder, FrameWeights, GameState, Settings, World, WordOrder } from "./types";
 
 export const DEFAULTS: Settings = { pool: 8, growth: 2, overhead: 3, changeCost: 2, spreadEvery: 3 };
@@ -46,11 +47,18 @@ export function freshState(seed: number): GameState {
   // 1ENG.19: the root inherits the world's genesis order (same pattern as world.lex ->
   // root.lex, just above). frameWeights seeded FLAT, no draw — §3.4's audit-by-hand
   // reference table is stated at equal weights, so a fresh world reproduces it exactly;
-  // divergence is walkFrameWeights' job, not genesis's. proDrop hardcoded false — no
-  // draw, since nothing licenses it until 1ENG.20 (a roll would be dead stream burn).
+  // divergence is walkFrameWeights' job, not genesis's.
+  // 1ENG.20 (1eng-15 spike §3.3 "Genesis"): the root's paradigm seeds affixal, pre-fused
+  // from the SOURCE WORDS' genesis forms, as if grammaticalisation happened in
+  // prehistory (mirrors 1ENG.12 seeding diphthongs/long vowels into starting
+  // inventories). No new mulberry32 draw: the spike's only seeded draw is the VO
+  // placement roll, and that happens at fusion time via a hashRand, not here. proDrop
+  // is no longer hardcoded false — it's licensed the moment >=2 of the 3 agreement
+  // cells are alive, and the root is born with all three affixal, so it starts licensed.
   const frameWeights: FrameWeights = [1, 1, 1, 1];
-  const root = { id: 0, name: genStem(world.inv, seed, 0), parentId: null, depth: 0, splitIndex: 0, history: [], lex: world.lex, territory: [world.start], pressure: 0, anchors: [{ lex: world.lex, turn: 0, historyIndex: 0, driftFromPrev: 0 }], assimilationPressure: 0, collisionPressure: {}, momentum: {}, wordOrder: { ...world.wordOrder }, frameWeights, proDrop: false };
+  const paradigm = seedParadigm(world.lex, world.wordOrder, seed);
+  const root = { id: 0, name: genStem(world.inv, seed, 0), parentId: null, depth: 0, splitIndex: 0, history: [], lex: world.lex, territory: [world.start], pressure: 0, anchors: [{ lex: world.lex, turn: 0, historyIndex: 0, driftFromPrev: 0 }], assimilationPressure: 0, collisionPressure: {}, momentum: {}, wordOrder: { ...world.wordOrder }, frameWeights, proDrop: licensesProDrop(paradigm), paradigm };
   // 2STK.2: the root is the self at world start; no mourning, no queued focus
   // decision, run not yet ended. 2STK.5: no trade routes open yet.
-  return { world, branches: { 0: root }, rootId: 0, selectedId: 0, nextId: 1, turn: 1, settings: { ...DEFAULTS }, pool: DEFAULTS.pool, touched: {}, log: [], focusId: 0, mourning: null, pendingFocusChoice: null, ended: false, routes: {} };
+  return { world, branches: { 0: root }, rootId: 0, selectedId: 0, nextId: 1, turn: 1, settings: { ...DEFAULTS }, pool: DEFAULTS.pool, touched: {}, appliedRules: {}, log: [], focusId: 0, mourning: null, pendingFocusChoice: null, ended: false, routes: {} };
 }

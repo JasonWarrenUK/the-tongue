@@ -32,7 +32,7 @@ function mkState(
     world: { seed: opts.seed ?? 1, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [], edges, adj: {}, start: 0, compoundOrder: "modFirst", ...worldDefaults },
     branches, rootId: 0, selectedId: 0, nextId: Object.keys(branches).length, turn: opts.turn ?? 0,
     settings: { pool: 10, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
-    pool: 10, touched: {}, log: [], focusId: 0, mourning: null, pendingFocusChoice: null, ended: false, routes: {},
+    pool: 10, touched: {}, log: [], appliedRules: {}, focusId: 0, mourning: null, pendingFocusChoice: null, ended: false, routes: {},
   };
 }
 
