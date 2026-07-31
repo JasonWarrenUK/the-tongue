@@ -1,17 +1,23 @@
 import { freshState } from "./engine/world";
 import { resolveGeneration } from "./engine/generation";
 import { RULES, RULE_BY_ID, applyRuleToLex, collisionPairs, homophoneForms, formOf } from "./engine/phonology";
-import { leavesOf, isLeaf, descendsFrom } from "./engine/tree";
+import { leavesOf, isLeaf } from "./engine/tree";
 import { ownerMap, freeAdjacentFor, passableComponents, basePool, overheadFor, dominantAssimilator, dominantTerrain, ASSIM_TURNS } from "./engine/geography";
-import { displayName, eraStages, protoBlendFor } from "./engine/naming";
+import { eraContexts, eraStages } from "./engine/naming";
 import { buildEraLayout } from "./engine/tree";
 import { reachMult, COST_CAP, MOURN_TURNS, momentumMult, bumpMomentum } from "./engine/stakes";
 import { resolveContact } from "./engine/contact";
 import { severePairs, pairThreshold, yieldingConcept, modifierCandidates, compoundWord } from "./engine/collision";
 import { syntaxMult } from "./engine/syntax";
-import type { GameState, Settings, Candidate } from "./engine/types";
+import type { GameState, Settings, Candidate, Lexicon } from "./engine/types";
 import type { EraStage } from "./engine/naming";
 import type { ContactResult } from "./engine/contact";
+
+// 1ENG.22 era-viewer: which era of which branch the player is inspecting, or null for
+// the live tip. UI-only — mirrors the existing pendingRepairs precedent ("resolveGeneration
+// never produces a repair prompt, so it has no business on GameState"): a viewed era is
+// never engine state, never serialises, and must not survive a turn.
+export interface ViewingEra { branchId: number; stageIndex: number }
 
 // 2LEX.2 §3.6: one queued repair prompt — a player-applied rule just landed a NEW
 // severe pair. Stores enough for the dialog to render without importing collision.ts.
@@ -26,6 +32,12 @@ class Game {
   // never produces a repair prompt, so it has no business on GameState, and it never
   // survives a turn (endTurn/loadWorld both clear it below).
   pendingRepairs = $state<PendingRepair[]>([]);
+  // 1ENG.22: which past era of which branch the player is inspecting, or null for the
+  // live tip. Never written into `st` (see ViewingEra's comment) — apply/expandInto/
+  // repairCollision/endTurn all read st.selectedId directly, so this cannot leak into
+  // them by construction; the early `if (this.viewing) return;` guards below are belt
+  // and braces, making the read-only-ness explicit rather than merely accidental.
+  viewing = $state<ViewingEra | null>(null);
 
   sel = $derived(this.st.branches[this.st.selectedId]);
   leaves = $derived(leavesOf(this.st.branches));
@@ -111,48 +123,65 @@ class Game {
     Object.entries(this.st.routes).forEach(([k, until]) => { if (this.st.turn < until) out.add(k); });
     return out;
   });
-  // 1ENG.10: one computed display name per branch — the perspective-collapsed era name
-  // (bare stem for a living tip, Old/Middle/Late/Proto- for a dead ancestor). Built
-  // once per render pass since protoBlendFor needs the branch's live descendant leaves,
-  // which only whole-tree context (not the branch itself) can supply.
-  displayNames = $derived.by<Record<number, string>>(() => {
+  // 1ENG.22: whole-tree alive/protoBlend context, one pass for every branch — replaces
+  // three near-identical per-branch derivations that each called leavesOf/protoBlendFor
+  // inside their own Object.values loop (displayNames/eraGraph/selEra below all used to
+  // recompute this independently). See naming.ts eraContexts for the cost analysis.
+  eraCtx = $derived.by(() => eraContexts(this.st.branches));
+  // per-branch era chronology (Old -> Middle (n/m) -> ... -> tip), the shared input for
+  // displayNames (last stage's text), eraGraph (the tree's node graph) and selEra/viewedStage
+  // (the selected/viewed branch's own chronology) — computed once per branches change.
+  eraStagesByBranch = $derived.by<Record<number, EraStage[]>>(() => {
     const branches = this.st.branches;
+    const out: Record<number, EraStage[]> = {};
+    Object.values(branches).forEach((b) => { out[b.id] = eraStages(b, this.eraCtx[b.id]); });
+    return out;
+  });
+  // 1ENG.10: one computed display name per branch — the perspective-collapsed era name
+  // (bare stem for a living tip, Old/Middle/Late/Proto- for a dead ancestor).
+  displayNames = $derived.by<Record<number, string>>(() => {
     const out: Record<number, string> = {};
-    Object.values(branches).forEach((b) => {
-      const alive = isLeaf(branches, b.id);
-      const protoBlend = alive ? null : protoBlendFor(leavesOf(branches).filter((l) => descendsFrom(branches, l.id, b.id)));
-      out[b.id] = displayName(b, { alive, protoBlend });
+    Object.entries(this.eraStagesByBranch).forEach(([id, stages]) => {
+      out[Number(id)] = stages[stages.length - 1]?.text ?? this.st.branches[Number(id)].name;
     });
     return out;
   });
-  // family-tree fix: the per-branch era chronology (Old -> Middle (n/m) -> ... -> tip),
-  // one node per stage, for the tree's chained rendering. Same alive/protoBlend
-  // derivation as displayNames above (whole-tree context a branch can't self-supply)
-  // — kept separate rather than merged since FocusDialog/IntelMatrix only ever want
-  // the single collapsed displayNames label, not the full per-stage graph.
-  eraGraph = $derived.by(() => {
-    const branches = this.st.branches;
-    const stagesByBranch: Record<number, EraStage[]> = {};
-    Object.values(branches).forEach((b) => {
-      const alive = isLeaf(branches, b.id);
-      const protoBlend = alive ? null : protoBlendFor(leavesOf(branches).filter((l) => descendsFrom(branches, l.id, b.id)));
-      stagesByBranch[b.id] = eraStages(b, { alive, protoBlend });
-    });
-    return buildEraLayout(branches, this.st.rootId, stagesByBranch);
-  });
+  // family-tree fix: the per-branch era chronology, one node per stage, for the tree's
+  // chained rendering.
+  eraGraph = $derived(buildEraLayout(this.st.branches, this.st.rootId, this.eraStagesByBranch));
   // the selected branch's own chronology, for the header's current-stage label + the
   // full-chain hover tooltip.
-  selEra = $derived.by<EraStage[]>(() => {
-    const branches = this.st.branches, b = this.sel;
-    const alive = isLeaf(branches, b.id);
-    const protoBlend = alive ? null : protoBlendFor(leavesOf(branches).filter((l) => descendsFrom(branches, l.id, b.id)));
-    return eraStages(b, { alive, protoBlend });
+  selEra = $derived(this.eraStagesByBranch[this.st.selectedId] ?? []);
+  // 1ENG.22 era-viewer: the stage and frozen lexicon currently being inspected, or null
+  // when viewing the live tip. viewedLex is the ONLY place an anchor's `lex` is read
+  // reactively, and only ever one at a time — this is what keeps the heap fix intact
+  // while still surfacing every frozen lexicon on demand (see naming.ts AnchorMark).
+  viewedStage = $derived(this.viewing ? (this.eraStagesByBranch[this.viewing.branchId]?.[this.viewing.stageIndex] ?? null) : null);
+  viewedLex = $derived.by<Lexicon | null>(() => {
+    const v = this.viewing, s = this.viewedStage;
+    if (!v || !s || s.anchorIndex === null) return null;
+    return this.st.branches[v.branchId]?.anchors[s.anchorIndex]?.lex ?? null;
   });
+  // homophony is a property of the words themselves, so it's shown for the era being
+  // viewed; collision PRESSURE is a live clock with no historical counterpart (see
+  // WordTable wiring in +page.svelte) so there is no equivalent viewedSevere/viewedPressure.
+  viewedHomo = $derived(this.viewedLex ? homophoneForms(this.viewedLex) : null);
 
-  loadWorld(s: number) { this.st = freshState(s); this.seed = s; this.preview = null; this.pendingRepairs = []; }
+  loadWorld(s: number) { this.st = freshState(s); this.seed = s; this.preview = null; this.pendingRepairs = []; this.viewing = null; }
+
+  // 1ENG.22 era-viewer: clicking an earlier era stage in the family tree. A click on
+  // the living tip (anchorIndex null) is just today's normal selection; anything else
+  // enters the read-only historical view without touching st.selectedId.
+  viewEra(branchId: number, stageIndex: number) {
+    if (this.st.pendingFocusChoice || this.pendingRepair) return;
+    const stage = (this.eraStagesByBranch[branchId] ?? [])[stageIndex];
+    if (!stage || stage.anchorIndex === null) { this.selectBranch(branchId); return; }
+    this.viewing = { branchId, stageIndex };
+    this.preview = null;
+  }
 
   apply(ruleId: string) {
-    const s = this.st; if (s.pendingFocusChoice || s.ended || this.pendingRepair) return;
+    const s = this.st; if (s.pendingFocusChoice || s.ended || this.pendingRepair || this.viewing) return;
     const b = s.branches[s.selectedId];
     const ov = s.touched[s.selectedId] ? 0 : overheadFor(b, s.settings);
     const base = s.settings.changeCost + ov;
@@ -176,7 +205,7 @@ class Game {
     });
   }
   expandInto(regionId: number) {
-    const s = this.st; if (s.pendingFocusChoice || s.ended || this.pendingRepair) return;
+    const s = this.st; if (s.pendingFocusChoice || s.ended || this.pendingRepair || this.viewing) return;
     const b = s.branches[s.selectedId], owner = ownerMap(s.branches);
     const fa = freeAdjacentFor(b, s.world.adj, owner).find((f) => f.region === regionId);
     if (!fa) return;
@@ -187,11 +216,11 @@ class Game {
   }
   endTurn() {
     if (this.st.pendingFocusChoice || this.st.ended || this.pendingRepair) return;
-    this.st = resolveGeneration(this.st); this.preview = null;
+    this.st = resolveGeneration(this.st); this.preview = null; this.viewing = null;
   }
   selectBranch(id: number) {
     if (this.st.pendingFocusChoice || this.pendingRepair) return;
-    if (isLeaf(this.st.branches, id)) { this.st = { ...this.st, selectedId: id }; this.preview = null; }
+    if (isLeaf(this.st.branches, id)) { this.st = { ...this.st, selectedId: id }; this.preview = null; this.viewing = null; }
   }
   // 2LEX.2 §3.6: repair now — a second lexical intervention, priced flat at changeCost
   // with no second overhead (touched is already set this turn, so overheadFor naturally
@@ -201,7 +230,7 @@ class Game {
   // picked the modifier, so resolveCollision's ranking/repair-made-collision walk are
   // bypassed entirely — a repair that itself collides is the player's own gamble.
   repairCollision(modifier: string) {
-    const p = this.pendingRepair; if (!p) return;
+    const p = this.pendingRepair; if (!p || this.viewing) return;
     const s = this.st, cost = s.settings.changeCost;
     if (cost > s.pool) return;
     const b = s.branches[s.selectedId];
@@ -232,7 +261,7 @@ class Game {
   // lineage (its own id) or a born fragment.
   chooseFracture(id: number) {
     if (this.st.pendingFocusChoice?.kind !== "fracture") return;
-    this.st = { ...this.st, focusId: id, pendingFocusChoice: null };
+    this.st = { ...this.st, focusId: id, pendingFocusChoice: null }; this.viewing = null;
   }
   // 2STK.2 §2.3: the focal branch died — inherit into a living heir, paying the
   // hoarse-voice mourning penalty for MOURN_TURNS, or elect silence (the game's
@@ -242,6 +271,7 @@ class Game {
     const heir = this.st.pendingFocusChoice.heirs.find((h) => h.id === id); if (!heir) return;
     this.st = { ...this.st, focusId: id, selectedId: id,
       mourning: { untilTurn: this.st.turn + MOURN_TURNS, mult: heir.mourningMult }, pendingFocusChoice: null };
+    this.viewing = null;
   }
   electSilence() {
     if (this.st.pendingFocusChoice?.kind !== "succession") return;

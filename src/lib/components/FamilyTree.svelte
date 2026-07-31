@@ -2,9 +2,15 @@
   import { isLeaf, branchColor } from "$lib/engine/tree";
   import type { Branch } from "$lib/engine/types";
   import type { EraLayout } from "$lib/engine/tree";
-  let { branches, selectedId, focusId, touched, eraGraph, onselect }:
+  // 1ENG.22 era-viewer: viewing (null = live tip) lets an earlier era render as
+  // selected in its own right, distinct from the live selectedId. onselect now passes
+  // the stage index too, so a click on a non-terminal node can be told apart from a
+  // click on the branch's current tip.
+  let { branches, selectedId, focusId, touched, eraGraph, viewing, onselect }:
     { branches: Record<number, Branch>; selectedId: number; focusId: number;
-      touched: Record<number, boolean>; eraGraph: EraLayout; onselect: (id: number) => void } = $props();
+      touched: Record<number, boolean>; eraGraph: EraLayout;
+      viewing: { branchId: number; stageIndex: number } | null;
+      onselect: (id: number, stageIndex: number) => void } = $props();
 
   const COL = 120, ROW = 62, NW = 104, NH = 36;
   // "Middle Ʒakaʒin (1/6)" overflows any node wide enough to tile — the ordinal is
@@ -35,11 +41,16 @@
     {/each}
     {#each eraGraph.nodes as node (node.key)}
       {@const leaf = isLeaf(branches, node.branchId)}
-      {@const selected = node.isTerminal && node.branchId === selectedId}
-      {@const clickable = leaf}
+      {@const selected = viewing
+        ? node.branchId === viewing.branchId && node.stageIndex === viewing.stageIndex
+        : node.isTerminal && node.branchId === selectedId}
+      <!-- an earlier era of a DEAD lineage is inspectable too — "you can see it existed
+           but not how it differed" is the whole complaint this fixes, so clickability
+           can't stay gated on `leaf` (aliveness) alone. -->
+      {@const clickable = leaf || node.stage.anchorIndex !== null}
       <g transform={`translate(${cx(node.key) - NW / 2}, ${cy(node.key)})`} role="button" tabindex="0"
-        onclick={() => onselect(node.branchId)}
-        onkeydown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); onselect(node.branchId); } }}
+        onclick={() => onselect(node.branchId, node.stageIndex)}
+        onkeydown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); onselect(node.branchId, node.stageIndex); } }}
         style="cursor:{clickable ? 'pointer' : 'default'}">
         <rect width={NW} height={NH} rx="6" fill={selected ? "var(--color-surface-2)" : "var(--color-surface)"}
           stroke={selected ? "var(--color-accent)" : leaf ? "var(--color-muted)" : "var(--color-border)"} stroke-width={selected ? 2 : 1.5} />
