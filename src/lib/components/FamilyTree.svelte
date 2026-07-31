@@ -47,7 +47,7 @@
       <!-- an earlier era of a DEAD lineage is inspectable too — "you can see it existed
            but not how it differed" is the whole complaint this fixes, so clickability
            can't stay gated on `leaf` (aliveness) alone. -->
-      {@const clickable = leaf || !node.isTerminal}
+      {@const clickable = leaf || node.stage.anchorIndex !== null}
       <g transform={`translate(${cx(node.key) - NW / 2}, ${cy(node.key)})`} role="button" tabindex="0"
         onclick={() => onselect(node.branchId, node.stageIndex)}
         onkeydown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); onselect(node.branchId, node.stageIndex); } }}
