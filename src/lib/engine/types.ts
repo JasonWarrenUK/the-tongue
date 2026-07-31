@@ -116,10 +116,30 @@ export interface Branch {
   // 1ENG.19 (spike §3.2): frame-usage weights, seeded flat at genesis and walked each
   // turn (syntax.ts walkFrameWeights). Inherited (copied, not shared) at fracture.
   frameWeights: FrameWeights;
-  // 1ENG.19 (spike §3.5): the null-subject parameter. Inert `false` everywhere until
-  // 1ENG.20 ships the agreement paradigm that licenses it (Taraldsen's generalisation).
+  // 1ENG.19 (spike §3.5): the null-subject parameter. Licensed once >=2 of the three
+  // agreement cells are alive (world.ts genesis, generation.ts step 1 recheck) —
+  // Taraldsen's generalisation. See ParadigmCell/AffixState below (1ENG.20).
   proDrop: boolean;
+  // 1ENG.20 (1eng-15 spike §3.2): the four marked cells of the inflectional paradigm.
+  // Unlike wordOrder/frameWeights this has no World-level genesis counterpart — it is
+  // derived at freshState from world.lex via seedParadigm (morphology.ts), not drawn
+  // in makeWorld, since its only seeded draw (VO suffix/prefix placement) happens at
+  // fusion time, not genesis. Required field: nonpast and third person are unmarked
+  // (bare stem) and so carry no cell at all — see PATHWAY in morphology.ts for why.
+  paradigm: Record<ParadigmCell, AffixState>;
 }
+// 1ENG.20 (1eng-15 spike §3.2/§3.3): one marked cell's affix. `zero` is death (no
+// running clock elsewhere holds this — `clock` alone is reused, meaning renewal wait
+// at `zero` and fusion wait at `periphrastic`). `form` is segment ids, same
+// representation as LexEntry.word; empty at `zero`. `suffixed` is decided once at
+// fusion time and persists until that cell's next cycle (spike §3.3 Placement).
+export type AffixStage = "affixal" | "zero" | "periphrastic";
+export interface AffixState { stage: AffixStage; form: string[]; suffixed: boolean; clock: number }
+// The two tense cells (past marked, nonpast bare) and three agreement cells (1sg/2/1pl
+// marked, 3rd bare) that have a source pathway (spike §3.2's table). nonpast/3rd have
+// no cell: nothing in the verified concept set is their grammaticalisation source, and
+// leaving them bare keeps a visible contrast in the phrase panel.
+export type ParadigmCell = "past" | "p1sg" | "p2" | "p1pl";
 export interface Settings {
   pool: number; growth: number; overhead: number; changeCost: number; spreadEvery: number;
 }
@@ -139,6 +159,13 @@ export interface GameState {
   world: World; branches: Record<number, Branch>; rootId: number; selectedId: number;
   nextId: number; turn: number; settings: Settings;
   pool: number; touched: Record<number, boolean>; log: string[];
+  // 1ENG.20: the rule id the player applied this turn, per branch — `touched` alone
+  // (a boolean) can't tell step 1's paradigm tick WHICH rule acted, and player-touched
+  // branches must still tick their paradigm with that rule (1eng-15 spike §4). Kept as
+  // its own field rather than widening `touched` (Record<number, boolean>), which ~40
+  // test call sites construct as boolean literals. Cleared alongside `touched` at
+  // repool (generation.ts).
+  appliedRules: Record<number, string>;
   // 2STK.2: the self. Moves only at forced moments (fracture of the focal branch,
   // its death) — see stakes.ts and the §2 spike section for why voluntary refocus
   // is deliberately absent.

@@ -48,7 +48,7 @@ function baseState(overrides: Partial<GameState> = {}): GameState {
     world: { seed: 1, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [], edges: [], adj: {}, start: 0, compoundOrder: "modFirst", ...worldDefaults },
     branches, rootId: 0, selectedId: 0, nextId: 4, turn: 5,
     settings: { pool: 999, growth: 1, overhead: 1, changeCost: 2, spreadEvery: 999 },
-    pool: 999, touched: {}, log: [],
+    pool: 999, touched: {}, log: [], appliedRules: {},
     focusId: 0, mourning: null, pendingFocusChoice: null, ended: false, routes: {},
     ...overrides,
   };

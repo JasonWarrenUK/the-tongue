@@ -1,4 +1,17 @@
-import type { Branch, FrameWeights, WordOrder } from "../../src/lib/engine/types";
+import type { AffixState, Branch, FrameWeights, ParadigmCell, WordOrder } from "../../src/lib/engine/types";
+
+// 1ENG.20: a static, deterministic paradigm — all four cells affixal, suffixed (the
+// SOV default above), with short unambiguous forms. A static literal rather than
+// seedParadigm(...): fixtures should not depend on world-gen, and most tests care
+// about paradigm-tick BEHAVIOUR (given some starting state), not genesis derivation
+// (morphology.test.ts owns that). Forms are two segments each so a single erosion
+// rule can plausibly touch them without immediately hitting cell death by accident.
+const paradigmDefaults: Record<ParadigmCell, AffixState> = {
+  past: { stage: "affixal", form: ["t", "a"], suffixed: true, clock: 0 },
+  p1sg: { stage: "affixal", form: ["m", "e"], suffixed: true, clock: 0 },
+  p2: { stage: "affixal", form: ["s", "u"], suffixed: true, clock: 0 },
+  p1pl: { stage: "affixal", form: ["n", "o"], suffixed: true, clock: 0 },
+};
 
 // 1ENG.19 — shared defaults for the fields every hand-built Branch/World fixture across
 // the test suite needs but rarely varies (assimilationPressure/collisionPressure/momentum
@@ -16,6 +29,7 @@ export const branchDefaults = {
   wordOrder: { basic: "SOV", adj: "AdjN" } as WordOrder,
   frameWeights: [1, 1, 1, 1] as FrameWeights,
   proDrop: false,
+  paradigm: paradigmDefaults,
 };
 
 // The three 1ENG.19 World fields (wordOrder is the genesis seed the root's own

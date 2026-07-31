@@ -1,5 +1,5 @@
 import { hashRand } from "./rng";
-import { driftRule, applyRuleToLex, formOf } from "./phonology";
+import { driftRule, applyRuleToLex, formOf, RULE_BY_ID } from "./phonology";
 import { ownerMap, freeAdjacentFor, passableComponents, basePool, isolationScore, dominantTerrain, dominantAssimilator, neighborsOf, pairContact, ASSIM_TURNS } from "./geography";
 import { leavesOf, isLeaf, childrenOf } from "./tree";
 import { inventoryOf, genStem, RENAME_CUT } from "./naming";
@@ -9,7 +9,8 @@ import { severePairs, pairThreshold, resolveCollision } from "./collision";
 import { heirCandidates, bumpMomentum, decayMomentum } from "./stakes";
 import { resolveContact, shouldOpenRoute, routeKey, CONTACT_YIELD, CONTACT_TRADE_LOSS, ROUTE_TURNS } from "./contact";
 import { walkFrameWeights, ORDER_INNOVATE_RATE } from "./syntax";
-import type { Anchor, Branch, GameState, HistoryEntry, Lexicon, PendingFocusChoice, RuleCategory, WordOrder, FrameWeights } from "./types";
+import { tickParadigm, licensesProDrop } from "./morphology";
+import type { Anchor, Branch, GameState, HistoryEntry, Lexicon, PendingFocusChoice, RuleCategory, WordOrder, FrameWeights, ParadigmCell, AffixState } from "./types";
 
 // One generation resolves: autonomous drift → collision resolution → rename check →
 // passive spread → contact event → lexical borrowing → assimilation death →
@@ -41,19 +42,32 @@ export function resolveGeneration(s: GameState): GameState {
     // reads this turn's weights, not last turn's — otherwise the PhrasePanel (which
     // reads the post-walk weights) would visibly disagree with the erosion it explains.
     branches[L.id] = { ...branches[L.id], frameWeights: walkFrameWeights(branches[L.id].frameWeights, seed, turn, L.id) };
-    if (s.touched[L.id]) return;
     const b = branches[L.id];
     const iso = isolationScore(L.id, L.territory, s.world.edges, owner);
-    const rule = driftRule(L.lex, seed, turn, L.id, iso, L.momentum); if (!rule) return;
+    // 1ENG.20 (1eng-15 spike §4): "Player-touched branches tick their paradigms too,
+    // with the player's chosen rule" — so the rule the paradigm tick consumes must be
+    // resolved BEFORE the touched guard below, unlike the lexicon drift itself (which
+    // stays skipped for touched branches). appliedRules carries the id game.svelte.ts's
+    // apply() recorded this turn; an untouched branch instead gets its own freshly
+    // drawn rule (the same one the lexicon receives just below).
+    const rule = s.touched[L.id]
+      ? (s.appliedRules[L.id] ? RULE_BY_ID[s.appliedRules[L.id]] : null)
+      : driftRule(L.lex, seed, turn, L.id, iso, L.momentum);
+    const { paradigm, events } = tickParadigm(b.paradigm, rule, L.lex, b.wordOrder, seed, turn, L.id,
+      { wordOrder: b.wordOrder, frameWeights: b.frameWeights, proDrop: b.proDrop });
+    branches[L.id] = { ...branches[L.id], paradigm, proDrop: licensesProDrop(paradigm),
+      history: events.length ? [...branches[L.id].history, ...events] : branches[L.id].history };
+    events.forEach((e) => log.push(`${L.name}: ${e.note}`));
+    if (s.touched[L.id] || !rule) return;
     const terrain = dominantTerrain(L.id, L.territory, s.world.edges, owner);
     // 2STK.3 §3: autonomous drift bumps momentum at half weight (decision §9.15) —
     // untouched branches slowly acquire a self-reinforcing category profile.
-    branches[L.id] = bumpMomentum({ ...b,
+    branches[L.id] = bumpMomentum({ ...branches[L.id],
       lex: applyRuleToLex(L.lex, rule, {
         salience: { terrain, seed, turn, branchId: L.id },
         syntax: { wordOrder: b.wordOrder, frameWeights: b.frameWeights, proDrop: b.proDrop, seed, turn, branchId: L.id },
       }).lex,
-      history: [...b.history, { name: rule.name, note: rule.note, drift: true }] }, rule.category, false);
+      history: [...branches[L.id].history, { name: rule.name, note: rule.note, drift: true }] }, rule.category, false);
     log.push(`${L.name} drifted (${rule.name.toLowerCase()})`);
   });
 
@@ -332,7 +346,14 @@ export function resolveGeneration(s: GameState): GameState {
         // 2LEX.2: collisionPressure inherited whole — the community carried the
         // ambiguity across the split (2lex-1 spike §3.2).
         // 2STK.3: a newborn sibling starts with no momentum — it hasn't drifted yet.
-        branches[id] = { id, name, parentId: parent.id, depth: parent.depth + 1, splitIndex: parent.history.length, history: [...parent.history], lex: startLex, territory: comp, pressure: 0, anchors: [{ lex: startLex, turn, historyIndex: parent.history.length, driftFromPrev: 0 }], assimilationPressure: 0, collisionPressure: { ...parent.collisionPressure }, momentum: {}, wordOrder: order, frameWeights: [...parent.frameWeights] as FrameWeights, proDrop: parent.proDrop };
+        // 1ENG.20: paradigm is DEEP-copied (AffixState.form is a string[], so a shallow
+        // { ...parent.paradigm } would share four arrays across siblings) — same
+        // treatment as startLex just above, not the shallow collisionPressure copy:
+        // the sibling's own future erosion must never mutate the parent's affix forms.
+        const paradigm = Object.fromEntries(
+          Object.entries(parent.paradigm).map(([cell, st]) => [cell, { ...st, form: [...st.form] }]),
+        ) as Record<ParadigmCell, AffixState>;
+        branches[id] = { id, name, parentId: parent.id, depth: parent.depth + 1, splitIndex: parent.history.length, history: [...parent.history], lex: startLex, territory: comp, pressure: 0, anchors: [{ lex: startLex, turn, historyIndex: parent.history.length, driftFromPrev: 0 }], assimilationPressure: 0, collisionPressure: { ...parent.collisionPressure }, momentum: {}, wordOrder: order, frameWeights: [...parent.frameWeights] as FrameWeights, proDrop: parent.proDrop, paradigm };
       });
       branches[L.id] = { ...parent, territory: main };
       // parent keeps its component; siblings own theirs — ownerMap reflects the
@@ -377,5 +398,5 @@ export function resolveGeneration(s: GameState): GameState {
   // checked against the turn the returned state will be at.
   const liveRoutes: Record<string, number> = {};
   Object.entries(routes).forEach(([k, until]) => { if (turn + 1 < until) liveRoutes[k] = until; });
-  return { ...s, branches, nextId, turn: turn + 1, pool: Math.max(0, basePool(branches, s.settings) + contactYield), routes: liveRoutes, touched: {}, selectedId, log, mourning, pendingFocusChoice: pendingFocusChoice ?? s.pendingFocusChoice };
+  return { ...s, branches, nextId, turn: turn + 1, pool: Math.max(0, basePool(branches, s.settings) + contactYield), routes: liveRoutes, touched: {}, appliedRules: {}, selectedId, log, mourning, pendingFocusChoice: pendingFocusChoice ?? s.pendingFocusChoice };
 }
