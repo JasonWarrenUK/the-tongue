@@ -42,6 +42,9 @@
     if (idx < 0 || frame.slots[idx].class !== "pronoun") return null; // F2: noun subject, no pathway
     const pronounIdx = frame.slots.slice(0, idx + 1).filter((s) => s.class === "pronoun").length - 1;
     const concept = conceptsOfClass("pronoun")[pronounIdx];
+    // Assumes every pronoun concept has a PATHWAY entry (true for the current i/you/we
+    // set) — a future pronoun added without one would silently fall back to bare/nonpast
+    // here rather than surfacing the gap.
     return CELL_OF_PRONOUN[concept ?? ""] ?? null;
   }
 
