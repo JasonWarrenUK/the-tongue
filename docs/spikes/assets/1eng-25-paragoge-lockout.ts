@@ -3,10 +3,10 @@
 // ONE vowel to every C-final word; apoc deletes the final vowel of every V-final word.
 // But `break` (99% eligible) converts final V -> diphthong, which BLOCKS paragoge
 // (needs C-final) and feeds `smooth`. Check the actual final-segment ecology.
-import { freshState } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/world";
-import { resolveGeneration } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/generation";
-import { leavesOf } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/tree";
-import { BY_ID, RULES, applyRuleToWord } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/phonology";
+import { freshState } from "../../../src/lib/engine/world";
+import { resolveGeneration } from "../../../src/lib/engine/generation";
+import { leavesOf } from "../../../src/lib/engine/tree";
+import { BY_ID, RULES, applyRuleToWord } from "../../../src/lib/engine/phonology";
 const isV = (id: string) => BY_ID[id]?.type === "V";
 
 // what does paragoge actually DO to a CV word? and what does the cycle look like?

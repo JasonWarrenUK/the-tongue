@@ -1,8 +1,8 @@
 // 1ENG.25 claim check: "a rule that inserts/deletes a segment must not desync a cached
 // syllabification". How often does a rule application actually change syllable COUNT
 // or boundaries? That sets the cost of caching vs recomputing.
-import { freshState } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/world";
-import { RULES, applyRuleToWord, BY_ID, formOf } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/phonology";
+import { freshState } from "../../../src/lib/engine/world";
+import { RULES, applyRuleToWord, BY_ID, formOf } from "../../../src/lib/engine/phonology";
 const isV = (id: string) => BY_ID[id]?.type === "V";
 const nuclei = (w: string[]) => w.filter(isV).length;
 

@@ -1,9 +1,9 @@
 // Fit the rate, and check STABILITY (is it an equilibrium or still climbing at t=80?).
-import { freshState } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/world";
-import { resolveGeneration } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/generation";
-import { leavesOf } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/tree";
-import { BY_ID, MAX_LEN } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/phonology";
-import { hashRand } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/rng";
+import { freshState } from "../../../src/lib/engine/world";
+import { resolveGeneration } from "../../../src/lib/engine/generation";
+import { leavesOf } from "../../../src/lib/engine/tree";
+import { BY_ID, MAX_LEN } from "../../../src/lib/engine/phonology";
+import { hashRand } from "../../../src/lib/engine/rng";
 const isV = (id: string) => BY_ID[id]?.type === "V";
 function suffixSyllable(w: string[], donor: string[]): string[] | null {
   if (w.length >= MAX_LEN - 1) return null;

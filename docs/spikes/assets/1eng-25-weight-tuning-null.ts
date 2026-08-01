@@ -1,10 +1,10 @@
 // Test correctives against the real engine by mutating RULES in place.
 // Target: mean syllables/word should STABILISE around 1.8-2.2 (genesis is 1.51,
 // real languages sit ~2-3), not converge to 1.05. Also want intervocalic CC > 0.
-import { freshState } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/world";
-import { resolveGeneration } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/generation";
-import { leavesOf } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/tree";
-import { RULES, BY_ID } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/phonology";
+import { freshState } from "../../../src/lib/engine/world";
+import { resolveGeneration } from "../../../src/lib/engine/generation";
+import { leavesOf } from "../../../src/lib/engine/tree";
+import { RULES, BY_ID } from "../../../src/lib/engine/phonology";
 const isV = (id: string) => BY_ID[id]?.type === "V";
 const R = (id: string) => RULES.find(r => r.id === id)!;
 const ORIG = Object.fromEntries(RULES.map(r => [r.id, r.w]));

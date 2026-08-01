@@ -6,11 +6,11 @@
 // /k/ and /x/ were always separate phonemes. Complementary distribution is the ONLY
 // thing that separates "allophone" from "phoneme", and it is computable from the
 // lexicon. Test whether it's computable CHEAPLY and RELIABLY.
-import { freshState } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/world";
-import { resolveGeneration } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/generation";
-import { leavesOf } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/tree";
-import { BY_ID } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/phonology";
-import type { Lexicon } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/types";
+import { freshState } from "../../../src/lib/engine/world";
+import { resolveGeneration } from "../../../src/lib/engine/generation";
+import { leavesOf } from "../../../src/lib/engine/tree";
+import { BY_ID } from "../../../src/lib/engine/phonology";
+import type { Lexicon } from "../../../src/lib/engine/types";
 
 // minimal-pair test: do X and Y ever contrast in the SAME environment?
 // If never, they are in complementary distribution => allophones of one phoneme.

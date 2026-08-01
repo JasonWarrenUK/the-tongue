@@ -2,11 +2,11 @@
 // eroded to monosyllables responded with compounding + tone. Our engine has 2LEX.2's
 // collision repair, which IS compounding. Is it firing at the floor, and does the
 // homophony load look like a language under real pressure?
-import { freshState } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/world";
-import { resolveGeneration } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/generation";
-import { leavesOf } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/tree";
-import { collisionPairs, homophoneForms, formOf, BY_ID } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/phonology";
-import { severePairs } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/collision";
+import { freshState } from "../../../src/lib/engine/world";
+import { resolveGeneration } from "../../../src/lib/engine/generation";
+import { leavesOf } from "../../../src/lib/engine/tree";
+import { collisionPairs, homophoneForms, formOf, BY_ID } from "../../../src/lib/engine/phonology";
+import { severePairs } from "../../../src/lib/engine/collision";
 const isV = (id: string) => BY_ID[id]?.type === "V";
 
 console.log("homophony + repair activity as the corpus hits the floor:");

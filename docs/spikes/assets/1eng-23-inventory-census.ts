@@ -1,9 +1,9 @@
 // 1ENG.23 evidence: does a branch's LIVE inventory actually diverge from World.inv?
 // If it barely moves, the whole spike is theatre. Measure it.
-import { freshState } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/world";
-import { resolveGeneration } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/generation";
-import { inventoryOf } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/naming";
-import { leavesOf } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/tree";
+import { freshState } from "../../../src/lib/engine/world";
+import { resolveGeneration } from "../../../src/lib/engine/generation";
+import { inventoryOf } from "../../../src/lib/engine/naming";
+import { leavesOf } from "../../../src/lib/engine/tree";
 
 const TURNS = 120, SEEDS = 40;
 let lostTot = 0, gainedTot = 0, branchTurns = 0;

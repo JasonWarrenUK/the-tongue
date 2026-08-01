@@ -1,7 +1,9 @@
 // Verify the thesis: is the phrase substrate used ONLY for erosion, never renewal?
 // Audit every consumer of syntax.ts's phrase model.
 import { readFileSync, readdirSync } from "fs";
-const dir = "/Users/jasonwarren/Code/creations/the-tongue/src/lib";
+import { fileURLToPath } from "url";
+// resolved from this file's own location, not the cwd, so the audit runs from any checkout
+const dir = fileURLToPath(new URL("../../../src/lib", import.meta.url));
 const files: string[] = [];
 const walk = (d: string) => readdirSync(d, { withFileTypes: true }).forEach(f => {
   if (f.isDirectory()) walk(`${d}/${f.name}`);

@@ -1,9 +1,9 @@
 // WHY does renewal lose? Audit the actual per-turn flow of segments.
 // Track, over a real run: how often each rule fires, and its net segment delta.
-import { freshState } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/world";
-import { resolveGeneration } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/generation";
-import { leavesOf } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/tree";
-import { RULES, applyRuleToLex, BY_ID } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/phonology";
+import { freshState } from "../../../src/lib/engine/world";
+import { resolveGeneration } from "../../../src/lib/engine/generation";
+import { leavesOf } from "../../../src/lib/engine/tree";
+import { RULES, applyRuleToLex, BY_ID } from "../../../src/lib/engine/phonology";
 const isV = (id: string) => BY_ID[id]?.type === "V";
 const segs = (lex: any) => lex.reduce((a: number, e: any) => a + e.word.length, 0);
 const nuc  = (lex: any) => lex.reduce((a: number, e: any) => a + e.word.filter(isV).length, 0);

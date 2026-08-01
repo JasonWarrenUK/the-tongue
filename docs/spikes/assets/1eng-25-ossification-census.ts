@@ -1,10 +1,10 @@
 // Cluster extinction is overdetermined. Find the BINDING constraint by measuring
 // word LENGTH over time — hypothesis: words erode to CV/CVCV, and a word that short
 // simply has no room for an intervocalic cluster regardless of which rules fire.
-import { freshState } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/world";
-import { resolveGeneration } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/generation";
-import { leavesOf } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/tree";
-import { BY_ID, formOf } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/phonology";
+import { freshState } from "../../../src/lib/engine/world";
+import { resolveGeneration } from "../../../src/lib/engine/generation";
+import { leavesOf } from "../../../src/lib/engine/tree";
+import { BY_ID, formOf } from "../../../src/lib/engine/phonology";
 const isV = (id: string) => BY_ID[id]?.type === "V";
 
 console.log("word length + syllable count over time (30 seeds):");

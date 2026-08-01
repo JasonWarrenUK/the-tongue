@@ -2,11 +2,11 @@
 //   A) sonority-based onset maximisation (universal, template-blind)
 //   B) template-driven parse (uses the branch's World.tmpl: onset req/opt, coda none/opt, clusters)
 // If they agree ~always, the fork is fake and we take the cheaper one.
-import { freshState } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/world";
-import { resolveGeneration } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/generation";
-import { leavesOf } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/tree";
-import { BY_ID, formOf } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/phonology";
-import type { Template } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/types";
+import { freshState } from "../../../src/lib/engine/world";
+import { resolveGeneration } from "../../../src/lib/engine/generation";
+import { leavesOf } from "../../../src/lib/engine/tree";
+import { BY_ID, formOf } from "../../../src/lib/engine/phonology";
+import type { Template } from "../../../src/lib/engine/types";
 
 const isV = (id: string) => BY_ID[id]?.type === "V";
 // sonority scale (low=obstruent .. high=vowel), the standard hierarchy

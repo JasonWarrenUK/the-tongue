@@ -3,10 +3,10 @@
 //   merger — phoneme X's words now use Y, where Y already existed (contrast destroyed)
 //   split  — one genesis phoneme's words now use 2+ distinct live phonemes
 // Measured by tracking, per branch, where each genesis phoneme's TOKENS ended up.
-import { freshState } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/world";
-import { resolveGeneration } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/generation";
-import { leavesOf } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/tree";
-import { RULES } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/phonology";
+import { freshState } from "../../../src/lib/engine/world";
+import { resolveGeneration } from "../../../src/lib/engine/generation";
+import { leavesOf } from "../../../src/lib/engine/tree";
+import { RULES } from "../../../src/lib/engine/phonology";
 
 // which rules are structurally capable of a MERGER (map a phone onto an existing one)?
 // vs a SPLIT (one input -> context-dependent different outputs)?
