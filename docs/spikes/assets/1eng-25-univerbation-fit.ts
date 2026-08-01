@@ -2,18 +2,21 @@
 // fused partner), not one-per-branch-turn. This matches how real collocations fuse:
 // many independently, each permanent. Fusion targets the words most under pressure
 // (shortest / most homophonous), which is also the attested trigger.
-import { freshState } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/world";
-import { resolveGeneration } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/generation";
-import { leavesOf } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/tree";
-import { BY_ID, MAX_LEN, collisionPairs, homophoneForms, formOf } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/phonology";
-import { FRAMES, frameOrder } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/syntax";
-import { CONCEPT_CLASS, conceptsOfClass } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/lexicon";
-import { hashRand } from "/Users/jasonwarren/Code/creations/the-tongue/src/lib/engine/rng";
+import { freshState } from "../../../src/lib/engine/world";
+import { resolveGeneration } from "../../../src/lib/engine/generation";
+import { leavesOf } from "../../../src/lib/engine/tree";
+import { BY_ID, MAX_LEN, collisionPairs, homophoneForms, formOf } from "../../../src/lib/engine/phonology";
+import { FRAMES, frameOrder } from "../../../src/lib/engine/syntax";
+import { CONCEPT_CLASS, conceptsOfClass, type ConceptClass } from "../../../src/lib/engine/lexicon";
+import { hashRand } from "../../../src/lib/engine/rng";
+import type { WordOrder, FrameWeights } from "../../../src/lib/engine/types";
 const isV = (id: string) => BY_ID[id]?.type === "V";
 
-// which classes may PRECEDE cls in this branch's grammar (the modifier position)
-function precedersOf(cls: string, order: any, weights: number[]): { c: string; w: number }[] {
-  const out: { c: string; w: number }[] = [];
+// which classes may PRECEDE cls in this branch's grammar (the modifier position).
+// Signature matches the §6 contract for src/lib/engine/univerbation.ts, so 1ENG.27
+// inherits the real types rather than this prototype's shape.
+function precedersOf(cls: ConceptClass, order: WordOrder, weights: FrameWeights): { c: ConceptClass; w: number }[] {
+  const out: { c: ConceptClass; w: number }[] = [];
   FRAMES.forEach((f, i) => {
     const slots = frameOrder(f, order, false);
     for (let j = 0; j < slots.length - 1; j++)
@@ -36,15 +39,15 @@ function run(rate: number, turns: number, seeds = 25) {
             // trigger: word is short AND (homophonous or just short) — pressure-driven
             const pressured = e.word.length <= 2 || homoForms.has(formOf(e.word));
             if (!pressured) return e;
-            if (hashRand(st.world.seed + 107, t * 319 + 17, br.id * 433 + i) >= rate) return e;
+            if (hashRand(st.world.seed + 43, t * 319 + 17, br.id * 433 + i) >= rate) return e;
             const pre = precedersOf(CONCEPT_CLASS[e.concept], br.wordOrder, br.frameWeights);
             if (!pre.length) return e;
             const totW = pre.reduce((x, c) => x + c.w, 0);
-            let roll = hashRand(st.world.seed + 107, t * 319 + 17, br.id * 433 + i + 1000) * totW;
+            let roll = hashRand(st.world.seed + 43, t * 319 + 17, br.id * 433 + i + 1000) * totW;
             let picked = pre[0];
             for (const c of pre) { roll -= c.w; if (roll <= 0) { picked = c; break; } }
-            const list = conceptsOfClass(picked.c as any);
-            const mi = Math.floor(hashRand(st.world.seed + 107, t * 319 + 17, br.id * 433 + i + 2000) * list.length);
+            const list = conceptsOfClass(picked.c);
+            const mi = Math.floor(hashRand(st.world.seed + 43, t * 319 + 17, br.id * 433 + i + 2000) * list.length);
             const M = br.lex.find((x: any) => x.concept === list[mi]);
             if (!M || M.concept === e.concept) return e;
             if (e.word.length + M.word.length > MAX_LEN) return e;

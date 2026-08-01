@@ -116,7 +116,10 @@ Recorded so they are not re-attempted. Each was measured, not reasoned about.
 | **Syncope** (add a cluster-creating rule, `V → ∅ / VC_CV`) at up to 30%/word/turn | 3 clusters at 15%, 1 at 30% — non-monotonic, i.e. noise. No effect | [`1eng-25-rate-fit.ts`](./assets/1eng-25-rate-fit.ts) |
 | **Disable `epenth`** entirely (suspected cluster sink) | **1** cluster instead of 0. `epenth` is *not* the cause | [`1eng-25-weight-tuning-null.ts`](./assets/1eng-25-weight-tuning-null.ts) |
 | **Weight tuning**, incl. halving every final-erosion rule and tripling `paragoge` | Best case **1.35** syll/word — still below genesis (1.51), far short of target | [`1eng-25-weight-tuning-null.ts`](./assets/1eng-25-weight-tuning-null.ts) |
-| **Reduplication** (CV → CVCV) at 8% | Fixes length (3.92 syll/word) but produces **0** clusters — a copied CV syllable never creates CC | [`1eng-25-univerbation-fit.ts`](./assets/1eng-25-univerbation-fit.ts) |
+| **Reduplication** (CV → CVCV) at 8% | Fixes length (3.92 syll/word) but produces **0** clusters — a copied CV syllable never creates CC | not reproducible (see note) |
+
+> [!NOTE]
+> The reduplication row is the one figure in this spike without a shipped script behind it: the arm that produced it lived in an early draft of [`1eng-25-univerbation-fit.ts`](./assets/1eng-25-univerbation-fit.ts) and was overwritten when that script was rewritten around the per-concept trigger. The reasoning stands on its own (a copied CV syllable is CVCV, which contains no CC by construction, so the cluster count *must* be 0) and nothing downstream depends on the 3.92 figure. Flagged rather than quietly dropped, and rather than left citing a file that no longer demonstrates it. Anyone re-opening reduplication should re-measure.
 
 The `epenth` result is worth dwelling on, because it corrected a plausible-looking diagnosis. One `epenth` application does wipe every cluster in a lexicon at once (12→0, 7→0, 5→0 on sampled seeds) — a genuinely dramatic effect. But removing it changes the outcome from 0 clusters to 1. **Cluster extinction is overdetermined**: several independent erosive rules each suffice, so any single-rule intervention is swamped. Weight tuning fails for the same reason, which is why §2.3 looks at rule *shape* instead.
 
@@ -202,26 +205,29 @@ Needs one new `hashRand` salt family. **Registry** (first coordinate must stay d
 
 <a name="results"><h3>4.2. Measured results</h3></a>
 
-[`1eng-25-univerbation-fit.ts`](./assets/1eng-25-univerbation-fit.ts), 25 seeds × 80 turns:
+[`1eng-25-univerbation-fit.ts`](./assets/1eng-25-univerbation-fit.ts), 25 seeds × 80 turns, drawing on the contract salt `seed+43` (§4.1):
 
 | Rate | syll/word | Collision pairs | Homophone forms | Intervocalic CC |
 |------|-----------|-----------------|-----------------|-----------------|
 | 0 (baseline) | 1.09 | 54.1 | 10.8 | 1 |
-| 0.01 | 1.16 | 39.4 | 9.5 | 4 |
-| 0.02 | 1.30 | 33.4 | 7.8 | 9 |
-| 0.04 | 1.57 | 22.8 | 6.3 | 15 |
-| **0.08** | **1.89** | **11.0** | **4.1** | **25** |
+| 0.01 | 1.20 | 41.2 | 9.2 | 5 |
+| 0.02 | 1.35 | 29.9 | 7.9 | 6 |
+| 0.04 | 1.60 | 20.7 | 6.6 | 16 |
+| **0.08** | **2.02** | **9.5** | **4.0** | **19** |
 
-Every axis moves in the right direction at once: word length restored to the real-language band, **homophonic collapse reversed** (54 → 11 collision pairs), and clusters exist for syllabification to parse.
+Every axis moves in the right direction at once: word length restored to the real-language band, **homophonic collapse reversed** (54 → 10 collision pairs), and clusters exist for syllabification to parse.
 
 Equilibrium check at `UNIVERB_RATE = 0.06`, 20 seeds:
 
 | Turn | 20 | 40 | 80 | 150 | 300 |
 |------|----|----|----|-----|-----|
-| syll/word | 1.59 | 1.70 | 1.82 | 1.69 | **2.00** |
-| collision pairs | 5.6 | 8.0 | 13.0 | 22.2 | 19.2 |
+| syll/word | 1.61 | 1.68 | 1.77 | 1.74 | **1.97** |
+| collision pairs | 5.2 | 9.6 | 16.0 | 19.2 | 24.7 |
 
-A genuine equilibrium, not a runaway: syllables/word oscillates in 1.59–2.00 across 300 turns and collisions stabilise around 20 instead of climbing past 61. Erosion and renewal are in tension, which is what [1ENG.11](./1eng-11-erosion-renewal.md) was reaching for.
+A genuine equilibrium, not a runaway: syllables/word oscillates in 1.61–1.97 across 300 turns and collisions stabilise in the low twenties instead of climbing past 61. Erosion and renewal are in tension, which is what [1ENG.11](./1eng-11-erosion-renewal.md) was reaching for.
+
+> [!NOTE]
+> These figures were first fitted under a prototype salt (`seed + 107`) and re-run under `seed+43` once §4.1 fixed the registry entry, so the script and the shipped mechanic agree. Every direction and magnitude survived the change; the individual numbers moved by up to ~0.13 syll/word, which is the sampling noise floor to expect from any single-salt fit at 20–25 seeds. Treat the *bands* as the result, not the decimals.
 
 **Proposed `UNIVERB_RATE = 0.06`** — first-pass tuning, same ledger treatment as `SYNTAX_STRENGTH`/`BIAS_STRENGTH`. [2SIM.1](../roadmaps/mvp.md) should re-fit it with every mechanic active.
 
@@ -354,7 +360,7 @@ No call site in `generation.ts`. Slice 2 ships as a **pure library with no consu
 - `precedersOf` — golden per order combination: `AdjN` yields adjective before noun, `NAdj` does not; `SOV`/`SVO`/`VSO` yield the right clause-frame adjacencies.
 - `resolveUniverbation` — deterministic under fixed `(seed, turn, branchId)`; fires only on pressured concepts; never exceeds `MAX_LEN`; keeps both stems whole (the anti-regression pin against `clip`).
 - New salt `seed+43` collides with no registered family (registry regression, per the existing convention in `syntax.ts`).
-- Integration — a seeded 80-turn run ends with mean syllables/word > 1.4 and fewer collision pairs than the same run with `UNIVERB_RATE = 0` (pins §4.2's headline result).
+- Integration — a seeded 80-turn run ends with mean syllables/word > 1.4 and fewer collision pairs than the same run with `UNIVERB_RATE = 0` (pins §4.2's headline result). The bound is deliberately slack: §4.2 measures 1.77 at turn 80, and the salt re-run showed single-salt figures moving by ~0.13, so a tighter pin would be asserting noise. The *direction* (more syllables and fewer collisions than the rate-0 control) is the real invariant.
 
 *Slice 2:*
 - `syllabify` hand-goldens: `CV` → 1 syllable; `CVCV` → `CV·CV`; `CVCCV` → onset-maximised per sonority (`ta.pra` not `tap.ra` for a rising cluster; `al.ka` for a falling one); vowel-initial word → empty onset; final cluster → all coda.
