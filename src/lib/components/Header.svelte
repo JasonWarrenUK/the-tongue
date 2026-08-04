@@ -1,10 +1,15 @@
 <script lang="ts">
   import { BY_ID } from "$lib/engine/phonology";
-  import type { World } from "$lib/engine/types";
-  let { seed = $bindable(), leafCount, world, onload, onnew }:
-    { seed: number; leafCount: number; world: World; onload: () => void; onnew: () => void } = $props();
-  // world.inv stores phone ids (internal keys) — render each through its grapheme (g)
-  // so long vowels show as ā/ē/ī/ō/ū rather than the raw "id + ː" internal form.
+  import type { World, Inventory } from "$lib/engine/types";
+  // 1ENG.26 (1eng-23 spike §5): `inv` is the SELECTED BRANCH's current inventory
+  // (game.liveInventory, derived from its live lexicon), not world.inv — that stays the
+  // frozen genesis record. Rendering world.inv here regardless of drift was the bug the
+  // spike measured: by turn 120, 100% of branches have drifted, averaging six phonemes
+  // lost and three gained, so the genesis inventory describes a language nobody speaks.
+  let { seed = $bindable(), leafCount, world, inv, selName, onload, onnew }:
+    { seed: number; leafCount: number; world: World; inv: Inventory; selName: string; onload: () => void; onnew: () => void } = $props();
+  // phone ids are internal keys — render each through its grapheme (g) so long vowels
+  // show as ā/ē/ī/ō/ū rather than the raw "id + ː" internal form.
   const graph = (id: string) => BY_ID[id]?.g ?? id;
 </script>
 
@@ -20,7 +25,7 @@
   </div>
   <div class="flex flex-wrap gap-x-6 gap-y-1 mt-3 text-xs text-muted">
     <span>syllable <span class="font-mono text-fg">{world.tmpl.label}</span></span>
-    <span>vowels <span class="font-mono text-fg">{world.inv.vowels.map(graph).join(" ")}</span></span>
-    <span>consonants <span class="font-mono text-fg">{world.inv.consonants.map(graph).join(" ")}</span></span>
+    <span>{selName}'s vowels <span class="font-mono text-fg">{inv.vowels.map(graph).join(" ")}</span></span>
+    <span>{selName}'s consonants <span class="font-mono text-fg">{inv.consonants.map(graph).join(" ")}</span></span>
   </div>
 </div>

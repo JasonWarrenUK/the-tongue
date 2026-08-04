@@ -1,6 +1,6 @@
 import { freshState } from "./engine/world";
 import { resolveGeneration } from "./engine/generation";
-import { RULES, RULE_BY_ID, applyRuleToLex, collisionPairs, homophoneForms, formOf } from "./engine/phonology";
+import { RULES, RULE_BY_ID, applyRuleToLex, collisionPairs, homophoneForms, formOf, inventoryOf } from "./engine/phonology";
 import { leavesOf, isLeaf } from "./engine/tree";
 import { ownerMap, freeAdjacentFor, passableComponents, basePool, overheadFor, dominantAssimilator, dominantTerrain, ASSIM_TURNS } from "./engine/geography";
 import { eraContexts, eraStages } from "./engine/naming";
@@ -42,6 +42,9 @@ class Game {
   sel = $derived(this.st.branches[this.st.selectedId]);
   leaves = $derived(leavesOf(this.st.branches));
   baseColl = $derived(collisionPairs(this.sel.lex));
+  // 1ENG.26 (1eng-23 spike §6): the selected branch's CURRENT inventory, derived from
+  // its live lexicon — not world.inv, which is the frozen genesis record. Feeds Header.
+  liveInventory = $derived(inventoryOf(this.sel.lex));
   // 1ENG.19 (spike §4.1, amended): previewLex/collDelta/apply stay exact and UNGATED
   // (see the Candidate.syntax comment in types.ts for why) — `after` here is the same
   // ungated result apply() will actually produce. `syntax` is the mean syntaxMult over

@@ -1,8 +1,8 @@
 import { hashRand } from "./rng";
-import { driftRule, applyRuleToLex, formOf, RULE_BY_ID } from "./phonology";
+import { driftRule, applyRuleToLex, formOf, RULE_BY_ID, inventoryOf, phonemicDiff, describeEvent } from "./phonology";
 import { ownerMap, freeAdjacentFor, passableComponents, basePool, isolationScore, dominantTerrain, dominantAssimilator, neighborsOf, pairContact, ASSIM_TURNS } from "./geography";
 import { leavesOf, isLeaf, childrenOf } from "./tree";
-import { inventoryOf, genStem, RENAME_CUT } from "./naming";
+import { genStem, RENAME_CUT } from "./naming";
 import { intelligibility } from "./intelligibility";
 import { resolveBorrow } from "./borrowing";
 import { severePairs, pairThreshold, resolveCollision } from "./collision";
@@ -60,14 +60,20 @@ export function resolveGeneration(s: GameState): GameState {
     events.forEach((e) => log.push(`${L.name}: ${e.note}`));
     if (s.touched[L.id] || !rule) return;
     const terrain = dominantTerrain(L.id, L.territory, s.world.edges, owner);
+    const nextLex = applyRuleToLex(L.lex, rule, {
+      salience: { terrain, seed, turn, branchId: L.id },
+      syntax: { wordOrder: b.wordOrder, frameWeights: b.frameWeights, proDrop: b.proDrop, seed, turn, branchId: L.id },
+    }).lex;
+    // 1ENG.26 (1eng-23 spike §4.3) — name what the rule just did phonemically. Reporting
+    // only: no state change, no RNG. No `drift` flag on these entries (2GEO.4/2LEX.1
+    // ruling) — the rule's own drift entry below already carries that, and flagging both
+    // would double-count one change in every history filter.
+    const phonemicEntries = phonemicDiff(L.lex, nextLex).map((e) => ({ name: e.kind[0].toUpperCase() + e.kind.slice(1), note: describeEvent(e) }));
     // 2STK.3 §3: autonomous drift bumps momentum at half weight (decision §9.15) —
     // untouched branches slowly acquire a self-reinforcing category profile.
     branches[L.id] = bumpMomentum({ ...branches[L.id],
-      lex: applyRuleToLex(L.lex, rule, {
-        salience: { terrain, seed, turn, branchId: L.id },
-        syntax: { wordOrder: b.wordOrder, frameWeights: b.frameWeights, proDrop: b.proDrop, seed, turn, branchId: L.id },
-      }).lex,
-      history: [...branches[L.id].history, { name: rule.name, note: rule.note, drift: true }] }, rule.category, false);
+      lex: nextLex,
+      history: [...branches[L.id].history, { name: rule.name, note: rule.note, drift: true }, ...phonemicEntries] }, rule.category, false);
     log.push(`${L.name} drifted (${rule.name.toLowerCase()})`);
   });
 
@@ -282,10 +288,10 @@ export function resolveGeneration(s: GameState): GameState {
   const divergeAtBirth = (
     lex: Lexicon, childId: number, territory: number[], owner: Record<number, number>, momentum: Branch["momentum"],
     syntax: { wordOrder: WordOrder; frameWeights: FrameWeights; proDrop: boolean },
-  ): { lex: Lexicon; entry: HistoryEntry | null; category: RuleCategory | null } => {
+  ): { lex: Lexicon; entries: HistoryEntry[]; category: RuleCategory | null } => {
     const iso = isolationScore(childId, territory, s.world.edges, owner);
     const rule = driftRule(lex, seed, turn, childId, iso, momentum);
-    if (!rule) return { lex, entry: null, category: null };
+    if (!rule) return { lex, entries: [], category: null };
     const terrain = dominantTerrain(childId, territory, s.world.edges, owner);
     // the child diverges under its OWN (possibly just-reanalysed) order — that's the
     // whole point of rolling reanalysis before this call, not after.
@@ -293,7 +299,11 @@ export function resolveGeneration(s: GameState): GameState {
       salience: { terrain, seed, turn, branchId: childId },
       syntax: { ...syntax, seed, turn, branchId: childId },
     }).lex;
-    return { lex: next, entry: { name: rule.name, note: `at fracture: ${rule.note}`, drift: true }, category: rule.category };
+    // 1ENG.26 (1eng-23 spike §6) — the same phonemic-event reporting as step 1's drift,
+    // recorded here too since this is the other site a lexicon-rewriting rule fires
+    // outside the player's own apply(). No `drift` flag, same reasoning as step 1.
+    const phonemicEntries = phonemicDiff(lex, next).map((e) => ({ name: e.kind[0].toUpperCase() + e.kind.slice(1), note: describeEvent(e) }));
+    return { lex: next, entries: [{ name: rule.name, note: `at fracture: ${rule.note}`, drift: true }, ...phonemicEntries], category: rule.category };
   };
 
   // 1ENG.19 (1eng-14 spike §5) — fracture-birth reanalysis, stage A's one order
@@ -362,9 +372,9 @@ export function resolveGeneration(s: GameState): GameState {
       const owner2 = ownerMap(branches);
       born.forEach((id) => {
         const child = branches[id];
-        const { lex, entry, category } = divergeAtBirth(child.lex, id, child.territory, owner2, child.momentum,
+        const { lex, entries, category } = divergeAtBirth(child.lex, id, child.territory, owner2, child.momentum,
           { wordOrder: child.wordOrder, frameWeights: child.frameWeights, proDrop: child.proDrop });
-        const updated = { ...child, lex, history: entry ? [...child.history, entry] : child.history };
+        const updated = { ...child, lex, history: entries.length ? [...child.history, ...entries] : child.history };
         // 2STK.3: this half-weight bump (+MOMENTUM_GAIN/2) takes one repool decay tick
         // (-MOMENTUM_DECAY, below) before the turn returns, same as every other
         // branch's momentum this generation — so the sibling's very first accrual

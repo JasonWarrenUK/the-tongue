@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { driftRule, biasedMult, firingRules, applyRuleToLex, applyRuleToWord, RULE_BY_ID, RULES, MAX_LEN, stepToward, BY_ID } from "./phonology";
+import { driftRule, biasedMult, firingRules, applyRuleToLex, applyRuleToWord, RULE_BY_ID, RULES, MAX_LEN, stepToward, BY_ID, inventoryOf, phonemicDiff, describeEvent } from "./phonology";
 import { hashRand } from "./rng";
 import { formSimilarity } from "./intelligibility";
 import type { Lexicon, WordOrder } from "./types";
@@ -573,5 +573,152 @@ describe("stepToward", () => {
     const a = Array.from({ length: MAX_LEN }, () => "t");
     const b = [...a, "a"];
     expect(stepToward(a, b).length).toBeLessThanOrEqual(MAX_LEN);
+  });
+});
+
+// 1ENG.26: inventoryOf's describe block, moved verbatim from naming.test.ts (1eng-23
+// spike §4.1) — regression pin on the move, same assertions, same MIXED_LEX shape.
+describe("inventoryOf", () => {
+  test("collects distinct vowel/consonant phone ids from a lexicon", () => {
+    const inv = inventoryOf(MIXED_LEX);
+    // MIXED_LEX ids: t,a,p,e,k,o,m,s,i,n
+    ["t", "p", "k", "m", "s", "n"].forEach((id) => expect(inv.consonants).toContain(id));
+    ["a", "e", "o", "i"].forEach((id) => expect(inv.vowels).toContain(id));
+  });
+
+  test("falls back to a minimal CV pair for an empty lexicon rather than starving genStem", () => {
+    const inv = inventoryOf([]);
+    expect(inv.vowels.length).toBeGreaterThan(0);
+    expect(inv.consonants.length).toBeGreaterThan(0);
+  });
+});
+
+// 1ENG.26 (1eng-23 spike §4.2/§6) — phonemicDiff/describeEvent. Fixtures use real phone
+// ids from PHONES; exact event lists are asserted, not counts, per the spike's own
+// testing note.
+describe("phonemicDiff", () => {
+  test("unconditioned merger: two sources both land on the SAME destination everywhere", () => {
+    const before: Lexicon = [{ concept: "a", word: ["a", "p", "a"] }, { concept: "b", word: ["a", "b", "a"] }];
+    const after: Lexicon = [{ concept: "a", word: ["a", "b", "a"] }, { concept: "b", word: ["a", "b", "a"] }];
+    // /p/ vanishes everywhere it appeared, so the merger is unconditioned: partial:false,
+    // and a paired loss of /p/ — that pairing IS the unconditioned signal (no dedup).
+    expect(phonemicDiff(before, after)).toEqual([
+      { kind: "merger", from: ["p", "b"], to: "b", partial: false },
+      { kind: "loss", phone: "p" },
+    ]);
+  });
+
+  test("conditioned (partial) merger: the source survives in an environment the rule didn't reach", () => {
+    const before: Lexicon = [
+      { concept: "a", word: ["a", "p", "a"] }, // intervocalic — will voice
+      { concept: "b", word: ["p", "a"] },      // word-initial — untouched, /p/ survives
+      { concept: "c", word: ["a", "b", "a"] },
+    ];
+    const after: Lexicon = [
+      { concept: "a", word: ["a", "b", "a"] },
+      { concept: "b", word: ["p", "a"] },
+      { concept: "c", word: ["a", "b", "a"] },
+    ];
+    // /p/ survives (concept b), so this is a PARTIAL merger, and correspondingly the
+    // same rule application is ALSO a split of /p/ into {p,b} — both true, both kept.
+    expect(phonemicDiff(before, after)).toEqual([
+      { kind: "merger", from: ["p", "b"], to: "b", partial: true },
+      { kind: "split", from: "p", to: ["p", "b"] },
+    ]);
+  });
+
+  test("conditioned split into a brand-new phoneme (real palat shape: /k/ -> /ʃ/ before front V, /k/ elsewhere)", () => {
+    const before: Lexicon = [{ concept: "a", word: ["k", "i", "t"] }, { concept: "b", word: ["k", "a", "t"] }];
+    const after: Lexicon = [{ concept: "a", word: ["ʃ", "i", "t"] }, { concept: "b", word: ["k", "a", "t"] }];
+    expect(phonemicDiff(before, after)).toEqual([
+      { kind: "split", from: "k", to: ["k", "ʃ"] },
+      { kind: "gain", phone: "ʃ" },
+    ]);
+  });
+
+  test("a merger of 3 sources onto 1 destination is ONE event, not 3 pairwise near-duplicates", () => {
+    const before: Lexicon = [
+      { concept: "a", word: ["a", "p", "a"] }, { concept: "b", word: ["a", "b", "a"] }, { concept: "c", word: ["a", "f", "a"] },
+    ];
+    const after: Lexicon = [
+      { concept: "a", word: ["a", "v", "a"] }, { concept: "b", word: ["a", "v", "a"] }, { concept: "c", word: ["a", "v", "a"] },
+    ];
+    const events = phonemicDiff(before, after);
+    expect(events.filter((e) => e.kind === "merger")).toEqual([
+      { kind: "merger", from: ["p", "b", "f"], to: "v", partial: false },
+    ]);
+    expect(events.filter((e) => e.kind === "loss").map((e) => (e as { phone: string }).phone).sort()).toEqual(["b", "f", "p"]);
+  });
+
+  test("identical lexicons yield no events (self-mapping phones are silent)", () => {
+    expect(phonemicDiff(MIXED_LEX, MIXED_LEX)).toEqual([]);
+  });
+
+  test("length-mismatched words are skipped, not mis-aligned into a spurious merger", () => {
+    // naive left-shift alignment after the deletion would read p->a, a->t, t->a — none
+    // of which happened. The word must be skipped outright, leaving only the true loss.
+    const before: Lexicon = [{ concept: "a", word: ["p", "a", "t", "a"] }, { concept: "b", word: ["t", "a"] }];
+    const after: Lexicon = [{ concept: "a", word: ["a", "t", "a"] }, { concept: "b", word: ["t", "a"] }];
+    expect(phonemicDiff(before, after)).toEqual([{ kind: "loss", phone: "p" }]);
+  });
+
+  test("empty and one-sided-empty lexicons do not invent phantom loss/gain from inventoryOf's minimal-CV backstop", () => {
+    expect(phonemicDiff([], [])).toEqual([]);
+    // before=[] must not report "gain" of a phantom /a/,/t/ backstop pair.
+    expect(phonemicDiff([], [{ concept: "a", word: ["t", "a"] }])).toEqual([
+      { kind: "gain", phone: "t" },
+      { kind: "gain", phone: "a" },
+    ]);
+    expect(phonemicDiff([{ concept: "a", word: ["k", "i"] }], [])).toEqual([
+      { kind: "loss", phone: "k" },
+      { kind: "loss", phone: "i" },
+    ]);
+  });
+
+  test("deterministic: identical inputs yield toEqual-identical output", () => {
+    const before: Lexicon = [{ concept: "a", word: ["a", "p", "a"] }, { concept: "b", word: ["a", "b", "a"] }];
+    const after: Lexicon = [{ concept: "a", word: ["a", "b", "a"] }, { concept: "b", word: ["a", "b", "a"] }];
+    expect(phonemicDiff(before, after)).toEqual(phonemicDiff(before, after));
+  });
+
+  test("order-independent: same phonemic content in a different concept/entry order yields the SAME event order", () => {
+    const before: Lexicon = [{ concept: "a", word: ["a", "p", "a"] }, { concept: "b", word: ["a", "b", "a"] }];
+    const after: Lexicon = [{ concept: "a", word: ["a", "b", "a"] }, { concept: "b", word: ["a", "b", "a"] }];
+    const reversedBefore = [...before].reverse();
+    const reversedAfter = [...after].reverse();
+    expect(phonemicDiff(reversedBefore, reversedAfter)).toEqual(phonemicDiff(before, after));
+  });
+});
+
+describe("describeEvent", () => {
+  test("merger prose, 2 sources, unconditioned", () => {
+    expect(describeEvent({ kind: "merger", from: ["p", "b"], to: "b", partial: false }))
+      .toBe("/p/ and /b/ fell together in /b/");
+  });
+
+  test("merger prose, 2 sources, conditioned/partial", () => {
+    expect(describeEvent({ kind: "merger", from: ["p", "b"], to: "b", partial: true }))
+      .toBe("/p/ and /b/ fell together in /b/ in some words");
+  });
+
+  test("merger prose, 3+ sources (no Oxford comma)", () => {
+    expect(describeEvent({ kind: "merger", from: ["p", "b", "f"], to: "v", partial: false }))
+      .toBe("/p/, /b/ and /f/ fell together in /v/");
+  });
+
+  test("split prose", () => {
+    expect(describeEvent({ kind: "split", from: "k", to: ["k", "ʃ"] })).toBe("/k/ split into /k/ and /ʃ/");
+  });
+
+  test("loss prose", () => {
+    expect(describeEvent({ kind: "loss", phone: "p" })).toBe("/p/ has been lost");
+  });
+
+  test("gain prose", () => {
+    expect(describeEvent({ kind: "gain", phone: "ʃ" })).toBe("/ʃ/ has entered the language");
+  });
+
+  test("renders the display GRAPHEME, not the internal id, for phones where they diverge", () => {
+    expect(describeEvent({ kind: "loss", phone: "iː" })).toBe("/ī/ has been lost");
   });
 });

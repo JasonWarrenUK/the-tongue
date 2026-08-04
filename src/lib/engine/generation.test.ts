@@ -1126,3 +1126,47 @@ describe("2LEX.2 collision resolution", () => {
     expect(moon.word).not.toEqual(["z", "u"]);
   });
 });
+
+describe("1ENG.26 phonemic-event history (step 1 drift)", () => {
+  // untouched, single-branch, no fracture geometry (all edges passable) — isolates step
+  // 1's drift loop from collision/borrowing/fracture so any merger entry in history is
+  // unambiguously step 1's, not a repair or a birth-divergence side effect.
+  function driftState(seed: number): GameState {
+    const { adj, edges } = lineAdjacency();
+    edges.forEach((e) => (e.passable = true)); // no fracture: keep the branch a single leaf
+    const branch: Branch = {
+      id: 0, name: "Aenic", parentId: null, depth: 0, splitIndex: 0, history: [],
+      lex: MIXED_LEX.map((e) => ({ concept: e.concept, word: [...e.word] })),
+      territory: [0, 1, 2, 3], pressure: 0, anchors: birthAnchor(MIXED_LEX), ...branchDefaults,
+    };
+    return {
+      world: { seed, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1, 2, 3].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst", ...worldDefaults },
+      branches: { 0: branch }, rootId: 0, selectedId: 0,
+      nextId: 1, turn: 0,
+      settings: { pool: 10, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
+      pool: 10, touched: {}, log: [], appliedRules: {},
+      focusId: 0, mourning: null, pendingFocusChoice: null, ended: false, routes: {},
+    };
+  }
+
+  // spike §6: "a seeded 40-turn run records >=1 merger event (the census says 100% of
+  // branches produce one, so this is a safe pin)". A single seed can dodge the census
+  // average, so the pin sweeps seeds and requires the first hit, matching the repo's
+  // own "sweep for a seed that fires" pattern used above for reanalysis.
+  test("a 40-turn run records at least one Merger entry in history", () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      let s = driftState(seed);
+      for (let turn = 0; turn < 40; turn++) s = resolveGeneration({ ...s, touched: {} });
+      if (s.branches[0].history.some((h) => h.name === "Merger")) return; // pin satisfied
+    }
+    throw new Error("no Merger event in 40 turns across 30 seeds — detector or census assumption is wrong");
+  });
+
+  test("phonemic-event entries carry no drift flag (2GEO.4/2LEX.1 ruling: the rule's own drift entry already carries it)", () => {
+    let s = driftState(1);
+    for (let turn = 0; turn < 40; turn++) s = resolveGeneration({ ...s, touched: {} });
+    const phonemic = s.branches[0].history.filter((h) => ["Merger", "Split", "Loss", "Gain"].includes(h.name));
+    expect(phonemic.length).toBeGreaterThan(0);
+    phonemic.forEach((h) => expect(h.drift).toBeUndefined());
+  });
+});
