@@ -1,7 +1,7 @@
 import { hashRand } from "./rng";
 import { salienceRetention } from "./lexicon";
 import { syntaxMult } from "./syntax";
-import type { Phone, PhoneType, Patch, Rule, RuleCategory, Lexicon, Terrain, Seg, XformResult, WordOrder, FrameWeights } from "./types";
+import type { Phone, PhoneType, Patch, Rule, RuleCategory, Lexicon, Terrain, Seg, XformResult, WordOrder, FrameWeights, Inventory } from "./types";
 
 const C = (id: string, place: string, manner: string, voice: boolean): Phone =>
   ({ id, g: id, type: "C", place, manner, voice, obstruent: manner === "stop" || manner === "fric" });
@@ -309,6 +309,163 @@ export function homophoneForms(lex: Lexicon): Set<string> {
   lex.forEach((e) => { const f = formOf(e.word); m[f] = (m[f] || 0) + 1; });
   return new Set(Object.keys(m).filter((f) => m[f] > 1));
 }
+
+// 1ENG.26 (1eng-23 spike §4.1) — a branch has no stored Inventory of its own (only the
+// world does) — derive one from its current lexicon so a fresh sibling's name is drawn
+// from the sounds it actually speaks, including whatever renewal/erosion structure it
+// has accrued. Moved here verbatim from naming.ts: an inventory is a phonological fact,
+// not a naming one, and this file already owns every other phone-level query.
+export function inventoryOf(lex: Lexicon): Inventory {
+  const ids = new Set<string>();
+  lex.forEach((e) => e.word.forEach((id) => ids.add(id)));
+  const vowels: string[] = [], consonants: string[] = [];
+  ids.forEach((id) => {
+    const p = BY_ID[id]; if (!p) return;
+    (p.type === "V" ? vowels : consonants).push(id);
+  });
+  // backstop: an empty lexicon (null-guard fracture, 1ENG.9 §d) yields an empty
+  // inventory — fall back to a minimal CV pair so genStem never starves.
+  return { vowels: vowels.length ? vowels : ["a"], consonants: consonants.length ? consonants : ["t"] };
+}
+
+// 1ENG.26 (1eng-23 spike §4.2) — phonemic events. The engine has produced mergers and
+// splits since 1ENG.3 (census: 100%/95% of branches) but had no vocabulary for them;
+// this names what the rules were already doing. Pure, no RNG, no state.
+//   `partial` (a deliberate addition beyond the spike's literal type) distinguishes a
+// CONDITIONED merger — the source survives elsewhere, so the contrast persists in some
+// words — from an UNCONDITIONED one, where the source is gone everywhere. Both are true
+// statements about the same rule application; recording which is which is more honest
+// than suppressing one, and is exactly what the paired split/loss events already imply.
+export type PhonemicEvent =
+  | { kind: "merger"; from: string[]; to: string; partial: boolean } // 2+ phonemes collapsed into one
+  | { kind: "split";  from: string;   to: string[] }                 // one phoneme became 2+
+  | { kind: "loss";   phone: string }                                // phoneme left the inventory
+  | { kind: "gain";   phone: string };                                // phoneme entered the inventory
+
+// Canonical phone order for stable output. PHONES' own index, NOT localeCompare: the
+// ids include ʃ/ʒ/ɣ/ŋ, whose collation is ICU-locale-dependent and so could order
+// differently between environments — which would break the purity pin the moment CI's
+// locale differed from a dev machine's. PHONES is fixed at module load and already
+// reads as the engine's canonical order (labial→glottal, C then V then long then diph).
+const PHONE_ORDER: Record<string, number> = Object.fromEntries(PHONES.map((p, i) => [p.id, i]));
+const byPhone = (a: string, b: string) => (PHONE_ORDER[a] ?? 99) - (PHONE_ORDER[b] ?? 99);
+// Contrast-destroying events before inventory bookkeeping, matching the spike's own
+// listing order (§4.2) and the order a reader wants them: what happened, then what it
+// cost the inventory.
+const KIND_ORDER: Record<PhonemicEvent["kind"], number> = { merger: 0, split: 1, loss: 2, gain: 3 };
+
+// The raw phone-id set of a lexicon. Deliberately NOT inventoryOf: that carries a
+// minimal-CV backstop for an empty lexicon (so genStem never starves), and a phantom
+// /a/ and /t/ appearing on one side of the diff would invent a loss or gain that never
+// happened. inventoryOf keeps its backstop for the naming path; loss/gain read this.
+const phoneIds = (lex: Lexicon): Set<string> => {
+  const ids = new Set<string>();
+  lex.forEach((e) => e.word.forEach((id) => ids.add(id)));
+  return ids;
+};
+
+export function phonemicDiff(before: Lexicon, after: Lexicon): PhonemicEvent[] {
+  const post = new Map(after.map((e) => [e.concept, e.word]));
+  // destination map: before-phone → the set of after-phones standing at its index. Only
+  // concepts present in BOTH lexicons at the SAME length contribute: a rule is 1-in/N-out
+  // per segment, so 48% of applications change word length (1ENG.25 §2) and any
+  // length-tolerant alignment would have to guess. A wrong guess invents a merger that
+  // did not happen, so length-mismatched words are skipped outright — precision over
+  // recall, affordable because the events are ubiquitous anyway (spike §4.2).
+  const dest = new Map<string, Set<string>>();
+  before.forEach((e) => {
+    const w = post.get(e.concept);
+    if (!w || w.length !== e.word.length) return;
+    e.word.forEach((src, i) => {
+      let d = dest.get(src);
+      if (!d) dest.set(src, (d = new Set<string>()));
+      d.add(w[i]);
+    });
+  });
+
+  const events: PhonemicEvent[] = [];
+  const inv0 = phoneIds(before), inv1 = phoneIds(after);
+
+  // MERGER — grouped per DESTINATION, not pairwise. `to` is a single phone by the
+  // type's design (a merger is identified by its reflex), and pairwise intersection
+  // can't populate it without inventing a choice when two sources share two
+  // destinations. Per-destination also collapses n sources onto one target into ONE
+  // n-ary event instead of n-choose-2 near-duplicates, which is the common shape here
+  // (voice/spirant/devoice all funnel several sources onto one phone).
+  //   Self-mapping sources (d === src) are INCLUDED here, deliberately: the commonest
+  // merger is exactly the case where the destination is itself one of the sources
+  // (/p/ → {b}, /b/ → {b} — /p/ merged INTO /b/). Excluding self-maps would make that
+  // case invisible (only /p/ would remain in the source set, below the ≥2 threshold).
+  const sourcesOf = new Map<string, Set<string>>();
+  dest.forEach((ds, src) => ds.forEach((d) => {
+    let s = sourcesOf.get(d);
+    if (!s) sourcesOf.set(d, (s = new Set<string>()));
+    s.add(src);
+  }));
+  sourcesOf.forEach((srcs, to) => {
+    if (srcs.size < 2) return;
+    // partial iff any source OTHER than the destination itself still survives in
+    // `after`: the contrast persists in whatever environment the rule didn't reach.
+    const partial = [...srcs].some((s) => s !== to && inv1.has(s));
+    events.push({ kind: "merger", from: [...srcs].sort(byPhone), to, partial });
+  });
+
+  // SPLIT — one source, 2+ reflexes. No self-filter here, deliberately asymmetric to
+  // the merger guard above: a conditioned rule leaves its source behind in the
+  // unconditioned environment (palat: /k/ → /ʃ/ before front vowels, /k/ elsewhere),
+  // and that residue IS one of the two reflexes. Filtering it would make the detector
+  // blind to conditioned splits, which is 18 of the engine's 19 rules — i.e. to the
+  // phenomenon itself (spike §1). A merger's definition is that a source stopped being
+  // distinct, which surviving as itself refutes; a split's is that it acquired a second
+  // reflex, which surviving as itself is half of.
+  dest.forEach((ds, from) => {
+    if (ds.size < 2) return;
+    events.push({ kind: "split", from, to: [...ds].sort(byPhone) });
+  });
+
+  // LOSS / GAIN — read the whole lexicon, not the destination map, so they also cover
+  // the length-mismatched words alignment skipped. Deliberately NOT deduped against
+  // merger/split: a merger WITHOUT a paired loss is a conditioned merger (the source
+  // survives elsewhere), and a merger WITH one is unconditioned — that pairing (and the
+  // `partial` flag above) is the signal distinguishing the two, so suppressing the
+  // "redundant" loss would delete information the type can't otherwise carry.
+  inv0.forEach((id) => { if (!inv1.has(id)) events.push({ kind: "loss", phone: id }); });
+  inv1.forEach((id) => { if (!inv0.has(id)) events.push({ kind: "gain", phone: id }); });
+
+  // Canonical order. Set/Map iteration is insertion order, which here depends on
+  // lexicon and word order, so two lexicons with identical phonemic content but a
+  // different concept order would otherwise diff to differently-ORDERED event lists.
+  // Sorting makes the output a function of the phonology alone. Total: mergers are
+  // keyed uniquely by `to`, splits by `from`, loss/gain by `phone`.
+  const anchor = (e: PhonemicEvent) => e.kind === "merger" ? e.to : e.kind === "split" ? e.from : e.phone;
+  const second = (e: PhonemicEvent) => e.kind === "merger" ? e.from[0] : e.kind === "split" ? e.to[0] : e.phone;
+  return events.sort((a, b) =>
+    KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || byPhone(anchor(a), anchor(b)) || byPhone(second(a), second(b)));
+}
+
+// Display grapheme, not the internal id: long vowels key on "iː" but render "ī" (see
+// MACRON above), and the chronicle should show what the language looks like written.
+const slash = (id: string) => `/${BY_ID[id]?.g ?? id}/`;
+// "a and b" / "a, b and c" — no Oxford comma (British house style). Shared by merger
+// `from` and split `to` so the 2-vs-3+ grammar is fixed in exactly one place.
+const list = (ids: string[]) => {
+  const g = ids.map(slash);
+  return g.length < 2 ? g.join("") : `${g.slice(0, -1).join(", ")} and ${g[g.length - 1]}`;
+};
+
+// Render one event as chronicle prose. "fell together" is the standard English gloss
+// of Zusammenfall and the spike's own phrasing (§4.3); loss/gain take the present
+// perfect to match the chronicle's existing register ("borrowed 'x' from Y"). A partial
+// merger gets an "in some words" qualifier so it reads distinctly from the paired split.
+export function describeEvent(e: PhonemicEvent): string {
+  switch (e.kind) {
+    case "merger": return `${list(e.from)} fell together in ${slash(e.to)}${e.partial ? " in some words" : ""}`;
+    case "split":  return `${slash(e.from)} split into ${list(e.to)}`;
+    case "loss":   return `${slash(e.phone)} has been lost`;
+    case "gain":   return `${slash(e.phone)} has entered the language`;
+  }
+}
+
 export function firingRules(lex: Lexicon) {
   return RULES.map((r) => ({ rule: r, fires: applyRuleToLex(lex, r).fires })).filter((x) => x.fires > 0);
 }

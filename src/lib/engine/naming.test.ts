@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
-import { inventoryOf, genStem, blendStems, eraLabels, eraStages, eventDensityPolicy, protoBlendFor, eraContexts, RENAME_CUT, STAGE_CUT } from "./naming";
-import { BY_ID } from "./phonology";
+import { genStem, blendStems, eraLabels, eraStages, eventDensityPolicy, protoBlendFor, eraContexts, RENAME_CUT, STAGE_CUT } from "./naming";
+import { BY_ID, inventoryOf } from "./phonology";
 import { branchDefaults } from "../../../tests/fixtures/branch";
 import type { Anchor, Branch, Lexicon } from "./types";
 
@@ -21,20 +21,9 @@ function anchor(driftFromPrev: number, turn: number): Anchor {
   return { lex: MIXED_LEX, turn, historyIndex: turn, driftFromPrev };
 }
 
-describe("naming: inventoryOf", () => {
-  test("collects distinct vowel/consonant phone ids from a lexicon", () => {
-    const inv = inventoryOf(MIXED_LEX);
-    // MIXED_LEX ids: t,a,p,e,k,o,m,s,i,n
-    ["t", "p", "k", "m", "s", "n"].forEach((id) => expect(inv.consonants).toContain(id));
-    ["a", "e", "o", "i"].forEach((id) => expect(inv.vowels).toContain(id));
-  });
-
-  test("falls back to a minimal CV pair for an empty lexicon rather than starving genStem", () => {
-    const inv = inventoryOf([]);
-    expect(inv.vowels.length).toBeGreaterThan(0);
-    expect(inv.consonants.length).toBeGreaterThan(0);
-  });
-});
+// 1ENG.26: inventoryOf's own describe block moved to phonology.test.ts with the
+// function (1eng-23 spike §4.1). MIXED_LEX stays here — genStem's block below still
+// needs it, so it's duplicated rather than shared across files.
 
 describe("naming: genStem", () => {
   const inv = inventoryOf(MIXED_LEX);

@@ -34,6 +34,7 @@
     {/if}
 
     <Header bind:seed={game.seed} leafCount={game.leaves.length} world={game.st.world}
+      inv={game.liveInventory} selName={game.displayNames[game.sel.id] ?? game.sel.name}
       onload={() => game.loadWorld(game.seed)} onnew={() => game.loadWorld(Math.floor(Math.random() * 99999))} />
 
     <ControlBar turn={game.st.turn} pool={game.st.pool} base={game.st.settings.pool}

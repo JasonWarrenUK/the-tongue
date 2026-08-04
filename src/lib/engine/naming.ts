@@ -2,7 +2,7 @@ import { hashRand } from "./rng";
 import { intelligibility } from "./intelligibility";
 import { BY_ID } from "./phonology";
 import { leavesOf, isLeaf } from "./tree";
-import type { Branch, Inventory, Lexicon } from "./types";
+import type { Branch, Inventory } from "./types";
 
 // 1ENG.10 naming subsystem. Three independent pieces:
 //   - genStem: phonotactic branch-name generation (replaces NAME_POOL)
@@ -13,21 +13,9 @@ import type { Branch, Inventory, Lexicon } from "./types";
 
 // --- stem generation -------------------------------------------------------
 
-// A branch has no stored Inventory of its own (only the world does) — derive one from
-// its current lexicon so a fresh sibling's name is drawn from the sounds it actually
-// speaks, including whatever renewal/erosion structure it has accrued.
-export function inventoryOf(lex: Lexicon): Inventory {
-  const ids = new Set<string>();
-  lex.forEach((e) => e.word.forEach((id) => ids.add(id)));
-  const vowels: string[] = [], consonants: string[] = [];
-  ids.forEach((id) => {
-    const p = BY_ID[id]; if (!p) return;
-    (p.type === "V" ? vowels : consonants).push(id);
-  });
-  // backstop: an empty lexicon (null-guard fracture, 1ENG.9 §d) yields an empty
-  // inventory — fall back to a minimal CV pair so genStem never starves.
-  return { vowels: vowels.length ? vowels : ["a"], consonants: consonants.length ? consonants : ["t"] };
-}
+// 1ENG.26: inventoryOf moved to phonology.ts (1eng-23 spike §4.1) — an inventory is a
+// phonological fact, not a naming one. genStem below still takes an Inventory param;
+// its caller (generation.ts, at fracture birth) now imports inventoryOf from there.
 
 const SONORANT_MANNERS = new Set(["nasal", "liquid", "glide"]);
 const isSonorant = (id: string) => { const p = BY_ID[id]; return !!p && p.type === "C" && SONORANT_MANNERS.has(p.manner ?? ""); };

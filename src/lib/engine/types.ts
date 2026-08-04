@@ -78,7 +78,12 @@ export interface World {
   // copies this at birth, then wordOrder becomes per-branch and mutable (spike §3.3).
   wordOrder: WordOrder;
 }
-export interface HistoryEntry { name: string; note: string; drift?: boolean; borrow?: boolean }
+// `report` marks a phonemic-event entry (Merger/Split/Loss/Gain, phonology.ts's
+// phonemicDiff): it describes a change already recorded by another entry the same
+// turn (the rule's own drift entry, or a rename/collision/etc. entry) rather than a
+// change in its own right, so per-branch "how many changes happened" counts (e.g.
+// FamilyTree.svelte's node label) must exclude it to avoid double-counting.
+export interface HistoryEntry { name: string; note: string; drift?: boolean; borrow?: boolean; report?: boolean }
 // 1ENG.10 rename mechanic: a frozen lexicon snapshot marking a divergence-threshold
 // rename. The anchor chain is flat and lives on the branch that keeps drifting under
 // it — renames never spawn a new branch id, only fracture does. `driftFromPrev` (1 -
