@@ -6,15 +6,16 @@ import { genStem, RENAME_CUT } from "./naming";
 import { intelligibility } from "./intelligibility";
 import { resolveBorrow } from "./borrowing";
 import { severePairs, pairThreshold, resolveCollision } from "./collision";
+import { resolveUniverbation } from "./univerbation";
 import { heirCandidates, bumpMomentum, decayMomentum } from "./stakes";
 import { resolveContact, shouldOpenRoute, routeKey, CONTACT_YIELD, CONTACT_TRADE_LOSS, ROUTE_TURNS } from "./contact";
 import { walkFrameWeights, ORDER_INNOVATE_RATE } from "./syntax";
 import { tickParadigm, licensesProDrop } from "./morphology";
 import type { Anchor, Branch, GameState, HistoryEntry, Lexicon, PendingFocusChoice, RuleCategory, WordOrder, FrameWeights, ParadigmCell, AffixState } from "./types";
 
-// One generation resolves: autonomous drift → collision resolution → rename check →
-// passive spread → contact event → lexical borrowing → assimilation death →
-// geographic fracture → repool.
+// One generation resolves: autonomous drift → collision resolution → univerbation →
+// rename check → passive spread → contact event → lexical borrowing → assimilation
+// death → geographic fracture → repool.
 
 // 2LEX.2: per-branch per-turn repair budget (step 1.5 below). A live-engine census
 // found up to 14 concurrent severe pairs on one branch-turn (drift generates far more
@@ -138,6 +139,30 @@ export function resolveGeneration(s: GameState): GameState {
       log.push(`${L.name} disambiguated '${res.concept}' as '${formOf(res.word)}'`);
     });
     branches[L.id] = { ...b, lex, collisionPressure: pressure, history: [...b.history, ...entries] };
+  });
+
+  // 1.75 UNIVERBATION (1ENG.27, 1eng-25 spike §4/§4.3). The engine's first consumer of
+  //      frame ADJACENCY rather than a phrase scalar: a word under contrast pressure
+  //      (<=UNIVERB_MAX_SEGMENTS segments, or currently homophonous) fuses with a
+  //      modifier drawn from the classes its branch's own linearised frames place
+  //      immediately BEFORE it. Both stems stay whole — clipping is precisely what
+  //      neuters 2LEX.2's compound repair (spike §2.1: only 2 of 48 concepts end up
+  //      longer than genesis under it), and this mechanic exists to answer the
+  //      monosyllabic collapse that repair could not.
+  //      AFTER 1.5 because the trigger reads POST-repair homophony: a collision step
+  //      1.5 just fixed must not also trigger a fusion for the same pressure. BEFORE 2
+  //      for the same reason step 1.5 is — the era check must see the final lexicon.
+  //      No `touched` guard: renewal is autonomous regardless of player action, exactly
+  //      like collision repair. No `leavesOf > 1` guard either: a language alone in the
+  //      world still compounds for itself.
+  //      Reads `branches[L.id]` rather than the loop's `L`, since step 1.5 above may
+  //      already have rewritten this branch's lexicon this same turn.
+  leavesOf(branches).forEach((L) => {
+    const b = branches[L.id];
+    const { lex, events } = resolveUniverbation(b.lex, b.wordOrder, b.frameWeights, seed, turn, L.id);
+    if (!events.length) return;
+    branches[L.id] = { ...b, lex, history: [...b.history, ...events] };
+    events.forEach((e) => log.push(`${L.name}: ${e.note}`));
   });
 
   // 2. divergence-threshold rename (1ENG.10): every branch is born with one implicit
