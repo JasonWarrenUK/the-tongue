@@ -211,8 +211,8 @@
 					},
 					{
 						"id": "1ENG.27",
-						"description": "Implement 1ENG.25 slice 1: phrase-level univerbation — new `univerbation.ts` (`resolveUniverbation`, `precedersOf`, `UNIVERB_RATE`, `UNIVERB_MAX_SEGMENTS`) and a new turn-loop step 1.75 (after collision resolution, before the rename check). The engine's first consumer of frame ADJACENCY rather than a phrase scalar: a word under contrast pressure (<=2 segments, or currently homophonous) fuses with a modifier drawn from the classes its branch's linearised frames place before it, keeping BOTH stems whole (no clipping — that is what neuters 2LEX.2's repair). Measured at UNIVERB_RATE=0.06: syllables/word settles in 1.59-2.00 across 300 turns and collision pairs stabilise near 20 instead of climbing past 61. New hashRand salt seed+43. Behaviour change (every seed's lexicon evolves differently from turn ~1, so drift-replay goldens move) but no type break",
-						"status": "todo",
+						"description": "Implement 1ENG.25 slice 1: phrase-level univerbation — new `univerbation.ts` (`resolveUniverbation`, `precedersOf`, `UNIVERB_RATE`, `UNIVERB_MAX_SEGMENTS`) and a new turn-loop step 1.75 (after collision resolution, before the rename check). The engine's first consumer of frame ADJACENCY rather than a phrase scalar: a word under contrast pressure (<=2 segments, or currently homophonous) fuses with a modifier drawn from the classes its branch's linearised frames place before it, keeping BOTH stems whole (no clipping — that is what neuters 2LEX.2's repair). Measured at UNIVERB_RATE=0.06: syllables/word settles in 1.59-2.00 across 300 turns and collision pairs stabilise near 20 instead of climbing past 61. New hashRand salt seed+43. Behaviour change (every seed's lexicon evolves differently from turn ~1, so drift-replay goldens move) but no type break. **Revised during implementation:** the salt scheme separates the three draws (fire/class/modifier) on the SECOND coordinate (seed+43, turn*283+71+2k, branchId*769+i), not the prototype script's stacked third-coordinate offsets — those were safe only via an unstated coupling to CONCEPTS.length (1000 mod 433 = 134 happens to exceed the current 48-concept max index). `precedersOf` takes no `proDrop` parameter, a deliberate reading of spike §4.1's `frameOrder(f, order, false)`. generation.test.ts's 1ENG.19 VSO erosion-asymmetry test needed a new instrument, not a loosened bound: word length stopped being a valid proxy for erosion once renewal acted on the same observable (under VSO, pronoun's sole preceder class is `verb`, so univerbation inflated the measured gap, vsoGap 0.44 -> 0.82, inverting the assertion). Now measures length net of fused-in material (36/36 (seeds, turns) configurations pass, margins 0.19-0.64, no seed discarded, and the SOV arm measures identically to pre-1ENG.27 at every horizon, since SOV is structurally fusion-immune). Reproduced through the shipped code at 25 seeds x 80 turns: 1.82 syll/word, 15.6 collision pairs (spike §4.2 measured 1.77/16.0).",
+						"status": "done",
 						"dependsOn": [
 							"1ENG.25",
 							"1ENG.19"
@@ -221,7 +221,7 @@
 					{
 						"id": "1ENG.28",
 						"description": "Implement 1ENG.25 slice 2: runtime syllabification — new `syllable.ts` (`syllabify`, `syllableCount`, `SONORITY`, the `Syllable` interface) doing sonority-constrained onset maximisation over a live word. Derive-on-read, never cached: 29% of word-changing rule applications alter syllable count (apoc/paragoge/epenth/aphaer resyllabify), so a cache would be stale a third of the time it is read. Ships as a pure library with no engine call site — its consumers are 1ENG.24 and 4PHON.1 — and must land after 1ENG.27, which is what makes multisyllabic words exist to parse. Additive, no goldens move",
-						"status": "blocked",
+						"status": "todo",
 						"dependsOn": [
 							"1ENG.27"
 						]
