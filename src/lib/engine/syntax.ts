@@ -101,8 +101,9 @@ export function positionProfile(
 // Salt (seed+31, turn*257+43, branchId*577+k): disjoint on the first coordinate from
 // every registered family — spread/genStem use bare `seed`, drift seed+7, salience
 // seed+13, borrow seed+19, contact seed+23, and (this task) the syntax gate seed+29,
-// reanalysis seed+37, morphology's placement/erosion-gate rolls seed+41 (1ENG.20) — so
-// no (a,b,c) triple can coincide regardless of turn, branch or sub-index.
+// reanalysis seed+37, morphology's placement/erosion-gate rolls seed+41 (1ENG.20),
+// univerbation's fire/class/modifier rolls seed+43 (1ENG.27) — so no (a,b,c) triple
+// can coincide regardless of turn, branch or sub-index.
 export function walkFrameWeights(weights: FrameWeights, seed: number, turn: number, branchId: number): FrameWeights {
   return weights.map((w, k) =>
     Math.max(FRAME_FLOOR, w + (hashRand(seed + 31, turn * 257 + 43, branchId * 577 + k) * 2 - 1) * FRAME_WALK),

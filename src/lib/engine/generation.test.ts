@@ -472,19 +472,50 @@ describe("1ENG.19 word-order-conditioned erosion asymmetry", () => {
     };
   }
 
-  const meanLen = (s: GameState, concepts: string[]): number =>
-    concepts.reduce((sum, c) => sum + s.branches[0].lex.find((e) => e.concept === c)!.word.length, 0) / concepts.length;
+  const wordLen = (s: GameState, c: string): number => s.branches[0].lex.find((e) => e.concept === c)!.word.length;
 
   // seed-averaged erosion gap (pronoun length - verb length, both starting equal) for
   // one order over a short horizon (long enough for the gate to bite, short enough
   // that neither class has fully bottomed out at the vowel floor, which would erase
   // the signal by flooring both classes at the same length).
+  //
+  // 1ENG.27: word LENGTH stopped being a clean proxy for erosion the moment renewal
+  // started acting on the same observable. Under VSO, F1 linearises V S O, so a
+  // pronoun's sole preceder class is `verb` — the very adjacency VSO creates is what
+  // makes verb+pronoun a fusable collocation. That is not noise to discard (dropping
+  // the seeds where it fires would throw away exactly the runs where VSO grammar did
+  // the thing VSO grammars do — the two effects share a cause); it is a second real
+  // process, so the fix is to measure erosion net of it rather than avoid it. Every
+  // turn, diff each tracked concept's word length against its length just before that
+  // turn; if a Univerbation event landed on it this turn, the length delta is fused-in
+  // material, not erosion, and is subtracted back out. A concept that fuses and then
+  // later erodes is still measured correctly, unlike a variant that simply drops
+  // confounded seeds (which discards 33% of VSO seeds and answers a different, narrower
+  // question) or one that floors losses at genesis (which undercounts fuse-then-erode
+  // and still lets the instrument itself drift under VSO, 0.1456 -> 0.2511 measured).
+  // Under SOV this is a no-op: pronouns have no preceders at all and verbs' only
+  // preceder class is `noun`, which this fixture omits, so SOV measures identically to
+  // pre-1ENG.27 at every horizon swept (0.7733 at 150x8) — the property a corrected
+  // instrument should have wherever there is no confound to correct.
   function meanGap(basic: WordOrder["basic"], seeds: number, turns: number): number {
     let total = 0;
     for (let seed = 1; seed <= seeds; seed++) {
       let s = orderState(basic, seed);
-      for (let turn = 0; turn < turns; turn++) s = resolveGeneration({ ...s, touched: {} });
-      total += meanLen(s, PRONOUNS) - meanLen(s, VERBS);
+      const fused: Record<string, number> = {};
+      const tracked = [...PRONOUNS, ...VERBS];
+      for (let turn = 0; turn < turns; turn++) {
+        const before: Record<string, number> = {};
+        tracked.forEach((c) => (before[c] = wordLen(s, c)));
+        const historyBefore = s.branches[0].history.length;
+        s = resolveGeneration({ ...s, touched: {} });
+        s.branches[0].history.slice(historyBefore).forEach((h) => {
+          if (h.name !== "Univerbation") return;
+          const concept = h.note.match(/^'([^']+)'/)?.[1];
+          if (concept && tracked.includes(concept)) fused[concept] = (fused[concept] ?? 0) + (wordLen(s, concept) - before[concept]);
+        });
+      }
+      const netLen = (c: string) => wordLen(s, c) - (fused[c] ?? 0);
+      total += PRONOUNS.reduce((a, c) => a + netLen(c), 0) / PRONOUNS.length - VERBS.reduce((a, c) => a + netLen(c), 0) / VERBS.length;
     }
     return total / seeds;
   }
@@ -722,6 +753,13 @@ describe("2GEO.5 lexical borrowing (step 3.5)", () => {
     const a = run(), b = run();
     expect(a.branches).toEqual(b.branches);
     expect(a.log).toEqual(b.log);
+    // 1ENG.27: fish (3 segments) and eye (2 segments) are both real nouns, so this
+    // fixture is exposed to step 1.75's pressure trigger in principle. A two-concept
+    // lexicon almost never resolves a modifier draw (32 noun concepts, 2 present) —
+    // verified inert at this fixture's seed — but pin it rather than leave it silent,
+    // same reasoning as the 2LEX.2 collision block's guard above.
+    expect(a.branches[0].history.some((h) => h.name === "Univerbation")).toBe(false);
+    expect(a.branches[1].history.some((h) => h.name === "Univerbation")).toBe(false);
   });
 });
 
@@ -936,6 +974,23 @@ describe("2LEX.2 collision resolution", () => {
       focusId: 0, mourning: null, pendingFocusChoice: null, ended: false, routes: {},
     };
   }
+
+  // 1ENG.27: COLL_LEX's five 2-segment nouns satisfy step 1.75's pressure trigger
+  // (<=UNIVERB_MAX_SEGMENTS), and precedersOf("noun", SOV+AdjN) is non-empty, so every
+  // assertion below is only correct because a fusion happens not to land at this
+  // fixture's seed (measured: ~1.2%/branch-turn, since only 5 of 32 noun concepts are
+  // present for the modifier draw to hit). That is a coin flip invisible from the test
+  // source, and UNIVERB_RATE is explicitly handed to 2SIM.1 for re-tuning — so pin the
+  // dependency instead of leaving it silent: if a future rate/salt change ever lands a
+  // fusion here, THIS fails first, with the cause in the name, instead of surfacing as
+  // a mystified word-form mismatch three tests down.
+  test("no fusion perturbs this fixture: step 1.75 is inert for every case in this block", () => {
+    let s = collisionState({ collisionPressure: { "moon|sun": 2 } });
+    for (let i = 0; i < 3; i++) {
+      s = resolveGeneration({ ...s, touched: { 0: true } });
+      expect(s.branches[0].history.some((h) => h.name === "Univerbation")).toBe(false);
+    }
+  });
 
   test("pressure ticks only while colliding", () => {
     let s = collisionState();
