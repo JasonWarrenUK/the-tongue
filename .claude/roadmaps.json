@@ -221,7 +221,7 @@
 					{
 						"id": "1ENG.28",
 						"description": "Implement 1ENG.25 slice 2: runtime syllabification — new `syllable.ts` (`syllabify`, `syllableCount`, `SONORITY`, the `Syllable` interface) doing sonority-constrained onset maximisation over a live word. Derive-on-read, never cached: 29% of word-changing rule applications alter syllable count (apoc/paragoge/epenth/aphaer resyllabify), so a cache would be stale a third of the time it is read. Ships as a pure library with no engine call site — its consumers are 1ENG.24 and 4PHON.1 — and must land after 1ENG.27, which is what makes multisyllabic words exist to parse. Additive, no goldens move",
-						"status": "todo",
+						"status": "blocked",
 						"dependsOn": [
 							"1ENG.27"
 						]
@@ -469,6 +469,20 @@
 						"status": "blocked",
 						"dependsOn": [
 							"2STK.6"
+						]
+					},
+					{
+						"id": "2UI.4",
+						"description": "Design spike: dead-phase phrase viewer — PhrasePanel is currently gated behind !game.viewing (+page.svelte), so it never renders when previewing a dead/frozen era, alongside HistoryList. Anchor only snapshots `lex`, not order/weights/paradigm, so naively rendering PhrasePanel against viewedLex with the live branch's current grammar repeats the exact anachronism the 1ENG.20 code comment already flags for Changes. Decide: freeze grammar per-anchor too, degrade to a lex-only view for dead phases, or another resolution — producing a build-ready contract for 2UI.5",
+						"status": "todo",
+						"dependsOn": []
+					},
+					{
+						"id": "2UI.5",
+						"description": "Implement the 2UI.4 contract *(placeholder — depends on 2UI.4)*",
+						"status": "blocked",
+						"dependsOn": [
+							"2UI.4"
 						]
 					},
 					{

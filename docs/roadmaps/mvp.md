@@ -46,7 +46,7 @@ A seeded, deterministic language-evolution simulator: sound-change rules drift a
 - [x] **1ENG.25** — Design spike: runtime syllabification — found the stated fork (sonority onset-maximisation vs. template-driven parse) to be EMPIRICALLY EMPTY: both algorithms were implemented and agreed on 2016/2016 words (100.0%), because the corpus contains zero intervocalic CC clusters, the only configuration that distinguishes them. Investigating why exposed the real blocker, which is not syllabification: the engine erodes to 1.05 syllables per word (from 1.51 at genesis) and stays there, with 1733 of ~2100 words literally CV by turn 40, so there is no syllable structure to parse, no stress position to assign (1ENG.24) and no tone-bearing unit to contrast (4PHON.1). Deeper symptom: homophonic collapse — 61 colliding concept-pairs per branch across a 48-concept lexicon by turn 150 and still climbing, while 2LEX.2's repair has fired 1468 times without arresting it (compoundWord CLIPS both stems, so only 2/48 concepts end up longer than genesis). Four candidate fixes were measured and rejected (syncope; disabling epenth — which yields 1 cluster rather than 0, so cluster loss is overdetermined; weight tuning, capping at 1.35 syll/word even when every final-erosion rule is halved; reduplication, which restores length but produces 0 clusters). Structural cause located: `paragoge`, the engine's only genuinely lengthening rule, requires a C-final word but the corpus becomes 97% V-final, and `break` (99% eligible) is segment-neutral and keeps words V-final, locking it out permanently. Root diagnosis: the 1ENG.19 phrase substrate has 8 consumers and every one consumes it as a SCALAR — no code path uses frame adjacency to combine words — so erosion is phrase-aware while renewal is not. Contract in `docs/spikes/1eng-25-runtime-syllabification.md`
 - [ ] **1ENG.26** — Implement the 1ENG.23 contract — move `inventoryOf` from `naming.ts` to `phonology.ts` as the canonical branch-inventory accessor, add `phonemicDiff`/`describeEvent` and the `PhonemicEvent` union (merger/split/loss/gain) using positional per-concept alignment with length-mismatched words skipped, record events as `HistoryEntry` in generation.ts step 1 and at `divergeAtBirth` (no `drift` flag, per the 2GEO.4/2LEX.1 ruling), and fix `Header.svelte` to render the selected branch's LIVE inventory instead of `World.inv`. Additive: no new `Branch` field, no new RNG salt, no turn-loop reordering — `feat(engine):`, not a breaking change _(depends on 1ENG.23)_
 - [ ] **1ENG.27** — Implement 1ENG.25 slice 1: phrase-level univerbation — new `univerbation.ts` (`resolveUniverbation`, `precedersOf`, `UNIVERB_RATE`, `UNIVERB_MAX_SEGMENTS`) and a new turn-loop step 1.75 (after collision resolution, before the rename check). The engine's first consumer of frame ADJACENCY rather than a phrase scalar: a word under contrast pressure (<=2 segments, or currently homophonous) fuses with a modifier drawn from the classes its branch's linearised frames place before it, keeping BOTH stems whole (no clipping — that is what neuters 2LEX.2's repair). Measured at UNIVERB_RATE=0.06: syllables/word settles in 1.59-2.00 across 300 turns and collision pairs stabilise near 20 instead of climbing past 61. New hashRand salt seed+43. Behaviour change (every seed's lexicon evolves differently from turn ~1, so drift-replay goldens move) but no type break _(depends on 1ENG.25, 1ENG.19)_
-- [ ] **1ENG.28** — Implement 1ENG.25 slice 2: runtime syllabification — new `syllable.ts` (`syllabify`, `syllableCount`, `SONORITY`, the `Syllable` interface) doing sonority-constrained onset maximisation over a live word. Derive-on-read, never cached: 29% of word-changing rule applications alter syllable count (apoc/paragoge/epenth/aphaer resyllabify), so a cache would be stale a third of the time it is read. Ships as a pure library with no engine call site — its consumers are 1ENG.24 and 4PHON.1 — and must land after 1ENG.27, which is what makes multisyllabic words exist to parse. Additive, no goldens move _(depends on 1ENG.27)_
+- [ ] **1ENG.28** — Implement 1ENG.25 slice 2: runtime syllabification — new `syllable.ts` (`syllabify`, `syllableCount`, `SONORITY`, the `Syllable` interface) doing sonority-constrained onset maximisation over a live word. Derive-on-read, never cached: 29% of word-changing rule applications alter syllable count (apoc/paragoge/epenth/aphaer resyllabify), so a cache would be stale a third of the time it is read. Ships as a pure library with no engine call site — its consumers are 1ENG.24 and 4PHON.1 — and must land after 1ENG.27, which is what makes multisyllabic words exist to parse. Additive, no goldens move _(blocked — depends on 1ENG.27)_
 - [ ] **1ENG.24** — Design spike: stress, and the sound changes that need it — the engine has no stress model, so the whole family of stress-conditioned change is inexpressible: loss of unstressed syllables (the engine of Latin → French, and named in the LCK's own catalogue), unstressed vowel reduction to schwa, and stress-conditioned resistance to erosion. Blocked on a prerequisite the engine lacks generally: words are flat `string[]` segment lists with no runtime syllable structure, so syllabification (onset/nucleus/coda parsing over a live word) must be specified first and would also serve any future weight-sensitive rule. Should cover: a per-branch stress rule (initial/final/penultimate/weight-sensitive, seeded and inheritable like `wordOrder`), how stress interacts with 1ENG.14's position profiles (both condition erosion, and they must compose rather than double-count), and whether stress placement itself drifts. Surfaced by the 1ENG.16 survey (spike §9). 1ENG.25 discharged two of this task's open questions ahead of it: syllabification is specified (1ENG.28) and the stress/position composition rule is settled — stress and 1ENG.14 position profiles are orthogonal and MULTIPLY, each with its own hashRand salt and its own block roll, clamped once after multiplication (1eng-25 spike §5.3). Note the dependency now runs through 1ENG.28 (the implementation), not the spike: 1ENG.25 measured that this task's real blocker was a corpus of monosyllables, not the absence of a parser _(blocked — depends on 1ENG.28)_
 
 ---
@@ -83,6 +83,8 @@ A seeded, deterministic language-evolution simulator: sound-change rules drift a
 - [ ] **2UI.1** — UI completeness audit across all components — existing panels plus new biome/stakes/glyph/lexicon data — verify every player-facing decision has a legible data source _(blocked — depends on 2STK.4, 2STK.6, 2GLY.4, 2LEX.2)_
 - [ ] **2UI.2** — Build onboarding — inline explainers, full tutorial mode, and a UI layout rethink, informed by the audit findings _(blocked — depends on 2UI.1)_
 - [ ] **2UI.3** — Retire the economy config panel from the player-facing surface (keep behind a dev flag); replace with difficulty presets once the economy purchases real consequences via the stakes mechanic (design-analysis roadmap edit 3) _(blocked — depends on 2STK.6)_
+- [ ] **2UI.4** — Design spike: dead-phase phrase viewer — PhrasePanel is currently gated behind !game.viewing (+page.svelte), so it never renders when previewing a dead/frozen era, alongside HistoryList. Anchor only snapshots `lex`, not order/weights/paradigm, so naively rendering PhrasePanel against viewedLex with the live branch's current grammar repeats the exact anachronism the 1ENG.20 code comment already flags for Changes. Decide: freeze grammar per-anchor too, degrade to a lex-only view for dead phases, or another resolution — producing a build-ready contract for 2UI.5
+- [ ] **2UI.5** — Implement the 2UI.4 contract *(placeholder — depends on 2UI.4)* _(blocked — depends on 2UI.4)_
 - [ ] **2SIM.1** — Integration pacing census — re-run the census harness with every mechanic active (borrowing, collision repair, syntax gating, paradigms): combined event density per branch-turn, collision dynamics at 48 concepts under the class-gate + distance model, affix lifetime distribution with the explicit acceptance criterion that grammaticalisation cycles observably turn (else the 1ENG.15 backstop question reopens with data in hand), and a tuning pass across the constant family (`COLLISION_TURNS`, `SEVERITY_CUT`, `BORROW_RATE`, `SYNTAX_STRENGTH`, `FRAME_WALK`, `ORDER_*`) _(depends on 2GEO.5, 2LEX.2, 1ENG.20, 1ENG.22)_
 - [ ] **2NAR.1** — Design spike: the seed text — a fixed proverb composed from six to eight lexicon concepts at world gen, rendered per branch every generation by looking up each concept's current form; pure display over existing state, no new simulation machinery. Shown on branch selection, side by side at fracture events, and proposed as the shareable image for Milestone 3 (design-analysis §1)
 - [ ] **2NAR.2** — Implement the seed text *(placeholder — depends on 2NAR.1)*. Deepens for free once 1ENG.19's word order lands (the text would inherit real syntax), a non-blocking enrichment rather than a prerequisite _(blocked — depends on 2NAR.1)_
@@ -141,10 +143,7 @@ graph LR
 	1ENG.22["1ENG.22: Fix unbounded per-turn family-tree/era…"]
 	1ENG.23["1ENG.23: Design spike: per-branch phoneme inven…"]
 	1ENG.25["1ENG.25: Design spike: runtime syllabification…"]
-	1ENG.26["1ENG.26: Implement the 1ENG.23 contract — move `i…"]
-	1ENG.27["1ENG.27: Implement 1ENG.25 slice 1: phrase-level…"]
-	1ENG.28["1ENG.28: Implement 1ENG.25 slice 2: runtime sylla…"]
-	1ENG.24["1ENG.24: Design spike: stress, and the sound ch…"]
+	1ENG.26["1ENG.26: Implement the 1ENG.23 contract — move…"]
 	2GEO.1["2GEO.1: Design spike: terrain→sound-change bias…"]
 	2GEO.2["2GEO.2: Implement terrain-biased rule weighting…"]
 	2GEO.3["2GEO.3: Implement biome-driven vocabulary resis…"]
@@ -169,6 +168,9 @@ graph LR
 	1ENG.19["1ENG.19: Implement the 1ENG.14 substrate and co…"]
 	1ENG.20["1ENG.20: Implement the 1ENG.15 paradigm model —…"]
 	1ENG.21["1ENG.21: Implement 1ENG.14 stage B: word-order…"]
+	1ENG.27["1ENG.27: Implement 1ENG.25 slice 1: phrase-leve…"]
+	1ENG.28["1ENG.28: Implement 1ENG.25 slice 2: runtime syl…"]
+	1ENG.24["1ENG.24: Design spike: stress, and the sound ch…"]
 	M1["M1: Core Simulator"]:::mile
 	2LEX.3["2LEX.3: Design spike: multi-form lexical entrie…"]
 	2LEX.4["2LEX.4: Implement multi-form lexical entries *(…"]
@@ -177,6 +179,8 @@ graph LR
 	2UI.1["2UI.1: UI completeness audit across all compone…"]
 	2UI.2["2UI.2: Build onboarding — inline explainers, fu…"]
 	2UI.3["2UI.3: Retire the economy config panel from the…"]
+	2UI.4["2UI.4: Design spike: dead-phase phrase viewer —…"]
+	2UI.5["2UI.5: Implement the 2UI.4 contract *(placehold…"]
 	2SIM.1["2SIM.1: Integration pacing census — re-run the…"]
 	2NAR.1["2NAR.1: Design spike: the seed text — a fixed p…"]
 	2NAR.2["2NAR.2: Implement the seed text *(placeholder —…"]
@@ -218,19 +222,10 @@ graph LR
 	1ENG.17 --> M1
 	1ENG.22 --> M1
 	1ENG.22 --> 2SIM.1
-	1ENG.23 --> M1
 	1ENG.23 --> 1ENG.26
-	1ENG.26 --> M1
-	1ENG.26 --> 2GLY.3
-	1ENG.25 --> M1
 	1ENG.25 --> 1ENG.27
-	1ENG.19 --> 1ENG.27
-	1ENG.27 --> M1
-	1ENG.27 --> 1ENG.28
-	1ENG.28 --> M1
-	1ENG.28 --> 1ENG.24
-	1ENG.24 --> M1
-	1ENG.24 --> 4PHON.1
+	1ENG.26 --> 2GLY.3
+	1ENG.26 --> M1
 	2GEO.1 --> 2GEO.2
 	2GEO.1 --> 2GEO.3
 	2GEO.2 --> 2GEO.4
@@ -274,10 +269,15 @@ graph LR
 	2LEX.2 --> 2SIM.1
 	1ENG.19 --> 1ENG.20
 	1ENG.19 --> 1ENG.21
+	1ENG.19 --> 1ENG.27
 	1ENG.19 -.-> 2NAR.2
 	1ENG.20 --> 1ENG.21
 	1ENG.20 --> 2SIM.1
 	1ENG.21 --> M1
+	1ENG.27 --> 1ENG.28
+	1ENG.28 --> 1ENG.24
+	1ENG.24 --> M1
+	1ENG.24 --> 4PHON.1
 	2LEX.3 --> 2LEX.4
 	2LEX.4 --> M2
 	2LEX.5 --> 2LEX.6
@@ -285,6 +285,8 @@ graph LR
 	2UI.1 --> 2UI.2
 	2UI.2 --> M2
 	2UI.3 --> M2
+	2UI.4 --> 2UI.5
+	2UI.5 --> M2
 	2SIM.1 --> M2
 	2NAR.1 --> 2NAR.2
 	2NAR.2 --> M2
@@ -297,8 +299,8 @@ graph LR
 	4PHON.1 --> M4
 	4GLY.1 --> M4
 	4PHON.2 --> M4
-	class 1ENG.17,1ENG.21,2GEO.6,2LEX.3,2LEX.5,2MAP.1,2NAR.1,2NAR.3,2SIM.1,2STK.4,2STK.6,2STK.7,3PER.1,1ENG.26,1ENG.27,1ENG.28 todo
-	class 1ENG.24,2GEO.7,2GEO.8,2GLY.1,2GLY.2,2GLY.3,2GLY.4,2LEX.4,2LEX.6,2MAP.2,2NAR.2,2NAR.4,2UI.1,2UI.2,2UI.3,3SHR.1,4PHON.1 blocked
+	class 1ENG.17,1ENG.21,1ENG.26,1ENG.27,2GEO.6,2LEX.3,2LEX.5,2MAP.1,2NAR.1,2NAR.3,2SIM.1,2STK.4,2STK.6,2STK.7,2UI.4,3PER.1 todo
+	class 1ENG.24,1ENG.28,2GEO.7,2GEO.8,2GLY.1,2GLY.2,2GLY.3,2GLY.4,2LEX.4,2LEX.6,2MAP.2,2NAR.2,2NAR.4,2UI.1,2UI.2,2UI.3,2UI.5,3SHR.1,4PHON.1 blocked
 	class 4GLY.1,4PHON.2 deferred
 	class 1ENG.1,1ENG.10,1ENG.11,1ENG.12,1ENG.13,1ENG.14,1ENG.15,1ENG.16,1ENG.18,1ENG.19,1ENG.2,1ENG.20,1ENG.22,1ENG.23,1ENG.25,1ENG.3,1ENG.4,1ENG.5,1ENG.6,1ENG.7,1ENG.8,1ENG.9,1UI.1,1UI.2,1UI.3,1UI.4,2GEO.1,2GEO.2,2GEO.3,2GEO.4,2GEO.5,2LEX.1,2LEX.2,2STK.1,2STK.2,2STK.3,2STK.5 done
 ```
