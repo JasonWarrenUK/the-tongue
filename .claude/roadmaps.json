@@ -204,7 +204,7 @@
 					{
 						"id": "1ENG.26",
 						"description": "Implement the 1ENG.23 contract — move `inventoryOf` from `naming.ts` to `phonology.ts` as the canonical branch-inventory accessor, add `phonemicDiff`/`describeEvent` and the `PhonemicEvent` union (merger/split/loss/gain) using positional per-concept alignment with length-mismatched words skipped, record events as `HistoryEntry` in generation.ts step 1 and at `divergeAtBirth` (no `drift` flag, per the 2GEO.4/2LEX.1 ruling), and fix `Header.svelte` to render the selected branch's LIVE inventory instead of `World.inv`. Additive: no new `Branch` field, no new RNG salt, no turn-loop reordering — `feat(engine):`, not a breaking change",
-						"status": "todo",
+						"status": "done",
 						"dependsOn": [
 							"1ENG.23"
 						]
