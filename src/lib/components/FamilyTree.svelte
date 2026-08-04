@@ -21,6 +21,10 @@
     const ord = ORDINAL.exec(text)?.[1];
     return ord ? `${bucket} ${ord}` : bucket;
   };
+  // 1ENG.26: phonemic-event entries (Merger/Split/Loss/Gain) carry `report: true` and
+  // describe a change another entry already recorded this turn — exclude them so this
+  // count keeps meaning "sound changes applied", not "sound changes plus their retelling".
+  const changeCount = (branchId: number) => branches[branchId].history.filter((h) => !h.report).length;
   const W = $derived(eraGraph.cols * COL);
   const H = $derived(eraGraph.rows * ROW);
   const cx = (key: string) => eraGraph.pos[key].col * COL + COL / 2;
@@ -56,7 +60,7 @@
           stroke={selected ? "var(--color-accent)" : leaf ? "var(--color-muted)" : "var(--color-border)"} stroke-width={selected ? 2 : 1.5} />
         {#if node.isTerminal && leaf}<rect x="6" y={NH - 7} width={NW - 12} height="3" rx="1.5" fill={branchColor(node.branchId)} />{/if}
         <text x={NW / 2} y="15" text-anchor="middle" fill={selected ? "var(--color-accent)" : leaf ? "var(--color-fg)" : "var(--color-muted)"} font-size="12" font-weight="600">{titleOf(node.stage.text)}</text>
-        <text x={NW / 2} y="27" text-anchor="middle" fill="var(--color-muted)" font-size="9">{node.isTerminal ? (leaf ? `${branches[node.branchId].history.length} chg` : "ancestor") : subOf(node.stage.text, node.stage.bucket)}</text>
+        <text x={NW / 2} y="27" text-anchor="middle" fill="var(--color-muted)" font-size="9">{node.isTerminal ? (leaf ? `${changeCount(node.branchId)} chg` : "ancestor") : subOf(node.stage.text, node.stage.bucket)}</text>
         <!-- decorations (touched, focal self) are properties of the branch's CURRENT
              turn state, not of a frozen past era — render only on the terminal node. -->
         {#if node.isTerminal && leaf && touched[node.branchId]}<circle cx={NW - 8} cy="8" r="3.5" fill="var(--color-accent)" />{/if}

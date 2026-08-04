@@ -1169,4 +1169,21 @@ describe("1ENG.26 phonemic-event history (step 1 drift)", () => {
     expect(phonemic.length).toBeGreaterThan(0);
     phonemic.forEach((h) => expect(h.drift).toBeUndefined());
   });
+
+  // PR #21 review: FamilyTree's per-branch change count read history.length directly,
+  // so a phonemic-event entry (which retells the turn's own drift entry, not a
+  // distinct change) inflated the displayed count. `report: true` lets a change count
+  // exclude them; the rule's own drift entry must NOT carry it, or the same count
+  // would undercount real changes.
+  test("phonemic-event entries carry report:true; the rule's own drift entry does not", () => {
+    let s = driftState(1);
+    for (let turn = 0; turn < 40; turn++) s = resolveGeneration({ ...s, touched: {} });
+    const history = s.branches[0].history;
+    const phonemic = history.filter((h) => ["Merger", "Split", "Loss", "Gain"].includes(h.name));
+    expect(phonemic.length).toBeGreaterThan(0);
+    phonemic.forEach((h) => expect(h.report).toBe(true));
+    const driftEntries = history.filter((h) => h.drift);
+    expect(driftEntries.length).toBeGreaterThan(0);
+    driftEntries.forEach((h) => expect(h.report).toBeUndefined());
+  });
 });

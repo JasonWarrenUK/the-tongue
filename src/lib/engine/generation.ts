@@ -67,8 +67,10 @@ export function resolveGeneration(s: GameState): GameState {
     // 1ENG.26 (1eng-23 spike §4.3) — name what the rule just did phonemically. Reporting
     // only: no state change, no RNG. No `drift` flag on these entries (2GEO.4/2LEX.1
     // ruling) — the rule's own drift entry below already carries that, and flagging both
-    // would double-count one change in every history filter.
-    const phonemicEntries = phonemicDiff(L.lex, nextLex).map((e) => ({ name: e.kind[0].toUpperCase() + e.kind.slice(1), note: describeEvent(e) }));
+    // would double-count one change in every history filter. `report: true` marks them
+    // as a retelling of that drift entry rather than a distinct change, for any
+    // per-branch change count that must not double-count the turn these describe.
+    const phonemicEntries = phonemicDiff(L.lex, nextLex).map((e) => ({ name: e.kind[0].toUpperCase() + e.kind.slice(1), note: describeEvent(e), report: true }));
     // 2STK.3 §3: autonomous drift bumps momentum at half weight (decision §9.15) —
     // untouched branches slowly acquire a self-reinforcing category profile.
     branches[L.id] = bumpMomentum({ ...branches[L.id],
@@ -302,7 +304,7 @@ export function resolveGeneration(s: GameState): GameState {
     // 1ENG.26 (1eng-23 spike §6) — the same phonemic-event reporting as step 1's drift,
     // recorded here too since this is the other site a lexicon-rewriting rule fires
     // outside the player's own apply(). No `drift` flag, same reasoning as step 1.
-    const phonemicEntries = phonemicDiff(lex, next).map((e) => ({ name: e.kind[0].toUpperCase() + e.kind.slice(1), note: describeEvent(e) }));
+    const phonemicEntries = phonemicDiff(lex, next).map((e) => ({ name: e.kind[0].toUpperCase() + e.kind.slice(1), note: describeEvent(e), report: true }));
     return { lex: next, entries: [{ name: rule.name, note: `at fracture: ${rule.note}`, drift: true }, ...phonemicEntries], category: rule.category };
   };
 
