@@ -86,7 +86,9 @@ export function resolveUniverbation(
     let picked = preceders[0];
     for (const p of preceders) { roll -= p.w; if (roll <= 0) { picked = p; break; } }
     // conceptsOfClass returns lexicon.ts's LIVE internal array — never sort or splice
-    // it, only index into it.
+    // it, only index into it. Uniform over members, not weighted further by picked.w —
+    // a class with fewer concepts gets each of its members drawn more often, a known,
+    // accepted skew (first-pass tuning, 2SIM.1 owns the re-fit).
     const members = conceptsOfClass(picked.cls);
     const modifier = lex.find((e) => e.concept === members[Math.floor(draw(i, 2) * members.length)]);
     // the drawn concept may not be in this branch's lexicon (fixtures, and any future
