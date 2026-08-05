@@ -190,6 +190,18 @@ describe("syntaxMult", () => {
   test("unknown concept (not in CONCEPT_CLASS) is never gated", () => {
     expect(syntaxMult(RULE_BY_ID["apoc"], "nonexistent", branch, LEX)).toBe(1);
   });
+
+  // 1ENG.31: reduce/syncope are both post:null, so isBoundaryRule is false for both and
+  // syntaxMult short-circuits to 1 regardless of concept or position — stress
+  // conditioning and syntax (positional) conditioning are orthogonal channels, and this
+  // pins that they stay that way rather than silently interacting through the shared
+  // Rule shape.
+  test("reduce and syncope are not boundary rules: syntaxMult is always 1, unaffected by position", () => {
+    expect(syntaxMult(RULE_BY_ID["reduce"], "i", branch, LEX)).toBe(1);
+    expect(syntaxMult(RULE_BY_ID["reduce"], "eat", branch, LEX)).toBe(1);
+    expect(syntaxMult(RULE_BY_ID["syncope"], "i", branch, LEX)).toBe(1);
+    expect(syntaxMult(RULE_BY_ID["syncope"], "eat", branch, LEX)).toBe(1);
+  });
 });
 
 // 1ENG.19 salt-registry regression (spike §7): every (a,b,c) hashRand triple this
@@ -212,8 +224,11 @@ describe("1ENG.19 salt registry", () => {
 // claims no hashRand family at all — every draw is either a tail-appended mulberry32
 // rng() at genesis or fully pure at transducer time. seed+47 must stay unclaimed so
 // the NEXT task to need a hashRand family (not this one) is free to take it.
-describe("1ENG.24/1ENG.30 salt registry", () => {
-  test("seed+47 remains unclaimed — 1ENG.30 draws no hashRand triple", () => {
+// 1ENG.31: reduce and syncope are both pure transducers (no RNG inside xform), and the
+// firingRules/driftRule threading added to consult them is plumbing, not a new roll —
+// so this task claims no salt either. seed+47 stays the correct answer, not moved.
+describe("1ENG.24/1ENG.30/1ENG.31 salt registry", () => {
+  test("seed+47 remains unclaimed — neither 1ENG.30 nor 1ENG.31 draws a hashRand triple", () => {
     const knownFirstCoords = new Set([0, 7, 13, 19, 23, 29, 31, 37, 41, 43]);
     expect(knownFirstCoords.has(47)).toBe(false);
   });

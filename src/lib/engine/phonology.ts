@@ -170,6 +170,62 @@ export const RULES: Rule[] = [
     w:1, category:"deletion",
     match:isV, pre:bound, post:isC,
     xform:()=>({ delete:true }) },
+
+  // 1ENG.31 (1eng-24 spike §6) — unstressed vowel reduction. The first half of the
+  // Latin→French engine: unstressed nuclei neutralise toward the engine's neutral
+  // central vowel (1ENG.29's schwa) before they disappear entirely (syncope, below).
+  //   w=2.5: same band as spirant/raise/break. Cross-linguistically as common as
+  // intervocalic spirantisation, commoner than paragoge (1.5), rarer than the w=3 band
+  // (voice/devoice/apoc/nasassim) — reduction is characteristic of stress-timed
+  // languages specifically, not universal the way final obstruent devoicing is.
+  //   DIVERGES from the spike's literal `xform:()=>({back:"central"})`, deliberately.
+  // That shape is a self-seg, so applyXform diffs the input's OWN height/round and
+  // resolves (height, "central", round) against PHONES — which has no entry there
+  // outside (mid, central, false). Probed against every vowel type: /i/, /u/, /o/ and
+  // every diphthong resolve to null and are silently dropped at resolveSeg below, so a
+  // rule advertised as a vowel SHIFT would in fact DELETE seven of eleven vowel types;
+  // /aː/ merely shortens to /a/; only /e/ actually reaches ə.
+  //   An absolute seg instead, following smooth's own pattern (below) for the same
+  // reason smooth needs one: the target vowel is defined by its OWN full feature set,
+  // not a diff from the input, so long vowels and diphthongs (which carry no
+  // height/back/round to diff against) land on ə uniformly rather than falling off
+  // resolve's edge. Idempotent on ə by construction (an already-reduced nucleus is a
+  // no-op), so a fully-reduced word stops reporting fires rather than churning.
+  //   NO vowel-floor risk: 1-in/1-out, never deletes.
+  { id:"reduce", name:"Unstressed vowel reduction",
+    note:"unstressed V → ə  (quality neutralised outside the stressed syllable)",
+    w:2.5, category:"vowelShift",
+    match:isV, pre:null, post:null,
+    stressed:(s)=>!s.isStressed && s.role==="nucleus" && s.syllCount>1,
+    xform:()=>[{ from:"abs", type:"V", patch:{ height:"mid", back:"central", round:false } }] },
+
+  // 1ENG.31 (1eng-24 spike §6) — unstressed syllable loss (syncope). The second half of
+  // the Latin→French engine and the change the whole 1ENG.25/27/28/29/30 chain exists to
+  // make expressible: calidum > caldu > chaud. Deletes an unstressed nucleus; the
+  // stranded onset/coda resyllabify for free on the next read (derive-on-read, never
+  // cached — 1eng-25 §5.2).
+  //   NOT restricted to medial position, deliberately: apoc (w=3) already owns
+  // unconditioned final-vowel loss. Overlap is fine and attested — the contrast is that
+  // apoc deletes the final vowel regardless of stress, while this rule can never touch
+  // the stressed vowel anywhere in the word, which is the whole distinction the roadmap
+  // asks for.
+  //   w=2: below apoc, level with finalC/cluster/shorten. Real and common, but rarer
+  // cross-linguistically than final vowel loss.
+  //   The `syllCount>1` clause is what exempts monosyllables — the same fact that
+  // protects the vowel floor below: stressPosition returns a valid index for every word
+  // with >=1 syllable, so exactly one nucleus is always exempt from `!isStressed`, so
+  // the floor is structurally unreachable from here. A second explicit guard would
+  // silently mask a future stressPosition bug instead of surfacing it, so none is added;
+  // instead this is pinned as an invariant test (phonology.test.ts), re-verified
+  // empirically over 267,300 applications (every word of <=4 segments over a 15-phone
+  // alphabet × 5 stress configurations): zero raw outputs lost their last vowel, zero
+  // floor trips.
+  { id:"syncope", name:"Unstressed syllable loss",
+    note:"unstressed V → ∅  (calidum → caldu; the engine of Latin → French)",
+    w:2, category:"deletion",
+    match:isV, pre:null, post:null,
+    stressed:(s)=>!s.isStressed && s.role==="nucleus" && s.syllCount>1,
+    xform:()=>({ delete:true }) },
 ];
 export const RULE_BY_ID: Record<string, Rule> = Object.fromEntries(RULES.map((r) => [r.id, r]));
 
@@ -523,8 +579,21 @@ export function describeEvent(e: PhonemicEvent): string {
   }
 }
 
-export function firingRules(lex: Lexicon) {
-  return RULES.map((r) => ({ rule: r, fires: applyRuleToLex(lex, r).fires })).filter((x) => x.fires > 0);
+// 1ENG.31 (1eng-24 spike §6): stress is threaded into the SELECTION pass, unlike
+// salience and syntax which are deliberately withheld (see the RuleContext comment
+// above applyRuleToLex, and the terrain-agnostic pin in phonology.test.ts). The
+// asymmetry is principled, not an oversight: salience/syntax are per-word BLOCK rolls
+// that change how OFTEN a firing rule fires, which is the weighted pick's own job;
+// stress changes whether a rule can fire AT ALL. Under the fail-closed conjunct in
+// applyRuleToWord, a rule declaring `stressed` reports fires===0 without a StressRule,
+// so it would be filtered out here and could never be selected by driftRule — reduce
+// and syncope would be dead code for autonomous drift while still working on the
+// player path (game.svelte.ts, which passes stress and maps RULES directly rather than
+// through this function). Optional, and passed as `stress ? {stress} : undefined`
+// rather than `{stress}` unconditionally, so every pre-1ENG.31 one-arg call site
+// reproduces the exact same call and stays byte-identical.
+export function firingRules(lex: Lexicon, stress?: StressRule) {
+  return RULES.map((r) => ({ rule: r, fires: applyRuleToLex(lex, r, stress ? { stress } : undefined).fires })).filter((x) => x.fires > 0);
 }
 // Terrain contact/isolation bias (2GEO.2): contact-favoured categories fire more
 // often for open/high-contact branches, isolation-favoured categories fire more
@@ -548,8 +617,11 @@ export function biasedMult(category: RuleCategory, iso: number): number {
 // state, category -> mult) joining biasedMult in the weighted pick — see stakes.ts.
 // Omitted entirely for callers with no branch momentum to consult (fixtures, the
 // pre-2STK.3 call shape); every category then reads as its implicit 1.
-export function driftRule(lex: Lexicon, seed: number, turn: number, branchId: number, iso: number, momentumMult?: Partial<Record<RuleCategory, number>>): Rule | null {
-  const firing = firingRules(lex);
+// 1ENG.31: stress appended after momentumMult, following the same 2STK.3 idiom — an
+// optional trailing param so every 5-arg call site (~50 across the test suite) keeps
+// compiling and producing an identical pick.
+export function driftRule(lex: Lexicon, seed: number, turn: number, branchId: number, iso: number, momentumMult?: Partial<Record<RuleCategory, number>>, stress?: StressRule): Rule | null {
+  const firing = firingRules(lex, stress);
   if (!firing.length) return null;
   const weighted = firing.map((x) => ({ rule: x.rule, weight: x.rule.w * biasedMult(x.rule.category, iso) * (momentumMult?.[x.rule.category] ?? 1) }));
   const total = weighted.reduce((a, x) => a + x.weight, 0);

@@ -11,6 +11,7 @@ import { heirCandidates, bumpMomentum, decayMomentum } from "./stakes";
 import { resolveContact, shouldOpenRoute, routeKey, CONTACT_YIELD, CONTACT_TRADE_LOSS, ROUTE_TURNS } from "./contact";
 import { walkFrameWeights, ORDER_INNOVATE_RATE } from "./syntax";
 import { tickParadigm, licensesProDrop } from "./morphology";
+import type { StressRule } from "./syllable";
 import type { Anchor, Branch, GameState, HistoryEntry, Lexicon, PendingFocusChoice, RuleCategory, WordOrder, FrameWeights, ParadigmCell, AffixState } from "./types";
 
 // One generation resolves: autonomous drift → collision resolution → univerbation →
@@ -53,7 +54,7 @@ export function resolveGeneration(s: GameState): GameState {
     // drawn rule (the same one the lexicon receives just below).
     const rule = s.touched[L.id]
       ? (s.appliedRules[L.id] ? RULE_BY_ID[s.appliedRules[L.id]] : null)
-      : driftRule(L.lex, seed, turn, L.id, iso, L.momentum);
+      : driftRule(L.lex, seed, turn, L.id, iso, L.momentum, b.stressRule);
     const { paradigm, events } = tickParadigm(b.paradigm, rule, L.lex, b.wordOrder, seed, turn, L.id,
       { wordOrder: b.wordOrder, frameWeights: b.frameWeights, proDrop: b.proDrop });
     branches[L.id] = { ...branches[L.id], paradigm, proDrop: licensesProDrop(paradigm),
@@ -64,6 +65,11 @@ export function resolveGeneration(s: GameState): GameState {
     const nextLex = applyRuleToLex(L.lex, rule, {
       salience: { terrain, seed, turn, branchId: L.id },
       syntax: { wordOrder: b.wordOrder, frameWeights: b.frameWeights, proDrop: b.proDrop, seed, turn, branchId: L.id },
+      // 1ENG.31: without this, a stress-conditioned rule selected just above by
+      // driftRule would be applied with no stress view and fail closed to a no-op — the
+      // rule would be logged as having drifted while changing nothing. Same StressRule
+      // the selection consulted, so selection and application can never disagree.
+      stress: b.stressRule,
     }).lex;
     // 1ENG.26 (1eng-23 spike §4.3) — name what the rule just did phonemically. Reporting
     // only: no state change, no RNG. No `drift` flag on these entries (2GEO.4/2LEX.1
@@ -314,10 +320,10 @@ export function resolveGeneration(s: GameState): GameState {
   // still passed through for signature consistency with the other driftRule call site.
   const divergeAtBirth = (
     lex: Lexicon, childId: number, territory: number[], owner: Record<number, number>, momentum: Branch["momentum"],
-    syntax: { wordOrder: WordOrder; frameWeights: FrameWeights; proDrop: boolean },
+    syntax: { wordOrder: WordOrder; frameWeights: FrameWeights; proDrop: boolean }, stress: StressRule,
   ): { lex: Lexicon; entries: HistoryEntry[]; category: RuleCategory | null } => {
     const iso = isolationScore(childId, territory, s.world.edges, owner);
-    const rule = driftRule(lex, seed, turn, childId, iso, momentum);
+    const rule = driftRule(lex, seed, turn, childId, iso, momentum, stress);
     if (!rule) return { lex, entries: [], category: null };
     const terrain = dominantTerrain(childId, territory, s.world.edges, owner);
     // the child diverges under its OWN (possibly just-reanalysed) order — that's the
@@ -325,6 +331,11 @@ export function resolveGeneration(s: GameState): GameState {
     const next = applyRuleToLex(lex, rule, {
       salience: { terrain, seed, turn, branchId: childId },
       syntax: { ...syntax, seed, turn, branchId: childId },
+      // 1ENG.31: the sibling's OWN stressRule (inherited-by-copy from the parent at
+      // fracture, per the tree-continuity invariant), not the continuing parent's — they
+      // happen to be the same value at birth, but the parameter is threaded explicitly
+      // rather than closed over `s` to keep this function's inputs self-contained.
+      stress,
     }).lex;
     // 1ENG.26 (1eng-23 spike §6) — the same phonemic-event reporting as step 1's drift,
     // recorded here too since this is the other site a lexicon-rewriting rule fires
@@ -404,7 +415,7 @@ export function resolveGeneration(s: GameState): GameState {
       born.forEach((id) => {
         const child = branches[id];
         const { lex, entries, category } = divergeAtBirth(child.lex, id, child.territory, owner2, child.momentum,
-          { wordOrder: child.wordOrder, frameWeights: child.frameWeights, proDrop: child.proDrop });
+          { wordOrder: child.wordOrder, frameWeights: child.frameWeights, proDrop: child.proDrop }, child.stressRule);
         const updated = { ...child, lex, history: entries.length ? [...child.history, ...entries] : child.history };
         // 2STK.3: this half-weight bump (+MOMENTUM_GAIN/2) takes one repool decay tick
         // (-MOMENTUM_DECAY, below) before the turn returns, same as every other

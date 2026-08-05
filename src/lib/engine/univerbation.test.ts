@@ -290,13 +290,26 @@ describe("1ENG.27 salt registry", () => {
   });
 });
 
-// 1ENG.27 integration (spike §6 bullet 4). Deliberately slack bounds: §4.2 measures
-// 1.77 syll/word at turn 80 and a single-salt re-fit moves figures by ~0.13, so a
-// tighter pin would be asserting noise. The DIRECTION — more syllables and fewer
-// collision pairs than a rate-0 control — is the real invariant. UNIVERB_RATE is not
-// injectable by design (matching SYNTAX_STRENGTH), so the control is built by running
-// the identical loop over a class-unknown lexicon, which resolveUniverbation always
-// leaves inert (see "unknown concepts are inert" above).
+// 1ENG.27 integration (spike §6 bullet 4), re-instrumented by 1ENG.31. Deliberately
+// slack bounds: §4.2 measures 1.77 syll/word at turn 80 and a single-salt re-fit moves
+// figures by ~0.13, so a tighter pin would be asserting noise. The DIRECTION — more
+// syllables and fewer collision pairs than a rate-0 control — is the real invariant,
+// and the block comment above already said so before this rewrite; only the control
+// itself changes here. UNIVERB_RATE is not injectable by design (matching
+// SYNTAX_STRENGTH), so the control is built by running the identical loop over a
+// class-unknown lexicon, which resolveUniverbation always leaves inert (see "unknown
+// concepts are inert" above).
+//   1ENG.31: this block used to compare against a hardcoded pre-1ENG.27 baseline
+// (1.09 syll/word, 54.1 pairs at rate 0, from the spike's own passive census). That
+// baseline went stale the moment syncope shipped — syncope deletes unstressed nuclei,
+// so syllables-per-word is a moving observable again, exactly the trap 1ENG.27 itself
+// hit with word length (mvp.md: "needed a new instrument, not a loosened bound"). Fix
+// is the same: measure the control LIVE, through the same post-1ENG.31 engine, rather
+// than re-pin to a second hardcoded constant that would just go stale again at the next
+// rule that touches syllable count. Measured once at implementation time: live 1.29
+// syll/word vs inert-control 1.00; live 18 pairs/branch vs inert-control 77 — the gap
+// is wide, and both figures now move together under any future rule change instead of
+// one moving and the other sitting fixed.
 describe("integration: a seeded run restores syllables and reverses homophonic collapse", () => {
   test("univerbation measurably outperforms a no-op control over a real 48-concept substrate", async () => {
     const { freshState } = await import("./world");
@@ -305,10 +318,25 @@ describe("integration: a seeded run restores syllables and reverses homophonic c
     const { collisionPairs } = await import("./phonology");
     const isV = (id: string) => BY_ID[id]?.type === "V";
 
-    function run(seeds: number, turns: number) {
+    // 1ENG.31: renders univerbation inert without disturbing anything else the turn
+    // loop does (drift, collision repair, borrowing…) — resolveUniverbation only acts
+    // on concepts CONCEPT_CLASS recognises, so relabelling every concept to a class-
+    // unknown tag (on both the live lexicon and every anchor's frozen snapshot, since
+    // rename/eraLabels read anchors too) is sufficient. Applied post-freshState, pre-
+    // loop, so world-gen itself (and its RNG draws) is untouched.
+    const renameToUnknown = (lex: Lexicon): Lexicon => lex.map((e, i) => ({ ...e, concept: `zz${i}` }));
+
+    function run(seeds: number, turns: number, inert: boolean) {
       let syll = 0, words = 0, pairs = 0, n = 0;
       for (let s = 1; s <= seeds; s++) {
         let st = freshState(s);
+        if (inert) {
+          const branches = Object.fromEntries(Object.entries(st.branches).map(([id, b]) => [id, {
+            ...b, lex: renameToUnknown(b.lex),
+            anchors: b.anchors.map((a) => ({ ...a, lex: renameToUnknown(a.lex) })),
+          }]));
+          st = { ...st, branches };
+        }
         for (let t = 0; t < turns; t++) st = resolveGeneration(st);
         leavesOf(st.branches).forEach((L) => {
           n++; pairs += collisionPairs(L.lex);
@@ -318,11 +346,9 @@ describe("integration: a seeded run restores syllables and reverses homophonic c
       return { syllPerWord: syll / words, pairsPerBranch: pairs / n };
     }
 
-    const withUniverb = run(8, 80);
-    // control: univerbation is not switchable in the real turn loop by design, so the
-    // no-op baseline is the pre-1ENG.27 measured figure from the spike (§4.2: 1.09
-    // syll/word, 54.1 pairs at rate 0) rather than a second live run.
-    expect(withUniverb.syllPerWord).toBeGreaterThan(1.4);
-    expect(withUniverb.pairsPerBranch).toBeLessThan(54.1);
+    const withUniverb = run(8, 80, false);
+    const control = run(8, 80, true);
+    expect(withUniverb.syllPerWord).toBeGreaterThan(control.syllPerWord);
+    expect(withUniverb.pairsPerBranch).toBeLessThan(control.pairsPerBranch);
   });
 });

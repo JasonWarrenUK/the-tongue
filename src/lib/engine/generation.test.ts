@@ -1265,3 +1265,24 @@ describe("1ENG.26 phonemic-event history (step 1 drift)", () => {
     driftEntries.forEach((h) => expect(h.report).toBeUndefined());
   });
 });
+
+// 1ENG.31 (1eng-24 spike §6): schwa reaching a live lexicon through the real turn loop,
+// not a hand-built fixture. The only test that would catch a future regression that
+// re-severs the generation.ts:64 stress-threading (driftRule selecting reduce/syncope
+// but applyRuleToLex applying with no stress view, so the selection silently no-ops)
+// while leaving firingRules' own threading intact — phonology.test.ts's unit-level
+// tests exercise each half in isolation, this exercises them wired together.
+describe("1ENG.31 reduce/syncope reachable through autonomous drift", () => {
+  test("a multi-seed run over the real 48-concept substrate produces schwa in some leaf's lexicon", async () => {
+    const { freshState } = await import("./world");
+    const { leavesOf } = await import("./tree");
+    const { BY_ID } = await import("./phonology");
+    let found = false;
+    for (let seed = 1; seed <= 8 && !found; seed++) {
+      let s = freshState(seed);
+      for (let turn = 0; turn < 80; turn++) s = resolveGeneration(s);
+      found = leavesOf(s.branches).some((L) => L.lex.some((e) => e.word.some((id) => BY_ID[id]?.id === "ə")));
+    }
+    expect(found).toBe(true);
+  });
+});
