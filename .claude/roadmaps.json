@@ -148,7 +148,7 @@
 					},
 					{
 						"id": "1ENG.17",
-						"description": "Implement the three adoptions from the Zompist survey (1eng-16 spike §7), three independent slices: (1) frequency-ranked phoneme selection — gen's geometric dropoff as `pickRanked` in `rng.ts` (single-draw inverse-CDF, so inventory size can't shift downstream world-gen draws), replacing `pick` at `genSyllable`'s four call sites; (2) distance conditioning — an optional `Rule.distance` predicate scanning to the word edge (SCA²'s `…`) with `xform`'s ctx widened to carry the found segment, plus a new `umlaut` rule, making long-distance assimilation expressible for the first time; (3) metathesis — a neighbour-consuming `Seg` variant riding 1ENG.12's existing `Seg[]` output shape, plus a `metath` rule. Breaking: slice 1 changes what every seed generates (`feat(engine)!:`); slices 2 and 3 are additive (no test asserts a rule count, verified at survey time) though drift-replay goldens shift as `driftRule`'s weighted total changes",
+						"description": "Implement the three adoptions from the Zompist survey (1eng-16 spike §7), three independent slices: (1) frequency-ranked phoneme selection — gen's geometric dropoff as `pickRanked` in `rng.ts` (single-draw inverse-CDF, so inventory size can't shift downstream world-gen draws), replacing `pick` at `genSyllable`'s four call sites; (2) distance conditioning — an optional `Rule.distance` predicate scanning to the word edge (SCA²'s `…`) with `xform`'s ctx widened to carry the found segment, plus a new `umlaut` rule, making long-distance assimilation expressible for the first time; (3) metathesis — a neighbour-consuming `Seg` variant riding 1ENG.12's existing `Seg[]` output shape, plus a `metath` rule. Breaking: slice 1 changes what every seed generates (`feat(engine)!:`); slices 2 and 3 are additive (no test asserts a rule count, verified at survey time) though drift-replay goldens shift as `driftRule`'s weighted total changes. **Flagged by the 1ENG.24 spike:** its slice 2 here and 1ENG.24 slice 2 (1ENG.30) both propose widening `Rule.xform`'s ctx object — this task with a distance-found segment, 1ENG.24 with a `stress?: StressCtx` field. Independent optional fields, so compatible, but whichever lands second must extend the object rather than replace it.",
 						"status": "todo",
 						"dependsOn": [
 							"1ENG.16"
@@ -228,10 +228,34 @@
 					},
 					{
 						"id": "1ENG.24",
-						"description": "Design spike: stress, and the sound changes that need it — the engine has no stress model, so the whole family of stress-conditioned change is inexpressible: loss of unstressed syllables (the engine of Latin → French, and named in the LCK's own catalogue), unstressed vowel reduction to schwa, and stress-conditioned resistance to erosion. Blocked on a prerequisite the engine lacks generally: words are flat `string[]` segment lists with no runtime syllable structure, so syllabification (onset/nucleus/coda parsing over a live word) must be specified first and would also serve any future weight-sensitive rule. Should cover: a per-branch stress rule (initial/final/penultimate/weight-sensitive, seeded and inheritable like `wordOrder`), how stress interacts with 1ENG.14's position profiles (both condition erosion, and they must compose rather than double-count), and whether stress placement itself drifts. Surfaced by the 1ENG.16 survey (spike §9). 1ENG.25 discharged two of this task's open questions ahead of it: syllabification is specified (1ENG.28) and the stress/position composition rule is settled — stress and 1ENG.14 position profiles are orthogonal and MULTIPLY, each with its own hashRand salt and its own block roll, clamped once after multiplication (1eng-25 spike §5.3). Note the dependency now runs through 1ENG.28 (the implementation), not the spike: 1ENG.25 measured that this task's real blocker was a corpus of monosyllables, not the absence of a parser",
-						"status": "todo",
+						"description": "Design spike: stress, and the sound changes that need it — found that 1eng-25 §5.3's pre-specified whole-word stress gate (mirroring the salience/syntax gates in applyRuleToLex) CANNOT WORK: every high-volume rule targets the word's final syllable (post:bound), and whether the final syllable is stressed is a property of the branch's stress mode alone, not the word, so the gate degenerates to a per-branch constant (measured: final-syllable-stressed at 0%/100%/0%/0% across the four modes). Worse, a whole-word gate is all-or-nothing and cannot express either of the roadmap's named targets (\"delete the unstressed vowel, keep the stressed one\" is inherently sub-word). Amends 1eng-25 §5.3: departs from item 1 (the per-word gate), keeps item 4 verbatim (a per-branch seeded+inherited parameter reading syllabify() live), and dissolves the item-2/item-3 roll-composition contradiction rather than adjudicating it — stress now conditions the transducer per-segment via a widened xform ctx and a fail-closed Rule.stressed predicate, so syntaxMult's existing roll is untouched. Blast radius smaller than expected: zero of the 17 existing RULES change (TypeScript structural typing makes the widened ctx free for every consumer that ignores it). Re-measured the corpus post-1ENG.27: 1.82 syll/word, 52.2% polysyllabic, 20.1% >=3 syllables at turn 80 — the 95%-monosyllabic floor 1eng-25 §3 measured is gone. Also specifies a real schwa (tri-valued Phone.back: \"front\"|\"central\"|\"back\", not a central? boolean, which would silently corrupt to /e/ via applyXform) and the honest syllable-weight test (coda OR long vowel OR diphthong, not coda-only — moves heavy-penult rate from 1.7% to 13.6%, narrowly below the 15% \"live lever\" threshold, ledgered as flavour). Contract in `docs/spikes/1eng-24-stress.md`",
+						"status": "done",
 						"dependsOn": [
 							"1ENG.28"
+						]
+					},
+					{
+						"id": "1ENG.29",
+						"description": "Implement 1ENG.24 slice 1: a real schwa — widen `Phone.back`/`Patch.back` from `boolean` to `\"front\"|\"central\"|\"back\"`, add a schwa phone, and fix `frontV` (phonology.ts:52) to an explicit `=== \"front\"` test. Schwa is excluded from genesis inventories for free (`genInventory` builds vowels from hardcoded literals, never from `PHONES`) — it only enters a branch's live inventory once a reduction rule produces it, which is the attested pattern. `feat(engine)!:` (a public type widens) but no drift-replay goldens move (no new vowel enters any genesis inventory).",
+						"status": "todo",
+						"dependsOn": [
+							"1ENG.24"
+						]
+					},
+					{
+						"id": "1ENG.30",
+						"description": "Implement 1ENG.24 slice 2: the stress substrate — `StressRule`/`StressCtx` types, `Rule.stressed` (fail-closed positional gate), `stressPosition`/`stressMap` in `syllable.ts`, `applyRuleToWord`'s widened ctx and optional `StressRule` parameter, `World.stressRule`/`Branch.stressRule` with genesis draw (tail-appended after `adj`) and fracture-birth inheritance. No new `hashRand` salt needed (`seed+47` stays free — every draw is a genesis `rng()` tail-append or fully pure). `feat(engine)!:` (required `Branch` field, ~40 test call sites) but no goldens move (no rule yet declares `stressed`).",
+						"status": "todo",
+						"dependsOn": [
+							"1ENG.29"
+						]
+					},
+					{
+						"id": "1ENG.31",
+						"description": "Implement 1ENG.24 slice 3: `reduce` (unstressed vowel reduction to the new schwa, w=2.5) and `syncope` (unstressed syllable loss, w=2, the Latin→French engine) added to `RULES`, both gated by `Rule.stressed`. The vowel floor (phonology.ts:189) is structurally unreachable from `syncope` by construction (stressPosition always exempts one nucleus) — pinned as an invariant test, not a second guard. `feat(engine)!:`, goldens move (two new rules change `driftRule`'s weighted total, every seed diverges from turn ~1).",
+						"status": "todo",
+						"dependsOn": [
+							"1ENG.30"
 						]
 					}
 				]
@@ -573,7 +597,7 @@
 				"tasks": [
 					{
 						"id": "4PHON.1",
-						"description": "Design spike: tonogenesis — tone arising from lost segmental contrasts (the Sinitic and Vietnamese histories are largely tonogenetic; the LCK names it as a change type worth modelling). **Deliberately deferred beyond the current roadmap, not merely unscheduled:** tone is suprasegmental, so it needs a new axis on `Phone`, a tone-bearing-unit notion (specified by 1ENG.25, implemented by 1ENG.28), a reckoning with all 21 rules, and a decision about how `intelligibility.ts`'s Levenshtein metric should weigh a tone difference against a segment difference — that last one is a genuine design question, since tone differences are perceptually salient in ways a naive edit distance would understate. Recorded so the 1ENG.16 survey's judgement (cost, not merit) stays on the record rather than being rediscovered. Revisit no earlier than 1ENG.24, and only once M1-M3 have shipped",
+						"description": "Design spike: tonogenesis — tone arising from lost segmental contrasts (the Sinitic and Vietnamese histories are largely tonogenetic; the LCK names it as a change type worth modelling). **Deliberately deferred beyond the current roadmap, not merely unscheduled:** tone is suprasegmental, so it needs a new axis on `Phone`, a tone-bearing-unit notion (specified by 1ENG.25, implemented by 1ENG.28), a reckoning with all 21 rules, and a decision about how `intelligibility.ts`'s Levenshtein metric should weigh a tone difference against a segment difference — that last one is a genuine design question, since tone differences are perceptually salient in ways a naive edit distance would understate. Recorded so the 1ENG.16 survey's judgement (cost, not merit) stays on the record rather than being rediscovered. Revisit no earlier than 1ENG.24, and only once M1-M3 have shipped. **Updated by the 1ENG.24 spike:** the tone-bearing-unit prerequisite is discharged (1ENG.28's `syllabify`), and 1ENG.24 slice 1 (1ENG.29) does the `Phone`-axis widening this task would otherwise have had to do itself for tone, while 1ENG.24 slice 2 (1ENG.30)'s `Rule.stressed` establishes the per-segment conditioning channel a tone rule will also need. `dependsOn` stays on 1ENG.24 (the spike, now done) rather than 1ENG.31, since this task's own spike is still unscheduled and should read 1ENG.24's contract, not wait on its implementation.",
 						"status": "blocked",
 						"dependsOn": [
 							"1ENG.24"
