@@ -377,6 +377,9 @@ export interface SyntaxContext {
 // parameter. Unlike salience/syntax it carries no roll of its own here: the actual
 // stress gating happens inside applyRuleToWord (Rule.stressed against the per-segment
 // StressCtx), so this is pure plumbing, not a fourth independent block roll.
+// A new call site must wrap the branch's stressRule as `{ stress: b.stressRule }`, not
+// pass it bare — nothing here enforces that shape structurally. generation.ts and
+// game.svelte.ts's call sites are the reference examples.
 export interface RuleContext { salience?: SalienceContext; syntax?: SyntaxContext; stress?: StressRule }
 
 export function applyRuleToLex(lex: Lexicon, rule: Rule, ctx?: RuleContext): { lex: Lexicon; fires: number } {
