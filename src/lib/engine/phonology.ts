@@ -1,6 +1,13 @@
 import { hashRand } from "./rng";
 import { salienceRetention } from "./lexicon";
 import { syntaxMult } from "./syntax";
+// 1ENG.30: closes an import cycle with syllable.ts (which imports BY_ID from this
+// module). Resolves safely because both sides only touch each other inside function
+// bodies, never at module-scope initialisation — stressMap is called inside
+// applyRuleToWord's body below, not at this file's top level. Same discipline
+// syntax.ts's BY_ID.a already keeps for its own cycle with this module.
+import { stressMap } from "./syllable";
+import type { StressRule } from "./syllable";
 import type { Phone, PhoneType, Backness, Patch, Rule, RuleCategory, Lexicon, Terrain, Seg, XformResult, WordOrder, FrameWeights, Inventory } from "./types";
 
 const C = (id: string, place: string, manner: string, voice: boolean): Phone =>
@@ -184,18 +191,30 @@ function normalise(r: XformResult): Seg[] {
 
 export const MAX_LEN = 12; // ~4-5 syllables; growth ceiling, symmetric with the min-vowel floor below
 
-export function applyRuleToWord(ids: string[], rule: Rule): { ids: string[]; changed: boolean } {
+// 1ENG.30: stressRule is optional so all pre-1ENG.24 two-arg call sites (~50 in
+// phonology.test.ts, collision.test.ts:169) keep compiling and, more importantly, keep
+// producing byte-identical output — see the backward-compatibility sweep. When supplied,
+// stressMap is computed ONCE before the loop (not per-segment), since it's a pure
+// function of the whole word and syllable boundaries don't move mid-application.
+export function applyRuleToWord(ids: string[], rule: Rule, stressRule?: StressRule): { ids: string[]; changed: boolean } {
   const ph = ids.map((id) => BY_ID[id]);
+  const stress = stressRule ? stressMap(ids, stressRule) : undefined;
   const out: string[] = [];
   let changed = false;
   for (let i = 0; i < ph.length; i++) {
     const p = ph[i];
     const pre = i > 0 ? ph[i - 1] : null;
     const post = i < ph.length - 1 ? ph[i + 1] : null;
-    const hit = rule.match(p) && (rule.pre ? rule.pre(pre) : true) && (rule.post ? rule.post(post) : true);
+    const st = stress?.[i];
+    // 1ENG.30: fail-closed. A rule declaring `stressed` never fires when the stress
+    // view is absent — no StressRule supplied, or (defensively) no StressCtx at this
+    // index — rather than firing unconditioned, which would be a silent unconditioned
+    // sound change (1eng-24 spike §3).
+    const hit = rule.match(p) && (rule.pre ? rule.pre(pre) : true) && (rule.post ? rule.post(post) : true)
+      && (rule.stressed ? (st ? rule.stressed(st) : false) : true);
     if (!hit) { out.push(p.id); continue; }
     const before = out.length;
-    for (const s of normalise(rule.xform(p, { pre, post }))) {
+    for (const s of normalise(rule.xform(p, { pre, post, stress: st }))) {
       const nid = resolveSeg(p, s);
       if (nid !== null) out.push(nid); // an unresolvable seg is dropped, as delete was pre-1ENG.12
     }
@@ -241,7 +260,11 @@ export function applyRuleToAffix(ids: string[], rule: Rule, edge: "suffix" | "pr
     // (pre) is the real boundary at i===0.
     const pre = edge === "suffix" ? (i > 0 ? ph[i - 1] : ctx) : (i > 0 ? ph[i - 1] : null);
     const post = edge === "suffix" ? (i < ph.length - 1 ? ph[i + 1] : null) : (i < ph.length - 1 ? ph[i + 1] : ctx);
-    const hit = rule.match(p) && (rule.pre ? rule.pre(pre) : true) && (rule.post ? rule.post(post) : true);
+    // 1ENG.30: same fail-closed conjunct as applyRuleToWord, with the stress view
+    // always absent — affixes have no independent stress domain (they attach inside a
+    // stem's own syllable structure), so a stress-conditioned rule never fires on one.
+    const hit = rule.match(p) && (rule.pre ? rule.pre(pre) : true) && (rule.post ? rule.post(post) : true)
+      && (rule.stressed ? false : true);
     if (!hit) { out.push(p.id); continue; }
     for (const s of normalise(rule.xform(p, { pre, post }))) {
       const nid = resolveSeg(p, s);
@@ -293,12 +316,17 @@ export interface SyntaxContext {
   wordOrder: WordOrder; frameWeights: FrameWeights; proDrop: boolean;
   seed: number; turn: number; branchId: number;
 }
-export interface RuleContext { salience?: SalienceContext; syntax?: SyntaxContext }
+// 1ENG.30: stress follows the salience?/syntax? precedent exactly — an optional field
+// on the same context object, threaded straight into applyRuleToWord's own optional
+// parameter. Unlike salience/syntax it carries no roll of its own here: the actual
+// stress gating happens inside applyRuleToWord (Rule.stressed against the per-segment
+// StressCtx), so this is pure plumbing, not a fourth independent block roll.
+export interface RuleContext { salience?: SalienceContext; syntax?: SyntaxContext; stress?: StressRule }
 
 export function applyRuleToLex(lex: Lexicon, rule: Rule, ctx?: RuleContext): { lex: Lexicon; fires: number } {
   let fires = 0;
   const next = lex.map((e, i) => {
-    const r = applyRuleToWord(e.word, rule);
+    const r = applyRuleToWord(e.word, rule, ctx?.stress);
     if (!r.changed) return { ...e, word: r.ids };
     if (ctx?.salience) {
       const retention = salienceRetention(e.concept, ctx.salience.terrain);

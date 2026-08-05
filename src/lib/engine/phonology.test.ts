@@ -1,8 +1,9 @@
 import { describe, test, expect } from "bun:test";
-import { driftRule, biasedMult, firingRules, applyRuleToLex, applyRuleToWord, RULE_BY_ID, RULES, MAX_LEN, stepToward, BY_ID, inventoryOf, phonemicDiff, describeEvent } from "./phonology";
+import { driftRule, biasedMult, firingRules, applyRuleToLex, applyRuleToWord, applyRuleToAffix, RULE_BY_ID, RULES, MAX_LEN, stepToward, BY_ID, inventoryOf, phonemicDiff, describeEvent } from "./phonology";
 import { hashRand } from "./rng";
 import { formSimilarity } from "./intelligibility";
-import type { Lexicon, WordOrder } from "./types";
+import type { StressRule } from "./syllable";
+import type { Lexicon, Rule, WordOrder } from "./types";
 
 // Mixed lexicon: some words end in a mid vowel (fires both apoc [deletion] and
 // raise [vowelShift]), some end in a consonant (fires finalC [deletion]) — so
@@ -290,6 +291,64 @@ describe("applyRuleToWord backward compatibility (1ENG.12 regression goldens)", 
   test("every original 9 rules still resolve through the self-seg path unchanged", () => {
     const ORIGINAL_IDS = ["voice", "spirant", "devoice", "apoc", "finalC", "palat", "debucc", "raise", "nasassim", "cluster"];
     for (const id of ORIGINAL_IDS) expect(RULE_BY_ID[id]).toBeDefined();
+  });
+  // 1ENG.30 (1eng-24 spike §8) — 17-rule byte-identity sweep, extending this backward-
+  // compatibility block rather than starting a new one: same purpose (a widening event
+  // must not perturb existing rules), one more widening. None of the 17 pre-1ENG.24
+  // rules declares `stressed`, so passing a StressRule must produce byte-identical
+  // output to the two-arg call — the fail-closed conjunct only bites rules that opt in.
+  test("every pre-1ENG.24 rule produces identical output with and without a StressRule", () => {
+    const WORDS = [
+      ["t", "a"], ["a", "p", "a"], ["t", "a", "p", "e"], ["a", "p", "t", "a"],
+      ["k", "i", "t"], ["m", "a", "t"], ["a"], ["a", "e"], ["a", "ie"], ["a", "aː"],
+      ["k", "a", "s", "t"], ["j", "a"], ["s", "t"],
+    ];
+    const STRESS_RULES: StressRule[] = [
+      { mode: "initial", weightSensitive: false }, { mode: "final", weightSensitive: false },
+      { mode: "penult", weightSensitive: true }, { mode: "antepenult", weightSensitive: false },
+    ];
+    for (const rule of RULES) {
+      expect(rule.stressed).toBeUndefined(); // sanity: none of the 17 opt into stress conditioning yet
+      for (const w of WORDS) {
+        const plain = applyRuleToWord(w, rule);
+        for (const sr of STRESS_RULES) {
+          expect(applyRuleToWord(w, rule, sr)).toEqual(plain);
+        }
+      }
+    }
+  });
+});
+
+// 1ENG.30 (1eng-24 spike §3/§8) — Rule.stressed fail-closed gate. A synthetic test rule
+// (RULES itself declares none yet — that's 1ENG.31) proves the channel both fails
+// closed with no StressRule supplied and actually restricts firing when one is.
+describe("1ENG.30 Rule.stressed fail-closed gate", () => {
+  // Mid vowel -> high, restricted to stressed syllables (raise's own xform, gated).
+  // /e/ -> /i/ is a real, resolvable transform (unlike a schwa-target that PHONES has
+  // no slot for), so a change here unambiguously means the gate let the rule through.
+  const stressedRaise: Rule = {
+    id: "test-stressed-raise", name: "test", note: "test", w: 1, category: "vowelShift",
+    match: (p) => p.type === "V" && p.height === "mid", pre: null, post: null,
+    xform: () => ({ height: "high" }),
+    stressed: (s) => s.isStressed,
+  };
+
+  test("applyRuleToWord: no StressRule supplied -> never fires, even on a vowel that would match", () => {
+    const r = applyRuleToWord(["t", "e"], stressedRaise);
+    expect(r).toEqual({ ids: ["t", "e"], changed: false });
+  });
+
+  test("applyRuleToWord: StressRule supplied -> fires only on the stressed syllable's vowel", () => {
+    // initial mode, disyllable [t,e,t,e]: syllable 0 is stressed, syllable 1 is not.
+    // Both vowels match (both /e/, mid) — only the stressed one may raise to /i/.
+    const initial: StressRule = { mode: "initial", weightSensitive: false };
+    const r = applyRuleToWord(["t", "e", "t", "e"], stressedRaise, initial);
+    expect(r).toEqual({ ids: ["t", "i", "t", "e"], changed: true });
+  });
+
+  test("applyRuleToAffix: stressed rule never fires — affixes have no independent stress domain", () => {
+    const out = applyRuleToAffix(["e"], stressedRaise, "suffix", BY_ID.t);
+    expect(out).toEqual(["e"]);
   });
 });
 

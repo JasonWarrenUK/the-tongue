@@ -71,3 +71,86 @@ export function syllabify(word: string[]): Syllable[] {
 }
 
 export const syllableCount = (word: string[]): number => syllabify(word).length;
+
+// 1ENG.30 (1eng-24 spike §2-§5) — stress substrate. Stress conditions the transducer at
+// the SEGMENT level (Rule.stressed + xform's widened ctx, phonology.ts), not as a
+// per-word gate like syntaxMult: "unstressed vowel reduction" and "loss of unstressed
+// syllables" are sub-word changes a block-or-don't gate can't express. This module stays
+// a pure function of the word (no World read), matching syllabify's own reasoning above.
+export type StressMode = "initial" | "final" | "penult" | "antepenult";
+export interface StressRule { mode: StressMode; weightSensitive: boolean }
+// Present iff the caller supplied a StressRule to applyRuleToWord; absent (undefined)
+// for every legacy call — which is what makes the 17 pre-1ENG.24 rules byte-identical
+// either way (see the phonology.test.ts backward-compatibility sweep).
+export interface StressCtx {
+  isStressed: boolean; syllIdx: number; syllCount: number;
+  weight: "heavy" | "light"; role: "onset" | "nucleus" | "coda";
+}
+
+// 1ENG.30 (1eng-24 spike §4): declared now, unused until a genuine drift trigger
+// exists — the roadmap's "does stress placement itself drift?" question has a specific
+// answer, not a generic one: Latin penult stress becoming French final stress is not
+// the stress RULE changing, it's the same rule reading a shorter word after apocope
+// strips the trailing syllables a penult sat inside. An independent seeded flip would
+// model the symptom, not the cause. Held in the ORDER_TURNS/ORDER_CONTACT_CUT idiom
+// (syntax.ts) — pinned now so a future consuming task (the natural candidate is
+// 4PHON.1, since stress shift and tonogenesis are historically coupled) tunes against
+// a constant this one already fixed.
+export const STRESS_SHIFT_RATE = 0.05;
+
+// §1.3's honest heavy test: a coda makes a syllable heavy regardless of the nucleus; a
+// vowelless syllable (reachable only via applyRuleToAffix's lifted floor) is light by
+// definition since it has no vowel to carry weight; otherwise heavy iff the nucleus
+// phone is long or a diphthong. BY_ID lookup stays inside the function body, never at
+// module scope — see the import-cycle note on syllabify above; phonology.ts importing
+// this module would close a loop that only resolves if neither side touches the other
+// at module-scope initialisation (the same discipline syntax.ts's BY_ID.a already keeps).
+const isHeavy = (s: Syllable): boolean => {
+  if (s.coda.length > 0) return true;
+  if (s.nucleus === null) return false;
+  const nuc = BY_ID[s.nucleus];
+  return !!nuc?.long || !!nuc?.diph;
+};
+
+// Which syllable carries primary stress. Returns a 0-based index, or -1 when no
+// syllable can bear stress (a wholly vowelless word — reachable via
+// applyRuleToAffix's lifted vowel floor; syllabify([]) returns one such syllable,
+// pinned at syllable.test.ts:50-52).
+export function stressPosition(sylls: Syllable[], rule: StressRule): number {
+  const n = sylls.length;
+  if (n === 0) return -1;
+  // Monosyllable → 0 under every mode, not -1: a monosyllable is the one word shape
+  // that cannot lose its vowel and still be a word, so treating it as "unstressed"
+  // would make every monosyllable a syncope target — exactly backwards.
+  if (n === 1) return sylls[0].nucleus === null ? -1 : 0;
+  if (rule.weightSensitive && rule.mode === "penult") {
+    const penult = n - 2;
+    return isHeavy(sylls[penult]) ? penult : Math.max(0, n - 3);
+  }
+  switch (rule.mode) {
+    case "initial": return 0;
+    case "final": return n - 1;
+    case "penult": return n - 2;
+    case "antepenult": return Math.max(0, n - 3); // a disyllable has no antepenult; clamps to initial
+  }
+}
+
+// Flatten syllabify()'s structure into one StressCtx per SEGMENT INDEX. Sound by the
+// round-trip invariant pinned at syllable.test.ts:108: concatenating
+// [...onset, nucleus, ...coda] across syllables reproduces the input word exactly, so a
+// running cursor over that concatenation indexes correctly back into it.
+export function stressMap(word: string[], rule: StressRule): (StressCtx | undefined)[] {
+  const sylls = syllabify(word);
+  const stressedIdx = stressPosition(sylls, rule);
+  const out: (StressCtx | undefined)[] = [];
+  sylls.forEach((s, syllIdx) => {
+    const weight: StressCtx["weight"] = isHeavy(s) ? "heavy" : "light";
+    const isStressed = syllIdx === stressedIdx;
+    const push = (role: StressCtx["role"]) =>
+      out.push({ isStressed, syllIdx, syllCount: sylls.length, weight, role });
+    s.onset.forEach(() => push("onset"));
+    if (s.nucleus !== null) push("nucleus");
+    s.coda.forEach(() => push("coda"));
+  });
+  return out;
+}

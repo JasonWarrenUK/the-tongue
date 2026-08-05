@@ -1,3 +1,5 @@
+import type { StressCtx, StressRule } from "./syllable";
+
 export type PhoneType = "C" | "V";
 // 1ENG.29 (1eng-24 spike §7): tri-valued, not a `central?: boolean` flag alongside
 // `back`. applyXform forwards only {height, back, round} into resolve, so a separate
@@ -40,11 +42,22 @@ export interface Rule {
   match: (p: Phone) => boolean;
   pre: ((p: Phone | null) => boolean) | null;
   post: ((p: Phone | null) => boolean) | null;
-  xform: (p: Phone, ctx: { pre: Phone | null; post: Phone | null }) => XformResult;
+  // 1ENG.30: ctx widens with an optional `stress` field rather than a required one, so
+  // all 17 pre-1ENG.24 rules (none of which read it) stay byte-identical — see the
+  // backward-compatibility sweep in phonology.test.ts. EXTEND this object, never
+  // replace it: 1ENG.17 slice 2 plans its own optional `distance` field on the same
+  // ctx (1eng-24 spike §3) — whichever lands second must add alongside, not redefine.
+  xform: (p: Phone, ctx: { pre: Phone | null; post: Phone | null; stress?: StressCtx }) => XformResult;
   // 1ENG.13: on a hit, lengthen the previously-emitted output vowel (compensatory
   // lengthening — a coda deletes itself and the vowel before it goes long instead).
   // Optional and false for every pre-1ENG.13 rule, so their output is unaffected.
   lengthensPrev?: boolean;
+  // 1ENG.30 (1eng-24 spike §3): a positional gate evaluated alongside match/pre/post.
+  // FAIL-CLOSED: a rule declaring this never fires when the stress view is absent (no
+  // StressRule was supplied to applyRuleToWord/applyRuleToAffix) — an unconditioned
+  // stress rule firing unconditioned would be a silent unconditioned sound change, the
+  // same class of bug isBoundaryRule (syntax.ts) guards a future boundary rule against.
+  stressed?: (s: StressCtx) => boolean;
 }
 
 export interface LexEntry { concept: string; word: string[] }
@@ -83,6 +96,10 @@ export interface World {
   // 1ENG.19: the GENESIS word order (mirrors world.lex -> root.lex): the root branch
   // copies this at birth, then wordOrder becomes per-branch and mutable (spike §3.3).
   wordOrder: WordOrder;
+  // 1ENG.30 (1eng-24 spike §4): the GENESIS stress rule, modelled on wordOrder's shape
+  // exactly — drawn once here, copied (not shared) to the root at freshState, then
+  // per-branch and mutable (fracture-birth inheritance in generation.ts).
+  stressRule: StressRule;
 }
 // `report` marks a phonemic-event entry (Merger/Split/Loss/Gain, phonology.ts's
 // phonemicDiff): it describes a change already recorded by another entry the same
@@ -124,6 +141,14 @@ export interface Branch {
   // compoundOrder, siblings can diverge in order after fracture (§5's reanalysis is
   // stage A's one mutation; stage B/1ENG.21 adds rigidification and contact alignment).
   wordOrder: WordOrder;
+  // 1ENG.30 (1eng-24 spike §4): per-branch, mutable stress rule — same shape as
+  // wordOrder. Inherited whole and copied (not shared) at fracture, the same reason
+  // frameWeights is copied: a sibling's own future state must never mutate the parent's.
+  // Deliberately NOT reassigned autonomously yet — a genuine drift trigger (§4's
+  // STRESS_SHIFT_RATE hook) is specified but unshipped; stress shift historically
+  // follows from apocope shortening the word a fixed-position rule reads, not an
+  // independent seeded flip, so modelling one now would model the symptom, not the cause.
+  stressRule: StressRule;
   // 1ENG.19 (spike §3.2): frame-usage weights, seeded flat at genesis and walked each
   // turn (syntax.ts walkFrameWeights). Inherited (copied, not shared) at fracture.
   frameWeights: FrameWeights;

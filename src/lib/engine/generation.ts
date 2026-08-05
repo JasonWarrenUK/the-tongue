@@ -390,7 +390,11 @@ export function resolveGeneration(s: GameState): GameState {
         const paradigm = Object.fromEntries(
           Object.entries(parent.paradigm).map(([cell, st]) => [cell, { ...st, form: [...st.form] }]),
         ) as Record<ParadigmCell, AffixState>;
-        branches[id] = { id, name, parentId: parent.id, depth: parent.depth + 1, splitIndex: parent.history.length, history: [...parent.history], lex: startLex, territory: comp, pressure: 0, anchors: [{ lex: startLex, turn, historyIndex: parent.history.length, driftFromPrev: 0 }], assimilationPressure: 0, collisionPressure: { ...parent.collisionPressure }, momentum: {}, wordOrder: order, frameWeights: [...parent.frameWeights] as FrameWeights, proDrop: parent.proDrop, paradigm };
+        // 1ENG.30: stressRule inherited whole and copied (not shared), same reason as
+        // frameWeights just above — a sibling's own future state must never mutate the
+        // parent's. No divergence roll yet (unlike wordOrder's reanalyse): §4's
+        // STRESS_SHIFT_RATE hook is declared but deliberately unshipped.
+        branches[id] = { id, name, parentId: parent.id, depth: parent.depth + 1, splitIndex: parent.history.length, history: [...parent.history], lex: startLex, territory: comp, pressure: 0, anchors: [{ lex: startLex, turn, historyIndex: parent.history.length, driftFromPrev: 0 }], assimilationPressure: 0, collisionPressure: { ...parent.collisionPressure }, momentum: {}, wordOrder: order, stressRule: { ...parent.stressRule }, frameWeights: [...parent.frameWeights] as FrameWeights, proDrop: parent.proDrop, paradigm };
       });
       branches[L.id] = { ...parent, territory: main };
       // parent keeps its component; siblings own theirs — ownerMap reflects the

@@ -207,3 +207,14 @@ describe("1ENG.19 salt registry", () => {
     expect(new Set(newFirstCoords).size).toBe(newFirstCoords.length);
   });
 });
+
+// 1ENG.30 (1eng-24 spike §8, "Salt allocation: none needed"): the stress substrate
+// claims no hashRand family at all — every draw is either a tail-appended mulberry32
+// rng() at genesis or fully pure at transducer time. seed+47 must stay unclaimed so
+// the NEXT task to need a hashRand family (not this one) is free to take it.
+describe("1ENG.24/1ENG.30 salt registry", () => {
+  test("seed+47 remains unclaimed — 1ENG.30 draws no hashRand triple", () => {
+    const knownFirstCoords = new Set([0, 7, 13, 19, 23, 29, 31, 37, 41, 43]);
+    expect(knownFirstCoords.has(47)).toBe(false);
+  });
+});

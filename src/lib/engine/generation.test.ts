@@ -326,6 +326,29 @@ describe("1ENG.19 fracture-birth syntax inheritance & reanalysis", () => {
   });
 });
 
+// 1ENG.30 (1eng-24 spike §4) — fracture-birth stressRule inheritance. Same copy-not-
+// share treatment as frameWeights above, and for the same reason: a sibling's own
+// future state must never mutate the parent's. No divergence roll yet (unlike
+// wordOrder's reanalyse) — the value is inherited whole, unchanged.
+describe("1ENG.30 fracture-birth stressRule inheritance", () => {
+  test("a born sibling inherits the parent's stressRule by value", () => {
+    const out = resolveGeneration(fractureState());
+    const kid = childrenOf(out, 0)[0];
+    const parent = out.branches[0];
+    expect(kid.stressRule).toEqual(parent.stressRule);
+  });
+
+  test("stressRule is copied, not shared: mutating the child's object leaves the parent's untouched", () => {
+    const out = resolveGeneration(fractureState());
+    const kid = childrenOf(out, 0)[0];
+    const parent = out.branches[0];
+    expect(kid.stressRule).not.toBe(parent.stressRule); // distinct object identity
+    const beforeMutation = parent.stressRule.mode;
+    kid.stressRule.mode = "final";
+    expect(parent.stressRule.mode).toBe(beforeMutation); // parent's own object is unaffected
+  });
+});
+
 // 1ENG.20 (1eng-15 spike §4/§5) — the paradigm tick wired into step 1 and fracture.
 describe("1ENG.20 paradigm tick & fracture inheritance", () => {
   test("paradigm is deep-copied at fracture: distinct identity, equal values, mutating the child leaves the parent untouched", () => {
@@ -458,7 +481,7 @@ describe("1ENG.19 word-order-conditioned erosion asymmetry", () => {
   function orderState(basic: WordOrder["basic"], seed: number): GameState {
     const lex: Lexicon = [...VERBS, ...PRONOUNS].map((concept) => ({ concept, word: [...SHAPE] }));
     return {
-      world: { seed, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [{ id: 0, x: 0, y: 0 }], edges: [], adj: { 0: [] }, start: 0, compoundOrder: "modFirst", wordOrder: { basic, adj: "AdjN" } },
+      world: { seed, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [{ id: 0, x: 0, y: 0 }], edges: [], adj: { 0: [] }, start: 0, compoundOrder: "modFirst", wordOrder: { basic, adj: "AdjN" }, stressRule: { mode: "initial", weightSensitive: false } },
       branches: { 0: {
         id: 0, name: "Aenic", parentId: null, depth: 0, splitIndex: 0, history: [],
         lex, territory: [0], pressure: 0,

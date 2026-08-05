@@ -4,6 +4,7 @@ import { genRegions } from "./geography";
 import { genStem } from "./naming";
 import { seedParadigm, licensesProDrop } from "./morphology";
 import type { CompoundOrder, FrameWeights, GameState, Settings, World, WordOrder } from "./types";
+import type { StressMode } from "./syllable";
 
 export const DEFAULTS: Settings = { pool: 8, growth: 2, overhead: 3, changeCost: 2, spreadEvery: 3 };
 
@@ -33,7 +34,20 @@ export function makeWorld(seed: number): World {
   const basicRoll = rng();
   const basic: WordOrder["basic"] = basicRoll < 0.45 ? "SOV" : basicRoll < 0.9 ? "SVO" : "VSO";
   const adj: WordOrder["adj"] = rng() < 0.5 ? "AdjN" : "NAdj";
-  return { seed, inv, tmpl, lex, ...geo, compoundOrder, wordOrder: { basic, adj } };
+  // 1ENG.30 (1eng-24 spike §4): stress placement, tail-appended after wordOrder's adj
+  // draw — the tail-append convention above is load-bearing; drawing earlier shifts
+  // every downstream draw and changes every seed's world. Mode weights follow WALS 14A's
+  // attested skew (initial/penultimate dominate fixed-stress systems, final is a real
+  // minority pattern, antepenultimate genuinely rare) — first-pass tuning, ledgered as
+  // such: 14A (fixed position) and 15A (weight-sensitive) sample disjoint populations,
+  // so no single table licenses a four-way split. 2SIM.1 owns the re-fit.
+  const sRoll = rng();
+  const mode: StressMode = sRoll < 0.35 ? "initial" : sRoll < 0.65 ? "penult" : sRoll < 0.90 ? "final" : "antepenult";
+  // Weight-sensitivity is rarer than fixed placement, and the spike's §1.3 measures it
+  // as narrowly below the "live lever" threshold on this corpus — drawn low, ledgered
+  // as flavour.
+  const weightSensitive = rng() < 0.2;
+  return { seed, inv, tmpl, lex, ...geo, compoundOrder, wordOrder: { basic, adj }, stressRule: { mode, weightSensitive } };
 }
 export function freshState(seed: number): GameState {
   const world = makeWorld(seed);
@@ -57,7 +71,7 @@ export function freshState(seed: number): GameState {
   // cells are alive, and the root is born with all three affixal, so it starts licensed.
   const frameWeights: FrameWeights = [1, 1, 1, 1];
   const paradigm = seedParadigm(world.lex, world.wordOrder, seed);
-  const root = { id: 0, name: genStem(world.inv, seed, 0), parentId: null, depth: 0, splitIndex: 0, history: [], lex: world.lex, territory: [world.start], pressure: 0, anchors: [{ lex: world.lex, turn: 0, historyIndex: 0, driftFromPrev: 0 }], assimilationPressure: 0, collisionPressure: {}, momentum: {}, wordOrder: { ...world.wordOrder }, frameWeights, proDrop: licensesProDrop(paradigm), paradigm };
+  const root = { id: 0, name: genStem(world.inv, seed, 0), parentId: null, depth: 0, splitIndex: 0, history: [], lex: world.lex, territory: [world.start], pressure: 0, anchors: [{ lex: world.lex, turn: 0, historyIndex: 0, driftFromPrev: 0 }], assimilationPressure: 0, collisionPressure: {}, momentum: {}, wordOrder: { ...world.wordOrder }, stressRule: { ...world.stressRule }, frameWeights, proDrop: licensesProDrop(paradigm), paradigm };
   // 2STK.2: the root is the self at world start; no mourning, no queued focus
   // decision, run not yet ended. 2STK.5: no trade routes open yet.
   return { world, branches: { 0: root }, rootId: 0, selectedId: 0, nextId: 1, turn: 1, settings: { ...DEFAULTS }, pool: DEFAULTS.pool, touched: {}, appliedRules: {}, log: [], focusId: 0, mourning: null, pendingFocusChoice: null, ended: false, routes: {} };
