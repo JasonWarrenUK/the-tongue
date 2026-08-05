@@ -1,11 +1,11 @@
 import { hashRand } from "./rng";
 import { salienceRetention } from "./lexicon";
 import { syntaxMult } from "./syntax";
-import type { Phone, PhoneType, Patch, Rule, RuleCategory, Lexicon, Terrain, Seg, XformResult, WordOrder, FrameWeights, Inventory } from "./types";
+import type { Phone, PhoneType, Backness, Patch, Rule, RuleCategory, Lexicon, Terrain, Seg, XformResult, WordOrder, FrameWeights, Inventory } from "./types";
 
 const C = (id: string, place: string, manner: string, voice: boolean): Phone =>
   ({ id, g: id, type: "C", place, manner, voice, obstruent: manner === "stop" || manner === "fric" });
-const V = (id: string, height: string, back: boolean, round: boolean): Phone =>
+const V = (id: string, height: string, back: Backness, round: boolean): Phone =>
   ({ id, g: id, type: "V", height, back, round });
 // 1ENG.12 renewal phones — see 1eng-11 spike §4.1. Long vowels carry the base vowel's
 // features + long:true; diphthongs are structurally distinct (no height/back/round),
@@ -17,13 +17,27 @@ const VL = (base: Phone): Phone => ({ ...base, id: base.id + "ː", g: MACRON[bas
 const VD = (id: string, nucleus: string, offglide: string): Phone =>
   ({ id, g: id, type: "V", diph: true, nucleus, offglide });
 
-const [I, E, A, O, U] = [V("i","high",false,false), V("e","mid",false,false), V("a","low",false,false), V("o","mid",true,true), V("u","high",true,true)];
+// 1ENG.29: /a/ is central, not front — the low vowel in a 5-vowel system is typically
+// realised around [ä] cross-linguistically (Maddieson, Patterns of Sounds), and it
+// matters here because frontV (below) gates palatalisation, whose canonical
+// environment is _ i,e (Latin casa keeps /k/ while centum fronts it; Slavic first
+// palatalisation and English keep/car pattern the same way). Central /a/ means
+// palatalisation no longer fires before it — see 1eng-24 spike §7 and the phonology
+// test suite's "1ENG.29 schwa" block for the goldens this deliberately moves.
+const [I, E, A, O, U] = [V("i","high","front",false), V("e","mid","front",false), V("a","low","central",false), V("o","mid","back",true), V("u","high","back",true)];
+// 1ENG.29 (1eng-24 spike §7): the schwa slice. No VL/VD variant — nothing assumes
+// every vowel has a long or diphthong counterpart, and resolve already returns null
+// on no match (the path documented at phonology.ts below for diphthongs against
+// {long:true}); a central vowel having no conventional long counterpart is correct,
+// not a gap. Doesn't collide with /a/ despite sharing back:"central" — resolve also
+// matches on height, and they're low vs mid.
+const SCHWA = V("ə","mid","central",false);
 
 export const PHONES: Phone[] = [
   C("p","lab","stop",false),C("b","lab","stop",true),C("t","alv","stop",false),C("d","alv","stop",true),C("k","vel","stop",false),C("g","vel","stop",true),
   C("f","lab","fric",false),C("v","lab","fric",true),C("s","alv","fric",false),C("z","alv","fric",true),C("ʃ","pal","fric",false),C("ʒ","pal","fric",true),C("x","vel","fric",false),C("ɣ","vel","fric",true),C("h","glo","fric",false),
   C("m","lab","nasal",true),C("n","alv","nasal",true),C("ŋ","vel","nasal",true),C("l","alv","liquid",true),C("r","alv","liquid",true),C("j","pal","glide",true),C("w","lab","glide",true),
-  I, E, A, O, U,
+  I, E, A, O, U, SCHWA,
   VL(I), VL(E), VL(A), VL(O), VL(U),
   VD("ie","i","e"), VD("uo","u","o"), VD("ei","e","i"), VD("ou","o","u"), VD("au","a","u"), VD("ai","a","i"),
 ];
@@ -49,7 +63,10 @@ function applyXform(ph: Phone, patch: Patch): string | null {
 
 const isV = (p: Phone | null) => !!p && p.type === "V";
 const isC = (p: Phone | null) => !!p && p.type === "C";
-const frontV = (p: Phone | null) => isV(p) && !p!.back;
+// 1ENG.29: was `!p!.back` under the old boolean — under Backness every value is a
+// truthy string, so that would return false for every vowel and silently kill
+// palatalisation outright. Must be an explicit equality test (1eng-24 spike §7).
+const frontV = (p: Phone | null) => isV(p) && p!.back === "front";
 const stopC = (p: Phone | null) => isC(p) && p!.manner === "stop";
 const bound = (p: Phone | null) => p === null;
 
@@ -80,28 +97,40 @@ export const RULES: Rule[] = [
     match:isC, pre:null, post:isC,
     xform:()=>[
       { from:"self", patch:{} },
-      { from:"abs", type:"V", patch:{ height:"high", back:false, round:false } },
+      { from:"abs", type:"V", patch:{ height:"high", back:"front", round:false } },
     ] },
   { id:"paragoge", name:"Paragoge", note:"∅ → V / C _ #  (unconditioned word-final vowel epenthesis)", w:1.5, category:"epenthesis",
     match:isC, pre:null, post:bound,
     xform:()=>[
       { from:"self", patch:{} },
-      { from:"abs", type:"V", patch:{ height:"high", back:false, round:false } },
+      { from:"abs", type:"V", patch:{ height:"high", back:"front", round:false } },
     ] },
   // Unconditioned breaking (real: cf. the Great Vowel Shift) — any final vowel may
   // diphthongise, not only a pre-existing mid vowel after hiatus. This is the second
   // bootstrap: it fires on the [C]V floor itself, where post:bound is the only
   // environment left once hiatus and mid vowels have both eroded away.
+  // 1ENG.29: three arms on Backness, not a boolean branch — under the old boolean
+  // `p.back ?` picked back/front; under Backness every string is truthy, so that test
+  // would take the back arm for everything. match excludes diphthongs (isV(p)&&!p.diph)
+  // so the switch stays total — a diphthong reaching break would have no back value to
+  // dispatch on, and the only diphthong producer (this rule) already fires word-finally,
+  // so re-breaking one is not a real path. Central /a/ finally reaches the ai arm the
+  // rule's own note has always advertised.
   { id:"break", name:"Vowel breaking", note:"V → diphthong / _ #  (unconditioned; e→ie, a→ai, u→uo…)", w:2.5, category:"vowelShift",
-    match:isV, pre:null, post:bound,
-    xform:(p)=>[
-      { from:"abs", type:"V", patch: p.back ? { diph:true, nucleus:"u", offglide:"o" } : { diph:true, nucleus:"i", offglide:"e" } },
-    ] },
+    match:(p)=>isV(p)&&!p.diph, pre:null, post:bound,
+    xform:(p)=>{
+      const seg = p.back === "back" ? { nucleus:"u", offglide:"o" } : p.back === "central" ? { nucleus:"a", offglide:"i" } : { nucleus:"i", offglide:"e" };
+      return [{ from:"abs", type:"V", patch:{ diph:true, ...seg } }];
+    } },
   { id:"smooth", name:"Monophthongisation", note:"diphthong → mid V  (ie→e, uo→o)", w:2.5, category:"lenition",
     match:(p)=>isV(p)&&!!p.diph, pre:null, post:null,
     xform:(p)=>{
-      const back = p.nucleus === "u" || p.nucleus === "o";
-      return [{ from:"abs", type:"V", patch:{ height:"mid", back, round:back } }];
+      // 1ENG.29: explicit Backness map, not `nucleus==="u"||"o"` reused as a boolean.
+      // An a-nucleus diphthong (au, ai) has to land on "front" here so it resolves to
+      // /e/ — mapping it to "central" would resolve to schwa (mid, central) and silently
+      // monophthongise au/ai to ə instead of the intended /e/.
+      const back: Backness = (p.nucleus === "u" || p.nucleus === "o") ? "back" : "front";
+      return [{ from:"abs", type:"V", patch:{ height:"mid", back, round: back === "back" } }];
     } },
   { id:"shorten", name:"Vowel shortening", note:"long V → short / _ #", w:2, category:"deletion",
     match:(p)=>isV(p)&&!!p.long, pre:null, post:bound,

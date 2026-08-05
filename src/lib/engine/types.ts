@@ -1,16 +1,22 @@
 export type PhoneType = "C" | "V";
+// 1ENG.29 (1eng-24 spike §7): tri-valued, not a `central?: boolean` flag alongside
+// `back`. applyXform forwards only {height, back, round} into resolve, so a separate
+// `central` field would be silently dropped by every rule firing on a schwa and
+// corrupt it into /e/. A single tri-valued field is collision-safe by construction —
+// resolve's vowel-branch equality checks compare the whole `back` value.
+export type Backness = "front" | "central" | "back";
 
 export interface Phone {
   id: string; g: string; type: PhoneType;
   place?: string; manner?: string; voice?: boolean; obstruent?: boolean;
-  height?: string; back?: boolean; round?: boolean;
+  height?: string; back?: Backness; round?: boolean;
   // 1ENG.12 renewal: long vowels (long) and diphthongs (diph, decomposed structurally
   // since they don't fit the scalar height/back/round model) — see 1eng-11 spike §4.1.
   long?: boolean; diph?: boolean; nucleus?: string; offglide?: string;
 }
 export interface Patch {
   delete?: boolean; voice?: boolean; manner?: string; place?: string;
-  height?: string; back?: boolean; round?: boolean; long?: boolean;
+  height?: string; back?: Backness; round?: boolean; long?: boolean;
   diph?: boolean; nucleus?: string; offglide?: string;
 }
 // 1ENG.19 (1eng-14 spike §4.3): "fortition" covers fortify, the engine's one

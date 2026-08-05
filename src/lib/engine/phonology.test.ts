@@ -307,7 +307,9 @@ describe("epenth / break (renewal rules)", () => {
   });
   test("break fires on a bare single-vowel word (the ossification floor)", () => {
     const r = applyRuleToWord(["a"], RULE_BY_ID.break);
-    expect(r).toEqual({ ids: ["ie"], changed: true }); // "a" is a front (non-back) vowel
+    // 1ENG.29: /a/ is central (see phonology.ts's vowel-row comment), so break's
+    // central arm fires — the ai diphthong the rule's own note has always advertised.
+    expect(r).toEqual({ ids: ["ai"], changed: true });
   });
   test("break does not fire on a non-final vowel", () => {
     const r = applyRuleToWord(["e", "t"], RULE_BY_ID.break);
@@ -415,6 +417,53 @@ describe("compleng / complengFinal (compensatory lengthening, 1ENG.13)", () => {
       if (r.id === "compleng" || r.id === "complengFinal") expect(r.lengthensPrev).toBe(true);
       else expect(r.lengthensPrev).toBeFalsy();
     }
+  });
+});
+
+describe("1ENG.29 schwa (1eng-24 spike §7)", () => {
+  // Schwa is unreachable through normal drift on this slice — no rule produces it
+  // until 1ENG.31's reduce — so these drive applyRuleToWord with hand-built words
+  // containing "ə" directly, matching the other per-rule golden tests in this file.
+  test("frontV: palat does not fire before ə (schwa is not front)", () => {
+    const r = applyRuleToWord(["k", "ə", "t"], RULE_BY_ID.palat);
+    expect(r).toEqual({ ids: ["k", "ə", "t"], changed: false });
+  });
+  test("frontV: palat still fires before /i/ and /e/", () => {
+    expect(applyRuleToWord(["k", "i", "t"], RULE_BY_ID.palat)).toEqual({ ids: ["ʃ", "i", "t"], changed: true });
+    expect(applyRuleToWord(["k", "e", "t"], RULE_BY_ID.palat)).toEqual({ ids: ["ʃ", "e", "t"], changed: true });
+  });
+  // Deliberate, not a regression: /a/ is central (see phonology.ts's vowel-row
+  // comment), and palatalisation before a low/central vowel is the typologically
+  // marked pattern — Latin casa keeps /k/ while centum fronts it; French cantare ->
+  // chanter is cited as the exception precisely because it's unusual.
+  test("frontV: palat no longer fires before /a/", () => {
+    const r = applyRuleToWord(["k", "a", "t"], RULE_BY_ID.palat);
+    expect(r).toEqual({ ids: ["k", "a", "t"], changed: false });
+  });
+  test("resolve collision guard: ə and /e/ are distinct, not merged by a rule firing on schwa", () => {
+    // devoice doesn't touch vowels, but raise (mid -> high) does, and confirms
+    // resolve dispatches schwa (mid, central) to itself, not to /e/ (mid, front).
+    const r = applyRuleToWord(["m", "ə", "n"], RULE_BY_ID.finalC);
+    expect(r).toEqual({ ids: ["m", "ə"], changed: true });
+    expect(BY_ID.ə).not.toBe(BY_ID.e);
+  });
+  test("compleng on a schwa nucleus: lengthening is silently skipped, never throws (no əː phone)", () => {
+    expect(() => applyRuleToWord(["k", "ə", "s", "t"], RULE_BY_ID.compleng)).not.toThrow();
+    const r = applyRuleToWord(["k", "ə", "s", "t"], RULE_BY_ID.compleng);
+    expect(r).toEqual({ ids: ["k", "ə", "t"], changed: true }); // coda absorbed, vowel NOT lengthened
+  });
+  test("break: three-arm Backness coverage (front->ie, central->ai, back->uo)", () => {
+    expect(applyRuleToWord(["e"], RULE_BY_ID.break)).toEqual({ ids: ["ie"], changed: true });
+    expect(applyRuleToWord(["a"], RULE_BY_ID.break)).toEqual({ ids: ["ai"], changed: true });
+    expect(applyRuleToWord(["o"], RULE_BY_ID.break)).toEqual({ ids: ["uo"], changed: true });
+  });
+  test("break does not fire on a diphthong (match excludes p.diph, keeping the switch total)", () => {
+    const r = applyRuleToWord(["ie"], RULE_BY_ID.break);
+    expect(r).toEqual({ ids: ["ie"], changed: false });
+  });
+  test("smooth: an a-nucleus diphthong yields /e/, not ə", () => {
+    expect(applyRuleToWord(["au"], RULE_BY_ID.smooth)).toEqual({ ids: ["e"], changed: true });
+    expect(applyRuleToWord(["ai"], RULE_BY_ID.smooth)).toEqual({ ids: ["e"], changed: true });
   });
 });
 
