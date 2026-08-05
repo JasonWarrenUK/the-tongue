@@ -245,7 +245,7 @@
 					{
 						"id": "1ENG.30",
 						"description": "Implement 1ENG.24 slice 2: the stress substrate — `StressRule`/`StressCtx` types, `Rule.stressed` (fail-closed positional gate), `stressPosition`/`stressMap` in `syllable.ts`, `applyRuleToWord`'s widened ctx and optional `StressRule` parameter, `World.stressRule`/`Branch.stressRule` with genesis draw (tail-appended after `adj`) and fracture-birth inheritance. No new `hashRand` salt needed (`seed+47` stays free — every draw is a genesis `rng()` tail-append or fully pure). `feat(engine)!:` (required `Branch` field, ~40 test call sites) but no goldens move (no rule yet declares `stressed`).",
-						"status": "todo",
+						"status": "done",
 						"dependsOn": [
 							"1ENG.29"
 						]
@@ -253,7 +253,7 @@
 					{
 						"id": "1ENG.31",
 						"description": "Implement 1ENG.24 slice 3: `reduce` (unstressed vowel reduction to the new schwa, w=2.5) and `syncope` (unstressed syllable loss, w=2, the Latin→French engine) added to `RULES`, both gated by `Rule.stressed`. The vowel floor (phonology.ts:189) is structurally unreachable from `syncope` by construction (stressPosition always exempts one nucleus) — pinned as an invariant test, not a second guard. `feat(engine)!:`, goldens move (two new rules change `driftRule`'s weighted total, every seed diverges from turn ~1).",
-						"status": "todo",
+						"status": "done",
 						"dependsOn": [
 							"1ENG.30"
 						]
