@@ -598,7 +598,7 @@
 					{
 						"id": "4PHON.1",
 						"description": "Design spike: tonogenesis — tone arising from lost segmental contrasts (the Sinitic and Vietnamese histories are largely tonogenetic; the LCK names it as a change type worth modelling). **Deliberately deferred beyond the current roadmap, not merely unscheduled:** tone is suprasegmental, so it needs a new axis on `Phone`, a tone-bearing-unit notion (specified by 1ENG.25, implemented by 1ENG.28), a reckoning with all 21 rules, and a decision about how `intelligibility.ts`'s Levenshtein metric should weigh a tone difference against a segment difference — that last one is a genuine design question, since tone differences are perceptually salient in ways a naive edit distance would understate. Recorded so the 1ENG.16 survey's judgement (cost, not merit) stays on the record rather than being rediscovered. Revisit no earlier than 1ENG.24, and only once M1-M3 have shipped. **Updated by the 1ENG.24 spike:** the tone-bearing-unit prerequisite is discharged (1ENG.28's `syllabify`), and 1ENG.24 slice 1 (1ENG.29) does the `Phone`-axis widening this task would otherwise have had to do itself for tone, while 1ENG.24 slice 2 (1ENG.30)'s `Rule.stressed` establishes the per-segment conditioning channel a tone rule will also need. `dependsOn` stays on 1ENG.24 (the spike, now done) rather than 1ENG.31, since this task's own spike is still unscheduled and should read 1ENG.24's contract, not wait on its implementation.",
-						"status": "blocked",
+						"status": "todo",
 						"dependsOn": [
 							"1ENG.24"
 						]
