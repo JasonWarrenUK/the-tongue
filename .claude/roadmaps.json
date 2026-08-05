@@ -237,7 +237,7 @@
 					{
 						"id": "1ENG.29",
 						"description": "Implement 1ENG.24 slice 1: a real schwa — widen `Phone.back`/`Patch.back` from `boolean` to `\"front\"|\"central\"|\"back\"`, add a schwa phone, and fix `frontV` (phonology.ts:52) to an explicit `=== \"front\"` test. Schwa is excluded from genesis inventories for free (`genInventory` builds vowels from hardcoded literals, never from `PHONES`) — it only enters a branch's live inventory once a reduction rule produces it, which is the attested pattern. `feat(engine)!:` (a public type widens) but no drift-replay goldens move (no new vowel enters any genesis inventory).",
-						"status": "todo",
+						"status": "done",
 						"dependsOn": [
 							"1ENG.24"
 						]
