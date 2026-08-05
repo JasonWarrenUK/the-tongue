@@ -220,8 +220,8 @@
 					},
 					{
 						"id": "1ENG.28",
-						"description": "Implement 1ENG.25 slice 2: runtime syllabification — new `syllable.ts` (`syllabify`, `syllableCount`, `SONORITY`, the `Syllable` interface) doing sonority-constrained onset maximisation over a live word. Derive-on-read, never cached: 29% of word-changing rule applications alter syllable count (apoc/paragoge/epenth/aphaer resyllabify), so a cache would be stale a third of the time it is read. Ships as a pure library with no engine call site — its consumers are 1ENG.24 and 4PHON.1 — and must land after 1ENG.27, which is what makes multisyllabic words exist to parse. Additive, no goldens move",
-						"status": "todo",
+						"description": "Implement 1ENG.25 slice 2: runtime syllabification — new `syllable.ts` (`syllabify`, `syllableCount`, `SONORITY`, the `Syllable` interface) doing sonority-constrained onset maximisation over a live word. Derive-on-read, never cached: 29% of word-changing rule applications alter syllable count (apoc/paragoge/epenth/aphaer resyllabify), so a cache would be stale a third of the time it is read. Ships as a pure library with no engine call site — its consumers are 1ENG.24 and 4PHON.1 — and must land after 1ENG.27, which is what makes multisyllabic words exist to parse. Additive, no goldens move. **Revised during implementation:** `Syllable.nucleus` widened from the spike's `string` (§5.1) to `string | null`. The spec's own vowelless-syllable edge case is reachable — `applyRuleToAffix` lifts the vowel floor `applyRuleToWord` enforces (phonology.ts:226) — and has no representable value in a bare `string`; `\"\"` would let a stress/tone consumer key off it silently rather than being forced to handle the case. `syllabify([])` returns one empty onset-only syllable, a case the spike did not specify, pinned at syllable.test.ts:50-52. Shipped in b2822ac (PR #23): 13 tests pass, and the integration arm goes beyond the spec by round-tripping `[...onset, nucleus, ...coda]` back to the input across 1000 real engine words, catching boundary bugs a nucleus-count check alone would miss.",
+						"status": "done",
 						"dependsOn": [
 							"1ENG.27"
 						]
@@ -229,7 +229,7 @@
 					{
 						"id": "1ENG.24",
 						"description": "Design spike: stress, and the sound changes that need it — the engine has no stress model, so the whole family of stress-conditioned change is inexpressible: loss of unstressed syllables (the engine of Latin → French, and named in the LCK's own catalogue), unstressed vowel reduction to schwa, and stress-conditioned resistance to erosion. Blocked on a prerequisite the engine lacks generally: words are flat `string[]` segment lists with no runtime syllable structure, so syllabification (onset/nucleus/coda parsing over a live word) must be specified first and would also serve any future weight-sensitive rule. Should cover: a per-branch stress rule (initial/final/penultimate/weight-sensitive, seeded and inheritable like `wordOrder`), how stress interacts with 1ENG.14's position profiles (both condition erosion, and they must compose rather than double-count), and whether stress placement itself drifts. Surfaced by the 1ENG.16 survey (spike §9). 1ENG.25 discharged two of this task's open questions ahead of it: syllabification is specified (1ENG.28) and the stress/position composition rule is settled — stress and 1ENG.14 position profiles are orthogonal and MULTIPLY, each with its own hashRand salt and its own block roll, clamped once after multiplication (1eng-25 spike §5.3). Note the dependency now runs through 1ENG.28 (the implementation), not the spike: 1ENG.25 measured that this task's real blocker was a corpus of monosyllables, not the absence of a parser",
-						"status": "blocked",
+						"status": "todo",
 						"dependsOn": [
 							"1ENG.28"
 						]
