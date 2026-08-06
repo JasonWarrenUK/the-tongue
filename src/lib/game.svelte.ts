@@ -2,13 +2,14 @@ import { freshState } from "./engine/world";
 import { resolveGeneration } from "./engine/generation";
 import { RULES, RULE_BY_ID, applyRuleToLex, collisionPairs, homophoneForms, formOf, inventoryOf } from "./engine/phonology";
 import { leavesOf, isLeaf } from "./engine/tree";
-import { ownerMap, freeAdjacentFor, passableComponents, basePool, overheadFor, dominantAssimilator, dominantTerrain, ASSIM_TURNS } from "./engine/geography";
+import { ownerMap, freeAdjacentFor, passableComponents, basePool, overheadFor, dominantAssimilator, dominantTerrain, neighborsOf, pairContact, ASSIM_TURNS } from "./engine/geography";
 import { eraContexts, eraStages } from "./engine/naming";
 import { buildEraLayout } from "./engine/tree";
 import { reachMult, COST_CAP, MOURN_TURNS, momentumMult, bumpMomentum } from "./engine/stakes";
 import { resolveContact } from "./engine/contact";
 import { severePairs, pairThreshold, yieldingConcept, modifierCandidates, compoundWord } from "./engine/collision";
-import { syntaxMult } from "./engine/syntax";
+import { syntaxMult, ORDER_TURNS, ORDER_CONTACT_CUT } from "./engine/syntax";
+import { agreementCollapsed } from "./engine/morphology";
 import type { GameState, Settings, Candidate, Lexicon } from "./engine/types";
 import type { EraStage } from "./engine/naming";
 import type { ContactResult } from "./engine/contact";
@@ -99,6 +100,26 @@ class Game {
     if (b.assimilationPressure < ASSIM_TURNS - 1) return null;
     const dominant = dominantAssimilator(b, this.st.branches, this.st.world.edges, ownerMap(this.st.branches));
     return dominant?.name ?? null;
+  });
+  // 1ENG.21: word-order pressure warnings, same accumulated-state-plus-live-recheck
+  // shape as assimilatingInto — one turn out (< ORDER_TURNS - 1), not a live geometric
+  // recheck, so the player sees the warning before the event actually fires.
+  rigidifying = $derived.by<boolean>(() => {
+    const b = this.sel;
+    return b.orderPressure >= ORDER_TURNS - 1 && agreementCollapsed(b.paradigm) && b.wordOrder.basic !== "SVO";
+  });
+  aligningToward = $derived.by<string | null>(() => {
+    const b = this.sel;
+    const owner = ownerMap(this.st.branches);
+    for (const nId of neighborsOf(b.id, b.territory, this.st.world.edges, owner)) {
+      const n = this.st.branches[nId]; if (!n) continue;
+      if (n.wordOrder.basic === b.wordOrder.basic) continue; // nothing to align toward
+      const pressure = b.orderContactPressure[nId] ?? 0;
+      if (pressure < ORDER_TURNS - 1) continue;
+      if (pairContact(b.id, nId, b.territory, this.st.world.edges, owner) < ORDER_CONTACT_CUT) continue;
+      return n.name;
+    }
+    return null;
   });
   // 2STK.2: the self, and any focus decision queued by resolveGeneration for the
   // player to resolve before their next turn's actions (§2.2 fracture / §2.3

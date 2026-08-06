@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { FRAMES, frameOrder } from "$lib/engine/syntax";
+  import { FRAMES, frameOrder, ORDER_TURNS } from "$lib/engine/syntax";
   import { formOf } from "$lib/engine/phonology";
   import { conceptsOfClass } from "$lib/engine/lexicon";
   import { inflect, PATHWAY } from "$lib/engine/morphology";
@@ -7,9 +7,15 @@
   import type { ConceptClass } from "$lib/engine/lexicon";
   import type { AffixState, FrameWeights, Lexicon, ParadigmCell, WordOrder } from "$lib/engine/types";
 
-  let { lex, order, weights, proDrop, paradigm }:
+  let { lex, order, weights, proDrop, paradigm, orderPressure = null, aligningToward = null }:
     { lex: Lexicon; order: WordOrder; weights: FrameWeights; proDrop: boolean;
-      paradigm: Record<ParadigmCell, AffixState> } = $props();
+      paradigm: Record<ParadigmCell, AffixState>;
+      // 1ENG.21: optional so every pre-1ENG.21 call site (none exist outside +page.svelte,
+      // but the pattern matches how proDrop/paradigm themselves were added) keeps
+      // compiling. orderPressure is the rigidification clock's "N/ORDER_TURNS" label
+      // (game.svelte.ts's rigidifying already gates whether it's shown at all);
+      // aligningToward is the contact driver's target branch name, or null.
+      orderPressure?: number | null; aligningToward?: string | null } = $props();
 
   // 1ENG.20: inverse of morphology.ts's PATHWAY (pronoun concept -> agreement cell),
   // for keying the verb's cell off F1's subject slot. F2's noun subject has no entry
@@ -69,8 +75,24 @@
 </script>
 
 <div class="space-y-2.5">
-  <div class="text-xs text-muted">
-    {order.basic} · {order.adj}{#if proDrop} · pro-drop{/if}
+  <div class="text-xs text-muted flex items-center gap-2 flex-wrap">
+    <span>{order.basic} · {order.adj}{#if proDrop} · pro-drop{/if}</span>
+    <!-- 1ENG.21: order-pressure context sits beside the order it's about to change
+         (spike §4.4's named home for this warning), mirroring pressureLabel's
+         "N/M turns until X" idiom (game.svelte.ts). Shown whenever the clock is
+         running, not only in the last-turn window +page.svelte's header warning
+         gates on — this is the fuller "why" the header's "what's about to happen"
+         doesn't have room for. -->
+    {#if orderPressure !== null && orderPressure > 0}
+      <span class="text-warn" title="turns of sustained agreement collapse before word order fixes to SVO">
+        {orderPressure}/{ORDER_TURNS} turns to rigidify
+      </span>
+    {/if}
+    {#if aligningToward}
+      <span class="text-warn" title="sustained contact is pulling this branch's word order toward {aligningToward}">
+        aligning toward {aligningToward}
+      </span>
+    {/if}
   </div>
   {#each FRAMES as frame, i}
     {@const slots = fill(frame)}

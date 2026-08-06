@@ -95,6 +95,8 @@
             </h2>
             {#if game.fracturing}<span class="text-xs text-warn">⚠ will fracture at gen end</span>{/if}
             {#if game.assimilatingInto}<span class="text-xs text-warn">⚠ assimilating into {game.assimilatingInto} — drift or expand to resist</span>{/if}
+            {#if game.rigidifying}<span class="text-xs text-warn">⚠ word order fixing to SVO — renew the paradigm to resist</span>{/if}
+            {#if game.aligningToward}<span class="text-xs text-warn">⚠ word order aligning toward {game.aligningToward}</span>{/if}
           </div>
           <WordTable lex={game.sel.lex} previewLex={game.previewLex} curHomo={game.curHomo} prevHomo={game.prevHomo}
             severeConcepts={game.severeConcepts} pressureLabel={game.pressureLabel} />
@@ -109,7 +111,8 @@
         {#if !game.viewing}
           <Panel title="Phrases">
             <PhrasePanel lex={game.sel.lex} order={game.sel.wordOrder} weights={game.sel.frameWeights}
-              proDrop={game.sel.proDrop} paradigm={game.sel.paradigm} />
+              proDrop={game.sel.proDrop} paradigm={game.sel.paradigm}
+              orderPressure={game.sel.orderPressure} aligningToward={game.aligningToward} />
           </Panel>
           <Changes candidates={game.candidates} preview={game.preview} stepCost={game.stepCost}
             overheadDue={game.overheadDue} pool={game.st.pool} reach={game.reach} isFocal={game.isFocal}
