@@ -1,5 +1,6 @@
 import { describe, test, expect } from "bun:test";
-import { CONCEPTS, CONCEPT_CLASS, salienceRetention, borrowableConcepts } from "./lexicon";
+import { CONCEPTS, CONCEPT_CLASS, salienceRetention, borrowableConcepts, genInventory, genLexicon, genTemplate } from "./lexicon";
+import { mulberry32 } from "./rng";
 import type { Terrain } from "./types";
 
 const TERRAINS: Terrain[] = ["plain", "hill", "mountain", "water"];
@@ -102,5 +103,52 @@ describe("borrowableConcepts", () => {
         expect(CONCEPT_CLASS[concept]).toBe("noun");
       }
     }
+  });
+});
+
+// 1ENG.17 slice 1 (decision 1, plan §"Decisions taken"): genInventory's consonant list
+// used to be built by PUSH order, so index 7+ was whichever optional gate happened to
+// pass first for a given seed — not a frequency rank. Stabilised to a fixed typological
+// rank (CONSONANT_RANK) filtered by the same gates, so pickRanked's dropoff means what
+// it claims: earlier index = more typologically core.
+describe("1ENG.17: genInventory consonant order is seed-stable", () => {
+  const CANONICAL = ["p", "t", "k", "m", "n", "s", "l", "b", "d", "g", "r", "h", "f", "ʃ", "j", "w", "ŋ", "z"];
+
+  test("consonants are always a subsequence of the canonical typological rank, for many seeds", () => {
+    for (let seed = 1; seed <= 60; seed++) {
+      const cons = genInventory(mulberry32(seed)).consonants;
+      let cursor = -1;
+      for (const c of cons) {
+        const idx = CANONICAL.indexOf(c);
+        expect(idx).toBeGreaterThan(cursor); // strictly increasing rank position
+        cursor = idx;
+      }
+    }
+  });
+
+  test("the seven core consonants are always present and lead the array", () => {
+    const core = ["p", "t", "k", "m", "n", "s", "l"];
+    for (let seed = 1; seed <= 20; seed++) {
+      const cons = genInventory(mulberry32(seed)).consonants;
+      expect(cons.slice(0, 7)).toEqual(core);
+    }
+  });
+});
+
+// 1ENG.17 slice 1: naturalism assertion (spike §7) — for a seed whose inventory holds
+// both /t/ (typologically core, high index-rank priority) and /ŋ/ (marked, low
+// priority), pickRanked's dropoff should make /t/ strictly more common across the
+// 48-word lexicon.
+describe("1ENG.17: frequency-ranked selection produces naturalistic skew", () => {
+  test("/t/ appears strictly more often than /ŋ/ across the lexicon (seed 4)", () => {
+    const rng = mulberry32(4);
+    const inv = genInventory(rng);
+    expect(inv.consonants).toContain("t");
+    expect(inv.consonants).toContain("ŋ");
+    const t = genTemplate(rng);
+    const lex = genLexicon(rng, inv, t);
+    const tCount = lex.filter((e) => e.word.includes("t")).length;
+    const ngCount = lex.filter((e) => e.word.includes("ŋ")).length;
+    expect(tCount).toBeGreaterThan(ngCount);
   });
 });
