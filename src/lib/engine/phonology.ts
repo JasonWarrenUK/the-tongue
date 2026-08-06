@@ -346,13 +346,25 @@ export function applyRuleToWord(ids: string[], rule: Rule, stressRule?: StressRu
       && (rule.stressed ? (st ? rule.stressed(st) : false) : true)
       && (rule.distance ? far !== null : true);
     if (!hit) { out.push(p.id); continue; }
+    const segs = normalise(rule.xform(p, { pre, post, stress: st, far }));
+    // 1ENG.17 slice 3: a "pre"-consuming seg's neighbour was already pushed to `out` on
+    // ph[i-1]'s OWN iteration (this loop only learns a segment is being moved when the
+    // CURRENT phone's rule fires, one step too late to have skipped it forward there) —
+    // so it has to be popped back out before THIS iteration pushes anything, not
+    // interleaved per-seg in emission order (a pop after this iteration's own push would
+    // remove the wrong element). `pre` is always a real ph[i-1] here, never an injected
+    // edge (applyRuleToAffix's concern, not this function's), and skipNext guarantees
+    // ph[i-1] got its own ordinary push rather than being consumed away — a rule can't
+    // both `skipNext`-consume ph[i-1] forward AND have ph[i-1] still be "pre" for ph[i]
+    // on the very next iteration, since skipNext already skipped that iteration entirely.
+    if (pre !== null && segs.some((s) => s.from === "pre")) out.pop();
     const before = out.length;
-    for (const s of normalise(rule.xform(p, { pre, post, stress: st, far }))) {
+    for (const s of segs) {
       // 1ENG.17 slice 3: a "post"-consuming seg needs post itself (not p) as the
       // resolve target, and it must not read past the word edge — post is already
       // null there, so resolveSeg's neighbour-null guard makes an edge consume a
-      // (defensive) no-op rather than a crash. "pre" is symmetric, included for a
-      // future rule shape even though no shipped rule emits it yet.
+      // (defensive) no-op rather than a crash. "pre" is fully symmetric (popped above)
+      // even though no shipped rule emits it yet — metath only ever emits "post".
       const neighbour = s.from === "post" ? post : s.from === "pre" ? pre : null;
       const nid = resolveSeg(p, s, neighbour);
       if (nid !== null) out.push(nid); // an unresolvable seg is dropped, as delete was pre-1ENG.12
@@ -416,7 +428,15 @@ export function applyRuleToAffix(ids: string[], rule: Rule, edge: "suffix" | "pr
     const hit = rule.match(p) && (rule.pre ? rule.pre(pre) : true) && (rule.post ? rule.post(post) : true)
       && (rule.stressed ? false : true) && (rule.distance ? false : true);
     if (!hit) { out.push(p.id); continue; }
-    for (const s of normalise(rule.xform(p, { pre, post }))) {
+    const segs = normalise(rule.xform(p, { pre, post }));
+    // "pre" pops its neighbour back out of `out` BEFORE this iteration pushes anything
+    // (mirroring applyRuleToWord — a pop interleaved per-seg would remove the wrong
+    // element once this iteration has already pushed its own output) — but only when
+    // `pre` came from a real preceding phone (i > 0), not an injected edge `ctx`: ctx was
+    // never pushed to `out` (it isn't part of this affix), so there is nothing to pop
+    // when a "pre"-consuming rule fires at i===0.
+    if (i > 0 && segs.some((s) => s.from === "pre")) out.pop();
+    for (const s of segs) {
       const neighbour = s.from === "post" ? post : s.from === "pre" ? pre : null;
       const nid = resolveSeg(p, s, neighbour);
       if (nid !== null) out.push(nid); // unresolvable/deleted seg dropped — no floor to protect

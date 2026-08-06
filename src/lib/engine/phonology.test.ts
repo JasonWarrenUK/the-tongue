@@ -321,6 +321,53 @@ describe("metathesis (1ENG.17 slice 3)", () => {
   });
 });
 
+// pr-review-comment follow-up: no shipped rule emits `from:"pre"` (metath only emits
+// "post"), but the Seg type admits it and resolveSeg already resolved a "pre" neighbour
+// correctly — the loop-level pop was the missing half. A synthetic rule exercises it
+// directly: liquid+V -> V+liquid (metath's mirror image, consuming backward instead of
+// forward) so the regression is pinned even though no real rule needs this direction yet.
+describe("\"pre\"-consuming Seg (loop-level pop, symmetric with \"post\")", () => {
+  // emits self BEFORE pre — the reverse of the input order — which is what actually
+  // performs the swap: pre's own earlier iteration already pushed it unchanged, so
+  // popping it and re-pushing it AFTER self is what moves it, not just re-affirms it.
+  const preSwap: Rule = {
+    id: "_preSwapTest", name: "test-only", note: "", w: 1, category: "metathesis",
+    match: (p) => !!p && p.type === "V", pre: (p) => !!p && p.type === "C" && p.manner === "liquid", post: null,
+    xform: () => [{ from: "self", patch: {} }, { from: "pre", patch: {}, consumes: true }],
+  };
+  test("liquid+V -> V+liquid: the popped neighbour is emitted exactly once, in its new position", () => {
+    expect(applyRuleToWord(["b", "r", "a"], preSwap)).toEqual({ ids: ["b", "a", "r"], changed: true });
+  });
+  test("the moved neighbour keeps its own identity (both liquids pinned, mirroring the /l/-/r/ regression)", () => {
+    expect(applyRuleToWord(["r", "a"], preSwap).ids).toEqual(["a", "r"]);
+    expect(applyRuleToWord(["l", "a"], preSwap).ids).toEqual(["a", "l"]);
+  });
+  test("does not fire on the word-initial phone (no pre at all to satisfy the pre predicate)", () => {
+    expect(() => applyRuleToWord(["a"], preSwap)).not.toThrow();
+    expect(applyRuleToWord(["a"], preSwap).changed).toBe(false);
+  });
+  test("word invariants hold over a longer word: length unchanged, vowel floor intact", () => {
+    const { ids } = applyRuleToWord(["t", "r", "a", "t", "a", "l", "i"], preSwap);
+    expect(ids.length).toBe(7);
+    expect(ids.some((id) => BY_ID[id].type === "V")).toBe(true);
+  });
+
+  // applyRuleToAffix has its own separate pop guard: `pre` at i===0 (suffix) may be the
+  // INJECTED stem-context phone rather than a real preceding affix segment already
+  // pushed to `out` — nothing to pop there, unlike applyRuleToWord where `pre` is only
+  // ever a real ph[i-1].
+  test("applyRuleToAffix: pops a real preceding affix segment (i>0)", () => {
+    expect(applyRuleToAffix(["r", "a"], preSwap, "suffix", BY_ID.t)).toEqual(["a", "r"]);
+  });
+  test("applyRuleToAffix: injected ctx at i===0 still resolves the neighbour, but never pops (it isn't in this affix's own out)", () => {
+    // ctx=r (liquid) satisfies preSwap's `pre` predicate at i===0, so the rule DOES fire
+    // and DOES emit r via resolveSeg — but there is nothing in this affix's own `out` to
+    // pop, since ctx was injected context, not a segment of the affix itself.
+    expect(() => applyRuleToAffix(["a"], preSwap, "suffix", BY_ID.r)).not.toThrow();
+    expect(applyRuleToAffix(["a"], preSwap, "suffix", BY_ID.r)).toEqual(["a", "r"]);
+  });
+});
+
 // 1ENG.19 (1eng-14 spike §4.1) — the syntax gate inside applyRuleToLex. Mirrors the
 // salience-gate sweep above: a class the branch's word order disfavours in this
 // position drifts strictly less often than one it favours, over a turn sweep.
