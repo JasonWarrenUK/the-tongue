@@ -274,18 +274,21 @@ describe("1ENG.19 salt registry", () => {
 
 // 1ENG.30 (1eng-24 spike §8, "Salt allocation: none needed"): the stress substrate
 // claims no hashRand family at all — every draw is either a tail-appended mulberry32
-// rng() at genesis or fully pure at transducer time. seed+47 must stay unclaimed so
-// the NEXT task to need a hashRand family (not this one) is free to take it.
+// rng() at genesis or fully pure at transducer time.
 // 1ENG.31: reduce and syncope are both pure transducers (no RNG inside xform), and the
 // firingRules/driftRule threading added to consult them is plumbing, not a new roll —
-// so this task claims no salt either. seed+47 stays the correct answer, not moved.
-describe("1ENG.24/1ENG.30/1ENG.31 salt registry", () => {
+// so this task claims no salt either.
+// 1ENG.21: the contact alignment driver DOES draw — one seeded roll (whether a
+// threshold-reached pair actually aligns this turn) — and claims the seed+47 this
+// block's comment previously reserved for exactly this. seed+53 is the new free
+// offset for whichever task needs a family next.
+describe("1ENG.24/1ENG.30/1ENG.31/1ENG.21 salt registry", () => {
   // Scans the actual engine source for every `hashRand(seed ± N` / `hashRand(ctx.*.seed
   // ± N` call site, rather than pinning a hand-maintained literal — the earlier version
   // of this test asserted 47 was absent from a Set typed in by hand, which could only
   // ever fail if someone also remembered to update that Set, i.e. never against a real
   // regression. This reads every offset straight from source, so a future PR that
-  // actually adds a `hashRand(seed + 47, ...)` call anywhere in src/lib/engine fails
+  // actually adds a `hashRand(seed + 53, ...)` call anywhere in src/lib/engine fails
   // this test for real.
   const engineDir = new URL("./", import.meta.url);
   const offsetsInUse = new Set<number>();
@@ -296,11 +299,15 @@ describe("1ENG.24/1ENG.30/1ENG.31 salt registry", () => {
     }
   });
 
-  test("seed+47 remains unclaimed — neither 1ENG.30 nor 1ENG.31 draws a hashRand triple", () => {
-    expect(offsetsInUse.has(47)).toBe(false);
+  test("seed+47 is claimed by 1ENG.21's contact-alignment roll", () => {
+    expect(offsetsInUse.has(47)).toBe(true);
+  });
+
+  test("seed+53 remains unclaimed — the next free offset", () => {
+    expect(offsetsInUse.has(53)).toBe(false);
   });
 
   test("sanity: the scan actually found the known offsets (proves the regex isn't silently matching nothing)", () => {
-    expect(offsetsInUse).toEqual(new Set([0, 7, 13, 19, 23, 29, 31, 37, 41, 43]));
+    expect(offsetsInUse).toEqual(new Set([0, 7, 13, 19, 23, 29, 31, 37, 41, 43, 47]));
   });
 });

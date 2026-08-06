@@ -9,8 +9,8 @@ import { severePairs, pairThreshold, resolveCollision } from "./collision";
 import { resolveUniverbation } from "./univerbation";
 import { heirCandidates, bumpMomentum, decayMomentum } from "./stakes";
 import { resolveContact, shouldOpenRoute, routeKey, CONTACT_YIELD, CONTACT_TRADE_LOSS, ROUTE_TURNS } from "./contact";
-import { walkFrameWeights, ORDER_INNOVATE_RATE } from "./syntax";
-import { tickParadigm, licensesProDrop } from "./morphology";
+import { walkFrameWeights, ORDER_INNOVATE_RATE, ORDER_TURNS, ORDER_CONTACT_CUT, stepWordOrderToward } from "./syntax";
+import { tickParadigm, licensesProDrop, agreementCollapsed } from "./morphology";
 import type { StressRule } from "./syllable";
 import type { Anchor, Branch, GameState, HistoryEntry, Lexicon, PendingFocusChoice, RuleCategory, WordOrder, FrameWeights, ParadigmCell, AffixState } from "./types";
 
@@ -270,6 +270,71 @@ export function resolveGeneration(s: GameState): GameState {
     });
   }
 
+  // 3.75 WORD-ORDER PRESSURE DRIVERS (1ENG.21, 1eng-14 spike §5/§6 stage B). Two
+  //      convergent drivers, both pulling toward the world's rigidification/contact
+  //      "sink" — the divergent counterweight is fracture-birth reanalysis (step 5's
+  //      `reanalyse`, stage A). Runs after spread/borrowing (owner is final for this
+  //      turn, and pairContact needs it) and before assimilation (an order flip this
+  //      turn should be visible to this turn's assimilation check, not trail it).
+  //      Reads `branches[L.id]`, not the loop's `L` — step 1 already rewrote this
+  //      branch's paradigm/proDrop this same turn (the same trap step 1.75's comment
+  //      names). A branch that rigidifies this turn does not also align this turn:
+  //      internal state is checked first, and rigidifying already changes `basic`, so
+  //      the contact check below runs against the (possibly just-rigidified) order.
+  leavesOf(branches).forEach((L) => {
+    const b = branches[L.id];
+    // Internal driver: morphological-collapse rigidification (the Latin path). Scalar
+    // counter mirroring assimilationPressure's shape exactly (step 4, below) — reset to
+    // 0 the instant collapse stops holding, incremented while it holds, and at
+    // ORDER_TURNS the branch adopts SVO if not already there. No proDrop write (decision
+    // 4): licensesProDrop already recomputes to false at TWO dead cells, strictly before
+    // agreementCollapsed's three-dead trigger, so by the time this fires proDrop is
+    // already false via step 1's per-turn recompute.
+    if (!agreementCollapsed(b.paradigm)) {
+      if (b.orderPressure) branches[L.id] = { ...b, orderPressure: 0 };
+    } else {
+      const pressure = b.orderPressure + 1;
+      if (pressure < ORDER_TURNS) {
+        branches[L.id] = { ...b, orderPressure: pressure };
+      } else if (b.wordOrder.basic !== "SVO") {
+        branches[L.id] = { ...b, wordOrder: { ...b.wordOrder, basic: "SVO" }, orderPressure: 0 };
+        log.push(`with its endings gone, ${b.name} fixed its words in place`);
+      }
+      // already at SVO: holds at threshold without re-firing (nowhere to rigidify to),
+      // orderPressure left as-is rather than reset, since collapse still holds.
+    }
+
+    // External driver: intense-contact alignment (the Ethio-Semitic path). Per
+    // neighbour whose pairContact share meets ORDER_CONTACT_CUT, tick a pressure
+    // counter keyed by neighbour id — rebuilt fresh from THIS turn's qualifying
+    // neighbours (the step-1.5 collisionPressure idiom), so a pair that stops
+    // qualifying drops its key with no separate delete pass.
+    const cur = branches[L.id]; // re-read: rigidification above may have just changed wordOrder
+    const contactPressure: Record<number, number> = {};
+    let aligned = false;
+    neighborsOf(L.id, cur.territory, s.world.edges, owner).forEach((nId) => {
+      if (aligned) return; // one order event per branch per turn, mirroring rigidification
+      const N = branches[nId]; if (!N) return;
+      const share = pairContact(L.id, nId, cur.territory, s.world.edges, owner);
+      if (share < ORDER_CONTACT_CUT) return;
+      const prior = cur.orderContactPressure[nId] ?? 0;
+      const pressure = prior + 1;
+      if (pressure < ORDER_TURNS) { contactPressure[nId] = pressure; return; }
+      if (N.wordOrder.basic === cur.wordOrder.basic) { contactPressure[nId] = pressure; return; } // nothing to align toward
+      // Seeded roll: even at threshold, alignment isn't guaranteed every qualifying
+      // turn — same "sustained pressure gates a probabilistic event" shape as borrowing.
+      // Salt (seed+47, turn*.., L.id*..+nId*..): seed+47 is the offset syntax.ts's
+      // salt registry names as reserved for this task.
+      const fire = hashRand(seed + 47, turn * 331 + 71, L.id * 653 + nId * 11 + 3);
+      if (fire >= 0.5) { contactPressure[nId] = pressure; return; }
+      const basic = stepWordOrderToward(cur.wordOrder.basic, N.wordOrder.basic);
+      branches[L.id] = { ...cur, wordOrder: { ...cur.wordOrder, basic }, orderContactPressure: {} };
+      log.push(`sustained contact with ${N.name} pulled ${cur.name}'s word order toward theirs`);
+      aligned = true;
+    });
+    if (!aligned) branches[L.id] = { ...branches[L.id], orderContactPressure: contactPressure };
+  });
+
   // 4. language-shift/assimilation death: a much smaller branch bordering a
   //    near-identical dominant neighbour, sustained over ASSIM_TURNS turns, stops
   //    being spoken as its own language and its territory transfers to the neighbour.
@@ -405,7 +470,12 @@ export function resolveGeneration(s: GameState): GameState {
         // frameWeights just above — a sibling's own future state must never mutate the
         // parent's. No divergence roll yet (unlike wordOrder's reanalyse): §4's
         // STRESS_SHIFT_RATE hook is declared but deliberately unshipped.
-        branches[id] = { id, name, parentId: parent.id, depth: parent.depth + 1, splitIndex: parent.history.length, history: [...parent.history], lex: startLex, territory: comp, pressure: 0, anchors: [{ lex: startLex, turn, historyIndex: parent.history.length, driftFromPrev: 0 }], assimilationPressure: 0, collisionPressure: { ...parent.collisionPressure }, momentum: {}, wordOrder: order, stressRule: { ...parent.stressRule }, frameWeights: [...parent.frameWeights] as FrameWeights, proDrop: parent.proDrop, paradigm };
+        branches[id] = { id, name, parentId: parent.id, depth: parent.depth + 1, splitIndex: parent.history.length, history: [...parent.history], lex: startLex, territory: comp, pressure: 0, anchors: [{ lex: startLex, turn, historyIndex: parent.history.length, driftFromPrev: 0 }], assimilationPressure: 0, collisionPressure: { ...parent.collisionPressure }, momentum: {}, wordOrder: order, stressRule: { ...parent.stressRule }, frameWeights: [...parent.frameWeights] as FrameWeights, proDrop: parent.proDrop, paradigm,
+          // 1ENG.21 (decision 6): orderPressure inherited — the paradigm state driving
+          // it is itself inherited via `paradigm` just above, so the clock should track
+          // it. orderContactPressure reset — it's keyed by neighbour id, and a newborn's
+          // neighbours differ from its parent's, so inherited keys would be stale.
+          orderPressure: parent.orderPressure, orderContactPressure: {} };
       });
       branches[L.id] = { ...parent, territory: main };
       // parent keeps its component; siblings own theirs — ownerMap reflects the

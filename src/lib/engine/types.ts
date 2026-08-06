@@ -142,6 +142,18 @@ export interface Branch {
   // near-identical neighbour (see generation.ts). Resets to 0 the moment the trigger
   // stops holding; reaching the threshold empties `territory`, killing the branch.
   assimilationPressure: number;
+  // 1ENG.21 (1eng-14 spike §5/§6, stage B) — the internal driver's clock: turns
+  // sustained under full agreement collapse (morphology.ts agreementCollapsed).
+  // Mirrors assimilationPressure's scalar reset-on-heal shape exactly. Inherited
+  // (not reset) at fracture birth — the paradigm state driving it is itself
+  // inherited via the lexicon, so the clock should track it (decision 6).
+  orderPressure: number;
+  // 1ENG.21 — the external driver's clock, keyed by neighbour branch id (geography.ts
+  // pairContact). Rebuilt fresh from this turn's qualifying neighbours each generation
+  // (the step-1.5 collisionPressure idiom), so a pair that stops qualifying drops its
+  // key with no separate delete pass. Reset to {} at fracture birth (decision 6): a
+  // newborn's neighbours differ from its parent's, so inherited keys would be stale.
+  orderContactPressure: Record<number, number>;
   // 2LEX.2 (2lex-1 spike §3.2): per-pair grace-period counter for severe homophone
   // collisions, key = sorted "concept|concept". Increments each consecutive turn the
   // pair still collides (generation.ts step 1.5); deleted the moment it heals, repairs,

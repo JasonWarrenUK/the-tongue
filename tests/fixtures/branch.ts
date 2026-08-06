@@ -36,6 +36,10 @@ export const branchDefaults = {
   frameWeights: [1, 1, 1, 1] as FrameWeights,
   proDrop: false,
   paradigm: paradigmDefaults,
+  // 1ENG.21: stage B's two pressure clocks, zeroed/empty by default — exactly this
+  // fixture's reason to exist, per its own comment above.
+  orderPressure: 0,
+  orderContactPressure: {} as Record<number, number>,
 };
 
 // The three 1ENG.19 World fields (wordOrder is the genesis seed the root's own

@@ -17,8 +17,6 @@ export const FRAME_WALK = 0.02;           // per-turn step of the seeded frame-w
 export const ORDER_INNOVATE_RATE = 0.08;  // stage A: per-birth chance of a one-axis reanalysis flip
 export const ORDER_TURNS = 6;             // stage B (1ENG.21): sustained turns before an order event
 export const ORDER_CONTACT_CUT = 0.6;     // stage B (1ENG.21): pairContact floor for the contact driver
-// ORDER_TURNS/ORDER_CONTACT_CUT are declared now, unused until 1ENG.21, so stage B
-// tunes against constants stage A's own goldens already pin (spike §6/§7).
 
 // §3.2 names a floor without a value ("clamped to a floor so no frame never
 // vanishes"). 0.1 against a genesis weight of 1.0 takes ~45 consecutive negative
@@ -75,6 +73,19 @@ export function stepOrderToward(from: BasicOrder, to: BasicOrder): BasicOrder {
   if (from === to) return from;
   const candidates = adjacentOrders(from).filter((o) => swapDistance(o, to) < swapDistance(from, to));
   return candidates[0] ?? from;
+}
+// generation.ts's contact driver only ever holds WordOrder["basic"] values (the three
+// this engine actually admits), not the full six-order BasicOrder swapDistance is
+// computed over. Among just {SOV,SVO,VSO} the swap graph is the closed line
+// SOV-SVO-VSO (each is one swap from the other two's midpoint), so a step from one
+// provably lands back within the three — this narrows that guarantee into the type
+// system rather than asserting it at the call site. Throws if it somehow doesn't
+// (a change to ALL_ORDERS's graph shape, or a caller passing a value outside the
+// three, would be a real bug worth surfacing loudly, not silently coercing).
+export function stepWordOrderToward(from: WordOrder["basic"], to: WordOrder["basic"]): WordOrder["basic"] {
+  const stepped = stepOrderToward(from, to);
+  if (stepped === "SOV" || stepped === "SVO" || stepped === "VSO") return stepped;
+  throw new Error(`stepWordOrderToward: stepped outside {SOV,SVO,VSO} to ${stepped} — swap-graph invariant broken`);
 }
 
 export interface Slot { class: ConceptClass; role: string }
@@ -157,7 +168,9 @@ export function positionProfile(
 // can coincide regardless of turn, branch or sub-index. 1ENG.24/1ENG.30 claims NO
 // hashRand family: every stress draw is either a tail-appended mulberry32 rng() at
 // genesis (world.ts, not hashRand) or fully pure (stressPosition/stressMap/
-// Rule.stressed). seed+47 stays free for whichever task claims it next.
+// Rule.stressed). 1ENG.21's contact-alignment driver (generation.ts step 3.75) claims
+// seed+47 — the offset this comment previously reserved for exactly this task.
+// seed+53 stays free for whichever task claims it next.
 export function walkFrameWeights(weights: FrameWeights, seed: number, turn: number, branchId: number): FrameWeights {
   return weights.map((w, k) =>
     Math.max(FRAME_FLOOR, w + (hashRand(seed + 31, turn * 257 + 43, branchId * 577 + k) * 2 - 1) * FRAME_WALK),
