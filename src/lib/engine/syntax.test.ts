@@ -1,4 +1,5 @@
 import { describe, test, expect } from "bun:test";
+import { readFileSync, readdirSync } from "fs";
 import {
   FRAMES, EQUAL_WEIGHTS, frameOrder, positionProfile, walkFrameWeights,
   followerVowelShare, syntaxMult, FRAME_FLOOR, FRAME_WALK,
@@ -228,8 +229,27 @@ describe("1ENG.19 salt registry", () => {
 // firingRules/driftRule threading added to consult them is plumbing, not a new roll —
 // so this task claims no salt either. seed+47 stays the correct answer, not moved.
 describe("1ENG.24/1ENG.30/1ENG.31 salt registry", () => {
+  // Scans the actual engine source for every `hashRand(seed ± N` / `hashRand(ctx.*.seed
+  // ± N` call site, rather than pinning a hand-maintained literal — the earlier version
+  // of this test asserted 47 was absent from a Set typed in by hand, which could only
+  // ever fail if someone also remembered to update that Set, i.e. never against a real
+  // regression. This reads every offset straight from source, so a future PR that
+  // actually adds a `hashRand(seed + 47, ...)` call anywhere in src/lib/engine fails
+  // this test for real.
+  const engineDir = new URL("./", import.meta.url);
+  const offsetsInUse = new Set<number>();
+  readdirSync(engineDir).filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts")).forEach((f) => {
+    const src = readFileSync(new URL(f, engineDir), "utf8");
+    for (const m of src.matchAll(/hashRand\(\s*(?:seed|[a-zA-Z.]+\.seed)\s*([+-]\s*\d+)?/g)) {
+      offsetsInUse.add(m[1] ? Number(m[1].replace(/\s+/g, "")) : 0);
+    }
+  });
+
   test("seed+47 remains unclaimed — neither 1ENG.30 nor 1ENG.31 draws a hashRand triple", () => {
-    const knownFirstCoords = new Set([0, 7, 13, 19, 23, 29, 31, 37, 41, 43]);
-    expect(knownFirstCoords.has(47)).toBe(false);
+    expect(offsetsInUse.has(47)).toBe(false);
+  });
+
+  test("sanity: the scan actually found the known offsets (proves the regex isn't silently matching nothing)", () => {
+    expect(offsetsInUse).toEqual(new Set([0, 7, 13, 19, 23, 29, 31, 37, 41, 43]));
   });
 });
