@@ -155,6 +155,7 @@ graph LR
 	2GEO.5["2GEO.5: Implement the neighbour-borrowing mecha…"]
 	2GEO.6["2GEO.6: Design spike: seeded generational world…"]
 	2GEO.7["2GEO.7: Implement seeded world events *(placeho…"]
+	2GEO.9["2GEO.9: Design spike: map-shape diversification…"]
 	2LEX.1["2LEX.1: Design spike: homophone-collision resol…"]
 	2STK.1["2STK.1: Design spike: rule-choice stakes mechan…"]
 	2STK.2["2STK.2: Implement focal identity & reach (2stk-…"]
@@ -162,7 +163,6 @@ graph LR
 	2STK.4["2STK.4: Implement ambitions & lock-in (2stk-1 s…"]
 	2STK.5["2STK.5: Implement contact events & trade routes…"]
 	2GEO.8["2GEO.8: Design spike: rival language family — a…"]
-	2GEO.9["2GEO.9: Design spike: map-shape diversification…"]
 	2STK.7["2STK.7: Design spike: contact deadlock escape —…"]
 	2STK.6["2STK.6: Implement the treasury-and-laboratory e…"]
 	2GLY.1["2GLY.1: Design spike: glyph mutation ruleset —…"]
@@ -246,6 +246,7 @@ graph LR
 	2GEO.5 --> 2SIM.1
 	2GEO.6 --> 2GEO.7
 	2GEO.7 --> M2
+	2GEO.9 --> M2
 	2LEX.1 --> 2LEX.2
 	2STK.1 --> 2STK.2
 	2STK.1 --> 2STK.3
@@ -262,7 +263,6 @@ graph LR
 	2STK.5 --> 2STK.7
 	2STK.5 --> 2STK.6
 	2GEO.8 --> M2
-	2GEO.9 --> M2
 	2STK.7 --> M2
 	2STK.6 --> 2GLY.1
 	2STK.6 --> 2UI.1
@@ -314,7 +314,7 @@ graph LR
 	class 2GEO.6,2GEO.9,2LEX.3,2LEX.5,2MAP.1,2NAR.1,2NAR.3,2SIM.1,2STK.4,2STK.6,2STK.7,2UI.4,3PER.1,4PHON.1 todo
 	class 2GEO.7,2GEO.8,2GLY.1,2GLY.2,2GLY.3,2GLY.4,2LEX.4,2LEX.6,2MAP.2,2NAR.2,2NAR.4,2UI.1,2UI.2,2UI.3,2UI.5,3SHR.1 blocked
 	class 4GLY.1,4PHON.2 deferred
-	class 1ENG.1,1ENG.10,1ENG.11,1ENG.12,1ENG.13,1ENG.14,1ENG.15,1ENG.16,1ENG.18,1ENG.19,1ENG.2,1ENG.20,1ENG.22,1ENG.23,1ENG.24,1ENG.25,1ENG.26,1ENG.27,1ENG.28,1ENG.29,1ENG.3,1ENG.30,1ENG.31,1ENG.4,1ENG.5,1ENG.6,1ENG.7,1ENG.8,1ENG.9,1UI.1,1UI.2,1UI.3,1UI.4,2GEO.1,2GEO.2,2GEO.3,2GEO.4,2GEO.5,2LEX.1,2LEX.2,2STK.1,2STK.2,2STK.3,2STK.5 done
+	class 1ENG.1,1ENG.10,1ENG.11,1ENG.12,1ENG.13,1ENG.14,1ENG.15,1ENG.16,1ENG.17,1ENG.18,1ENG.19,1ENG.2,1ENG.20,1ENG.21,1ENG.22,1ENG.23,1ENG.24,1ENG.25,1ENG.26,1ENG.27,1ENG.28,1ENG.29,1ENG.3,1ENG.30,1ENG.31,1ENG.4,1ENG.5,1ENG.6,1ENG.7,1ENG.8,1ENG.9,1UI.1,1UI.2,1UI.3,1UI.4,2GEO.1,2GEO.2,2GEO.3,2GEO.4,2GEO.5,2LEX.1,2LEX.2,2STK.1,2STK.2,2STK.3,2STK.5 done
 ```
 
 ---
