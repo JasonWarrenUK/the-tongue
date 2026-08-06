@@ -1,11 +1,18 @@
 import { hashRand } from "./rng";
 import { salienceRetention } from "./lexicon";
 import { syntaxMult } from "./syntax";
-import type { Phone, PhoneType, Patch, Rule, RuleCategory, Lexicon, Terrain, Seg, XformResult, WordOrder, FrameWeights, Inventory } from "./types";
+// 1ENG.30: closes an import cycle with syllable.ts (which imports BY_ID from this
+// module). Resolves safely because both sides only touch each other inside function
+// bodies, never at module-scope initialisation — stressMap is called inside
+// applyRuleToWord's body below, not at this file's top level. Same discipline
+// syntax.ts's BY_ID.a already keeps for its own cycle with this module.
+import { stressMap } from "./syllable";
+import type { StressRule } from "./syllable";
+import type { Phone, PhoneType, Backness, Patch, Rule, RuleCategory, Lexicon, Terrain, Seg, XformResult, WordOrder, FrameWeights, Inventory } from "./types";
 
 const C = (id: string, place: string, manner: string, voice: boolean): Phone =>
   ({ id, g: id, type: "C", place, manner, voice, obstruent: manner === "stop" || manner === "fric" });
-const V = (id: string, height: string, back: boolean, round: boolean): Phone =>
+const V = (id: string, height: string, back: Backness, round: boolean): Phone =>
   ({ id, g: id, type: "V", height, back, round });
 // 1ENG.12 renewal phones — see 1eng-11 spike §4.1. Long vowels carry the base vowel's
 // features + long:true; diphthongs are structurally distinct (no height/back/round),
@@ -17,13 +24,27 @@ const VL = (base: Phone): Phone => ({ ...base, id: base.id + "ː", g: MACRON[bas
 const VD = (id: string, nucleus: string, offglide: string): Phone =>
   ({ id, g: id, type: "V", diph: true, nucleus, offglide });
 
-const [I, E, A, O, U] = [V("i","high",false,false), V("e","mid",false,false), V("a","low",false,false), V("o","mid",true,true), V("u","high",true,true)];
+// 1ENG.29: /a/ is central, not front — the low vowel in a 5-vowel system is typically
+// realised around [ä] cross-linguistically (Maddieson, Patterns of Sounds), and it
+// matters here because frontV (below) gates palatalisation, whose canonical
+// environment is _ i,e (Latin casa keeps /k/ while centum fronts it; Slavic first
+// palatalisation and English keep/car pattern the same way). Central /a/ means
+// palatalisation no longer fires before it — see 1eng-24 spike §7 and the phonology
+// test suite's "1ENG.29 schwa" block for the goldens this deliberately moves.
+const [I, E, A, O, U] = [V("i","high","front",false), V("e","mid","front",false), V("a","low","central",false), V("o","mid","back",true), V("u","high","back",true)];
+// 1ENG.29 (1eng-24 spike §7): the schwa slice. No VL/VD variant — nothing assumes
+// every vowel has a long or diphthong counterpart, and resolve already returns null
+// on no match (the path documented at phonology.ts below for diphthongs against
+// {long:true}); a central vowel having no conventional long counterpart is correct,
+// not a gap. Doesn't collide with /a/ despite sharing back:"central" — resolve also
+// matches on height, and they're low vs mid.
+const SCHWA = V("ə","mid","central",false);
 
 export const PHONES: Phone[] = [
   C("p","lab","stop",false),C("b","lab","stop",true),C("t","alv","stop",false),C("d","alv","stop",true),C("k","vel","stop",false),C("g","vel","stop",true),
   C("f","lab","fric",false),C("v","lab","fric",true),C("s","alv","fric",false),C("z","alv","fric",true),C("ʃ","pal","fric",false),C("ʒ","pal","fric",true),C("x","vel","fric",false),C("ɣ","vel","fric",true),C("h","glo","fric",false),
   C("m","lab","nasal",true),C("n","alv","nasal",true),C("ŋ","vel","nasal",true),C("l","alv","liquid",true),C("r","alv","liquid",true),C("j","pal","glide",true),C("w","lab","glide",true),
-  I, E, A, O, U,
+  I, E, A, O, U, SCHWA,
   VL(I), VL(E), VL(A), VL(O), VL(U),
   VD("ie","i","e"), VD("uo","u","o"), VD("ei","e","i"), VD("ou","o","u"), VD("au","a","u"), VD("ai","a","i"),
 ];
@@ -49,7 +70,10 @@ function applyXform(ph: Phone, patch: Patch): string | null {
 
 const isV = (p: Phone | null) => !!p && p.type === "V";
 const isC = (p: Phone | null) => !!p && p.type === "C";
-const frontV = (p: Phone | null) => isV(p) && !p!.back;
+// 1ENG.29: was `!p!.back` under the old boolean — under Backness every value is a
+// truthy string, so that would return false for every vowel and silently kill
+// palatalisation outright. Must be an explicit equality test (1eng-24 spike §7).
+const frontV = (p: Phone | null) => isV(p) && p!.back === "front";
 const stopC = (p: Phone | null) => isC(p) && p!.manner === "stop";
 const bound = (p: Phone | null) => p === null;
 
@@ -80,28 +104,40 @@ export const RULES: Rule[] = [
     match:isC, pre:null, post:isC,
     xform:()=>[
       { from:"self", patch:{} },
-      { from:"abs", type:"V", patch:{ height:"high", back:false, round:false } },
+      { from:"abs", type:"V", patch:{ height:"high", back:"front", round:false } },
     ] },
   { id:"paragoge", name:"Paragoge", note:"∅ → V / C _ #  (unconditioned word-final vowel epenthesis)", w:1.5, category:"epenthesis",
     match:isC, pre:null, post:bound,
     xform:()=>[
       { from:"self", patch:{} },
-      { from:"abs", type:"V", patch:{ height:"high", back:false, round:false } },
+      { from:"abs", type:"V", patch:{ height:"high", back:"front", round:false } },
     ] },
   // Unconditioned breaking (real: cf. the Great Vowel Shift) — any final vowel may
   // diphthongise, not only a pre-existing mid vowel after hiatus. This is the second
   // bootstrap: it fires on the [C]V floor itself, where post:bound is the only
   // environment left once hiatus and mid vowels have both eroded away.
+  // 1ENG.29: three arms on Backness, not a boolean branch — under the old boolean
+  // `p.back ?` picked back/front; under Backness every string is truthy, so that test
+  // would take the back arm for everything. match excludes diphthongs (isV(p)&&!p.diph)
+  // so the switch stays total — a diphthong reaching break would have no back value to
+  // dispatch on, and the only diphthong producer (this rule) already fires word-finally,
+  // so re-breaking one is not a real path. Central /a/ finally reaches the ai arm the
+  // rule's own note has always advertised.
   { id:"break", name:"Vowel breaking", note:"V → diphthong / _ #  (unconditioned; e→ie, a→ai, u→uo…)", w:2.5, category:"vowelShift",
-    match:isV, pre:null, post:bound,
-    xform:(p)=>[
-      { from:"abs", type:"V", patch: p.back ? { diph:true, nucleus:"u", offglide:"o" } : { diph:true, nucleus:"i", offglide:"e" } },
-    ] },
+    match:(p)=>isV(p)&&!p.diph, pre:null, post:bound,
+    xform:(p)=>{
+      const seg = p.back === "back" ? { nucleus:"u", offglide:"o" } : p.back === "central" ? { nucleus:"a", offglide:"i" } : { nucleus:"i", offglide:"e" };
+      return [{ from:"abs", type:"V", patch:{ diph:true, ...seg } }];
+    } },
   { id:"smooth", name:"Monophthongisation", note:"diphthong → mid V  (ie→e, uo→o)", w:2.5, category:"lenition",
     match:(p)=>isV(p)&&!!p.diph, pre:null, post:null,
     xform:(p)=>{
-      const back = p.nucleus === "u" || p.nucleus === "o";
-      return [{ from:"abs", type:"V", patch:{ height:"mid", back, round:back } }];
+      // 1ENG.29: explicit Backness map, not `nucleus==="u"||"o"` reused as a boolean.
+      // An a-nucleus diphthong (au, ai) has to land on "front" here so it resolves to
+      // /e/ — mapping it to "central" would resolve to schwa (mid, central) and silently
+      // monophthongise au/ai to ə instead of the intended /e/.
+      const back: Backness = (p.nucleus === "u" || p.nucleus === "o") ? "back" : "front";
+      return [{ from:"abs", type:"V", patch:{ height:"mid", back, round: back === "back" } }];
     } },
   { id:"shorten", name:"Vowel shortening", note:"long V → short / _ #", w:2, category:"deletion",
     match:(p)=>isV(p)&&!!p.long, pre:null, post:bound,
@@ -134,6 +170,62 @@ export const RULES: Rule[] = [
     w:1, category:"deletion",
     match:isV, pre:bound, post:isC,
     xform:()=>({ delete:true }) },
+
+  // 1ENG.31 (1eng-24 spike §6) — unstressed vowel reduction. The first half of the
+  // Latin→French engine: unstressed nuclei neutralise toward the engine's neutral
+  // central vowel (1ENG.29's schwa) before they disappear entirely (syncope, below).
+  //   w=2.5: same band as spirant/raise/break. Cross-linguistically as common as
+  // intervocalic spirantisation, commoner than paragoge (1.5), rarer than the w=3 band
+  // (voice/devoice/apoc/nasassim) — reduction is characteristic of stress-timed
+  // languages specifically, not universal the way final obstruent devoicing is.
+  //   DIVERGES from the spike's literal `xform:()=>({back:"central"})`, deliberately.
+  // That shape is a self-seg, so applyXform diffs the input's OWN height/round and
+  // resolves (height, "central", round) against PHONES — which has no entry there
+  // outside (mid, central, false). Probed against every vowel type: /i/, /u/, /o/ and
+  // every diphthong resolve to null and are silently dropped at resolveSeg below, so a
+  // rule advertised as a vowel SHIFT would in fact DELETE seven of eleven vowel types;
+  // /aː/ merely shortens to /a/; only /e/ actually reaches ə.
+  //   An absolute seg instead, following smooth's own pattern (below) for the same
+  // reason smooth needs one: the target vowel is defined by its OWN full feature set,
+  // not a diff from the input, so long vowels and diphthongs (which carry no
+  // height/back/round to diff against) land on ə uniformly rather than falling off
+  // resolve's edge. Idempotent on ə by construction (an already-reduced nucleus is a
+  // no-op), so a fully-reduced word stops reporting fires rather than churning.
+  //   NO vowel-floor risk: 1-in/1-out, never deletes.
+  { id:"reduce", name:"Unstressed vowel reduction",
+    note:"unstressed V → ə  (quality neutralised outside the stressed syllable)",
+    w:2.5, category:"vowelShift",
+    match:isV, pre:null, post:null,
+    stressed:(s)=>!s.isStressed && s.role==="nucleus" && s.syllCount>1,
+    xform:()=>[{ from:"abs", type:"V", patch:{ height:"mid", back:"central", round:false } }] },
+
+  // 1ENG.31 (1eng-24 spike §6) — unstressed syllable loss (syncope). The second half of
+  // the Latin→French engine and the change the whole 1ENG.25/27/28/29/30 chain exists to
+  // make expressible: calidum > caldu > chaud. Deletes an unstressed nucleus; the
+  // stranded onset/coda resyllabify for free on the next read (derive-on-read, never
+  // cached — 1eng-25 §5.2).
+  //   NOT restricted to medial position, deliberately: apoc (w=3) already owns
+  // unconditioned final-vowel loss. Overlap is fine and attested — the contrast is that
+  // apoc deletes the final vowel regardless of stress, while this rule can never touch
+  // the stressed vowel anywhere in the word, which is the whole distinction the roadmap
+  // asks for.
+  //   w=2: below apoc, level with finalC/cluster/shorten. Real and common, but rarer
+  // cross-linguistically than final vowel loss.
+  //   The `syllCount>1` clause is what exempts monosyllables — the same fact that
+  // protects the vowel floor below: stressPosition returns a valid index for every word
+  // with >=1 syllable, so exactly one nucleus is always exempt from `!isStressed`, so
+  // the floor is structurally unreachable from here. A second explicit guard would
+  // silently mask a future stressPosition bug instead of surfacing it, so none is added;
+  // instead this is pinned as an invariant test (phonology.test.ts), re-verified
+  // empirically over 267,300 applications (every word of <=4 segments over a 15-phone
+  // alphabet × 5 stress configurations): zero raw outputs lost their last vowel, zero
+  // floor trips.
+  { id:"syncope", name:"Unstressed syllable loss",
+    note:"unstressed V → ∅  (calidum → caldu; the engine of Latin → French)",
+    w:2, category:"deletion",
+    match:isV, pre:null, post:null,
+    stressed:(s)=>!s.isStressed && s.role==="nucleus" && s.syllCount>1,
+    xform:()=>({ delete:true }) },
 ];
 export const RULE_BY_ID: Record<string, Rule> = Object.fromEntries(RULES.map((r) => [r.id, r]));
 
@@ -155,18 +247,30 @@ function normalise(r: XformResult): Seg[] {
 
 export const MAX_LEN = 12; // ~4-5 syllables; growth ceiling, symmetric with the min-vowel floor below
 
-export function applyRuleToWord(ids: string[], rule: Rule): { ids: string[]; changed: boolean } {
+// 1ENG.30: stressRule is optional so all pre-1ENG.24 two-arg call sites (~50 in
+// phonology.test.ts, collision.test.ts:169) keep compiling and, more importantly, keep
+// producing byte-identical output — see the backward-compatibility sweep. When supplied,
+// stressMap is computed ONCE before the loop (not per-segment), since it's a pure
+// function of the whole word and syllable boundaries don't move mid-application.
+export function applyRuleToWord(ids: string[], rule: Rule, stressRule?: StressRule): { ids: string[]; changed: boolean } {
   const ph = ids.map((id) => BY_ID[id]);
+  const stress = stressRule ? stressMap(ids, stressRule) : undefined;
   const out: string[] = [];
   let changed = false;
   for (let i = 0; i < ph.length; i++) {
     const p = ph[i];
     const pre = i > 0 ? ph[i - 1] : null;
     const post = i < ph.length - 1 ? ph[i + 1] : null;
-    const hit = rule.match(p) && (rule.pre ? rule.pre(pre) : true) && (rule.post ? rule.post(post) : true);
+    const st = stress?.[i];
+    // 1ENG.30: fail-closed. A rule declaring `stressed` never fires when the stress
+    // view is absent — no StressRule supplied, or (defensively) no StressCtx at this
+    // index — rather than firing unconditioned, which would be a silent unconditioned
+    // sound change (1eng-24 spike §3).
+    const hit = rule.match(p) && (rule.pre ? rule.pre(pre) : true) && (rule.post ? rule.post(post) : true)
+      && (rule.stressed ? (st ? rule.stressed(st) : false) : true);
     if (!hit) { out.push(p.id); continue; }
     const before = out.length;
-    for (const s of normalise(rule.xform(p, { pre, post }))) {
+    for (const s of normalise(rule.xform(p, { pre, post, stress: st }))) {
       const nid = resolveSeg(p, s);
       if (nid !== null) out.push(nid); // an unresolvable seg is dropped, as delete was pre-1ENG.12
     }
@@ -212,7 +316,11 @@ export function applyRuleToAffix(ids: string[], rule: Rule, edge: "suffix" | "pr
     // (pre) is the real boundary at i===0.
     const pre = edge === "suffix" ? (i > 0 ? ph[i - 1] : ctx) : (i > 0 ? ph[i - 1] : null);
     const post = edge === "suffix" ? (i < ph.length - 1 ? ph[i + 1] : null) : (i < ph.length - 1 ? ph[i + 1] : ctx);
-    const hit = rule.match(p) && (rule.pre ? rule.pre(pre) : true) && (rule.post ? rule.post(post) : true);
+    // 1ENG.30: same fail-closed conjunct as applyRuleToWord, with the stress view
+    // always absent — affixes have no independent stress domain (they attach inside a
+    // stem's own syllable structure), so a stress-conditioned rule never fires on one.
+    const hit = rule.match(p) && (rule.pre ? rule.pre(pre) : true) && (rule.post ? rule.post(post) : true)
+      && (rule.stressed ? false : true);
     if (!hit) { out.push(p.id); continue; }
     for (const s of normalise(rule.xform(p, { pre, post }))) {
       const nid = resolveSeg(p, s);
@@ -264,12 +372,20 @@ export interface SyntaxContext {
   wordOrder: WordOrder; frameWeights: FrameWeights; proDrop: boolean;
   seed: number; turn: number; branchId: number;
 }
-export interface RuleContext { salience?: SalienceContext; syntax?: SyntaxContext }
+// 1ENG.30: stress follows the salience?/syntax? precedent exactly — an optional field
+// on the same context object, threaded straight into applyRuleToWord's own optional
+// parameter. Unlike salience/syntax it carries no roll of its own here: the actual
+// stress gating happens inside applyRuleToWord (Rule.stressed against the per-segment
+// StressCtx), so this is pure plumbing, not a fourth independent block roll.
+// A new call site must wrap the branch's stressRule as `{ stress: b.stressRule }`, not
+// pass it bare — nothing here enforces that shape structurally. generation.ts and
+// game.svelte.ts's call sites are the reference examples.
+export interface RuleContext { salience?: SalienceContext; syntax?: SyntaxContext; stress?: StressRule }
 
 export function applyRuleToLex(lex: Lexicon, rule: Rule, ctx?: RuleContext): { lex: Lexicon; fires: number } {
   let fires = 0;
   const next = lex.map((e, i) => {
-    const r = applyRuleToWord(e.word, rule);
+    const r = applyRuleToWord(e.word, rule, ctx?.stress);
     if (!r.changed) return { ...e, word: r.ids };
     if (ctx?.salience) {
       const retention = salienceRetention(e.concept, ctx.salience.terrain);
@@ -466,8 +582,21 @@ export function describeEvent(e: PhonemicEvent): string {
   }
 }
 
-export function firingRules(lex: Lexicon) {
-  return RULES.map((r) => ({ rule: r, fires: applyRuleToLex(lex, r).fires })).filter((x) => x.fires > 0);
+// 1ENG.31 (1eng-24 spike §6): stress is threaded into the SELECTION pass, unlike
+// salience and syntax which are deliberately withheld (see the RuleContext comment
+// above applyRuleToLex, and the terrain-agnostic pin in phonology.test.ts). The
+// asymmetry is principled, not an oversight: salience/syntax are per-word BLOCK rolls
+// that change how OFTEN a firing rule fires, which is the weighted pick's own job;
+// stress changes whether a rule can fire AT ALL. Under the fail-closed conjunct in
+// applyRuleToWord, a rule declaring `stressed` reports fires===0 without a StressRule,
+// so it would be filtered out here and could never be selected by driftRule — reduce
+// and syncope would be dead code for autonomous drift while still working on the
+// player path (game.svelte.ts, which passes stress and maps RULES directly rather than
+// through this function). Optional, and passed as `stress ? {stress} : undefined`
+// rather than `{stress}` unconditionally, so every pre-1ENG.31 one-arg call site
+// reproduces the exact same call and stays byte-identical.
+export function firingRules(lex: Lexicon, stress?: StressRule) {
+  return RULES.map((r) => ({ rule: r, fires: applyRuleToLex(lex, r, stress ? { stress } : undefined).fires })).filter((x) => x.fires > 0);
 }
 // Terrain contact/isolation bias (2GEO.2): contact-favoured categories fire more
 // often for open/high-contact branches, isolation-favoured categories fire more
@@ -491,8 +620,11 @@ export function biasedMult(category: RuleCategory, iso: number): number {
 // state, category -> mult) joining biasedMult in the weighted pick — see stakes.ts.
 // Omitted entirely for callers with no branch momentum to consult (fixtures, the
 // pre-2STK.3 call shape); every category then reads as its implicit 1.
-export function driftRule(lex: Lexicon, seed: number, turn: number, branchId: number, iso: number, momentumMult?: Partial<Record<RuleCategory, number>>): Rule | null {
-  const firing = firingRules(lex);
+// 1ENG.31: stress appended after momentumMult, following the same 2STK.3 idiom — an
+// optional trailing param so every 5-arg call site (~50 across the test suite) keeps
+// compiling and producing an identical pick.
+export function driftRule(lex: Lexicon, seed: number, turn: number, branchId: number, iso: number, momentumMult?: Partial<Record<RuleCategory, number>>, stress?: StressRule): Rule | null {
+  const firing = firingRules(lex, stress);
   if (!firing.length) return null;
   const weighted = firing.map((x) => ({ rule: x.rule, weight: x.rule.w * biasedMult(x.rule.category, iso) * (momentumMult?.[x.rule.category] ?? 1) }));
   const total = weighted.reduce((a, x) => a + x.weight, 0);

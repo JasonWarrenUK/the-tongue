@@ -52,7 +52,10 @@ class Game {
   // is visible without a sampled diff.
   candidates = $derived.by<Candidate[]>(() =>
     RULES.map((rule) => {
-      const { lex: after, fires } = applyRuleToLex(this.sel.lex, rule);
+      // 1ENG.30: pass the branch's stressRule so a stress-conditioned rule (1ENG.31)
+      // previews/applies identically here and at :63/:193 — preview and apply must
+      // never diverge on which segments a rule can touch.
+      const { lex: after, fires } = applyRuleToLex(this.sel.lex, rule, { stress: this.sel.stressRule });
       const firing = this.sel.lex.filter((e, i) => formOf(e.word) !== formOf(after[i].word));
       const syntax = firing.length
         ? firing.reduce((sum, e) => sum + syntaxMult(rule, e.concept, this.sel, this.sel.lex), 0) / firing.length
@@ -60,7 +63,7 @@ class Game {
       return { rule, fires, collDelta: collisionPairs(after) - this.baseColl, momentum: momentumMult(this.sel, rule.category), syntax };
     }).filter((c) => c.fires > 0)
   );
-  previewLex = $derived(this.preview ? applyRuleToLex(this.sel.lex, RULE_BY_ID[this.preview]).lex : null);
+  previewLex = $derived(this.preview ? applyRuleToLex(this.sel.lex, RULE_BY_ID[this.preview], { stress: this.sel.stressRule }).lex : null);
   curHomo = $derived(homophoneForms(this.sel.lex));
   prevHomo = $derived(this.previewLex ? homophoneForms(this.previewLex) : null);
   // 2LEX.2: which concepts sit in a currently-severe pair, and how far each pair's
@@ -190,7 +193,7 @@ class Game {
     const base = s.settings.changeCost + ov;
     const cost = Math.ceil(Math.min(COST_CAP * base, base * reachMult(s, s.selectedId)));
     if (cost > s.pool) return;
-    const rule = RULE_BY_ID[ruleId]; const after = applyRuleToLex(b.lex, rule).lex;
+    const rule = RULE_BY_ID[ruleId]; const after = applyRuleToLex(b.lex, rule, { stress: b.stressRule }).lex;
     // 2STK.3 §3: player-applied rules bump momentum at full weight (decision §9.15).
     const bumped = bumpMomentum({ ...b, lex: after, history: [...b.history, { name: rule.name, note: rule.note }] }, rule.category, true);
     // 1ENG.20: record which rule the player applied, so step 1's paradigm tick can

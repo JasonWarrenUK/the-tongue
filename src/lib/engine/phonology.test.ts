@@ -1,8 +1,9 @@
 import { describe, test, expect } from "bun:test";
-import { driftRule, biasedMult, firingRules, applyRuleToLex, applyRuleToWord, RULE_BY_ID, RULES, MAX_LEN, stepToward, BY_ID, inventoryOf, phonemicDiff, describeEvent } from "./phonology";
+import { driftRule, biasedMult, firingRules, applyRuleToLex, applyRuleToWord, applyRuleToAffix, RULE_BY_ID, RULES, MAX_LEN, stepToward, BY_ID, inventoryOf, phonemicDiff, describeEvent } from "./phonology";
 import { hashRand } from "./rng";
 import { formSimilarity } from "./intelligibility";
-import type { Lexicon, WordOrder } from "./types";
+import type { StressRule } from "./syllable";
+import type { Lexicon, Rule, WordOrder } from "./types";
 
 // Mixed lexicon: some words end in a mid vowel (fires both apoc [deletion] and
 // raise [vowelShift]), some end in a consonant (fires finalC [deletion]) — so
@@ -291,6 +292,249 @@ describe("applyRuleToWord backward compatibility (1ENG.12 regression goldens)", 
     const ORIGINAL_IDS = ["voice", "spirant", "devoice", "apoc", "finalC", "palat", "debucc", "raise", "nasassim", "cluster"];
     for (const id of ORIGINAL_IDS) expect(RULE_BY_ID[id]).toBeDefined();
   });
+  // 1ENG.31: the 19 rules that predate stress conditioning, enumerated explicitly
+  // rather than derived as `RULES.filter(r => !r.stressed)` — the point of the sweep
+  // below is to catch a rule that ACQUIRES a `stressed` predicate it shouldn't have,
+  // and a derived list would silently exclude exactly that rule instead of failing on
+  // it. Extend this list only when a genuinely stress-blind rule is added; a new
+  // stress-conditioned rule belongs in the 1ENG.31 describe block below, not here.
+  const PRE_1ENG24_IDS = [
+    "voice", "spirant", "devoice", "apoc", "finalC", "palat", "debucc", "raise", "nasassim",
+    "cluster", "epenth", "paragoge", "break", "smooth", "shorten", "compleng", "complengFinal",
+    "fortify", "aphaer",
+  ] as const;
+  // 1ENG.30 (1eng-24 spike §8), narrowed by 1ENG.31 — byte-identity sweep over the
+  // rules that predate stress conditioning: same purpose (a widening event must not
+  // perturb existing rules), one more widening. None of these 19 declares `stressed`,
+  // so passing a StressRule must produce byte-identical output to the two-arg call —
+  // the fail-closed conjunct only bites rules that opt in. Was a sweep over all of
+  // RULES; narrowed to PRE_1ENG24_IDS once reduce/syncope landed, since those two DO
+  // declare `stressed` and must diverge under a StressRule — that divergence is the
+  // feature, exercised separately in the 1ENG.31 describe block below.
+  test("every pre-1ENG.24 rule produces identical output with and without a StressRule", () => {
+    const WORDS = [
+      ["t", "a"], ["a", "p", "a"], ["t", "a", "p", "e"], ["a", "p", "t", "a"],
+      ["k", "i", "t"], ["m", "a", "t"], ["a"], ["a", "e"], ["a", "ie"], ["a", "aː"],
+      ["k", "a", "s", "t"], ["j", "a"], ["s", "t"],
+    ];
+    const STRESS_RULES: StressRule[] = [
+      { mode: "initial", weightSensitive: false }, { mode: "final", weightSensitive: false },
+      { mode: "penult", weightSensitive: true }, { mode: "antepenult", weightSensitive: false },
+    ];
+    for (const id of PRE_1ENG24_IDS) {
+      const rule = RULE_BY_ID[id];
+      expect(rule.stressed).toBeUndefined();
+      for (const w of WORDS) {
+        const plain = applyRuleToWord(w, rule);
+        for (const sr of STRESS_RULES) {
+          expect(applyRuleToWord(w, rule, sr)).toEqual(plain);
+        }
+      }
+    }
+  });
+  // 1ENG.31: the complement of the sweep above — PRE_1ENG24_IDS must stay exactly the
+  // set of rules that decline stress conditioning, so the list can't rot silently (a
+  // new rule added to RULES without a stress judgement either way would otherwise pass
+  // both this file's tests and slip through unnoticed).
+  test("PRE_1ENG24_IDS is exactly the set of rules that decline stress conditioning", () => {
+    const stressBlind = RULES.filter((r) => !r.stressed).map((r) => r.id).sort();
+    expect(stressBlind).toEqual([...PRE_1ENG24_IDS].sort());
+  });
+});
+
+// 1ENG.30 (1eng-24 spike §3/§8) — Rule.stressed fail-closed gate. A synthetic test rule
+// (RULES itself declares none yet — that's 1ENG.31) proves the channel both fails
+// closed with no StressRule supplied and actually restricts firing when one is.
+describe("1ENG.30 Rule.stressed fail-closed gate", () => {
+  // Mid vowel -> high, restricted to stressed syllables (raise's own xform, gated).
+  // /e/ -> /i/ is a real, resolvable transform (unlike a schwa-target that PHONES has
+  // no slot for), so a change here unambiguously means the gate let the rule through.
+  const stressedRaise: Rule = {
+    id: "test-stressed-raise", name: "test", note: "test", w: 1, category: "vowelShift",
+    match: (p) => p.type === "V" && p.height === "mid", pre: null, post: null,
+    xform: () => ({ height: "high" }),
+    stressed: (s) => s.isStressed,
+  };
+
+  test("applyRuleToWord: no StressRule supplied -> never fires, even on a vowel that would match", () => {
+    const r = applyRuleToWord(["t", "e"], stressedRaise);
+    expect(r).toEqual({ ids: ["t", "e"], changed: false });
+  });
+
+  test("applyRuleToWord: StressRule supplied -> fires only on the stressed syllable's vowel", () => {
+    // initial mode, disyllable [t,e,t,e]: syllable 0 is stressed, syllable 1 is not.
+    // Both vowels match (both /e/, mid) — only the stressed one may raise to /i/.
+    const initial: StressRule = { mode: "initial", weightSensitive: false };
+    const r = applyRuleToWord(["t", "e", "t", "e"], stressedRaise, initial);
+    expect(r).toEqual({ ids: ["t", "i", "t", "e"], changed: true });
+  });
+
+  test("applyRuleToAffix: stressed rule never fires — affixes have no independent stress domain", () => {
+    const out = applyRuleToAffix(["e"], stressedRaise, "suffix", BY_ID.t);
+    expect(out).toEqual(["e"]);
+  });
+});
+
+// 1ENG.31 (1eng-24 spike §6) — reduce/syncope, the two stress-conditioned rules RULES
+// itself now declares. All goldens below were computed by running applyRuleToWord live
+// against the shipped rules, not hand-derived, then pinned.
+describe("1ENG.31 reduce / syncope", () => {
+  const MODES: Record<string, StressRule> = {
+    initial: { mode: "initial", weightSensitive: false },
+    final: { mode: "final", weightSensitive: false },
+    penult: { mode: "penult", weightSensitive: true },
+    antepenult: { mode: "antepenult", weightSensitive: false },
+  };
+
+  // The single most important test in this block: it is what would have caught the
+  // spike's literal `xform:()=>({back:"central"})`, which resolves to null (and is
+  // silently dropped) for seven of these ten vowel types — see reduce's own comment in
+  // phonology.ts. Every vowel type must land on ə, not vanish.
+  test("reduce maps every vowel type to ə uniformly, including long vowels and diphthongs", () => {
+    for (const v of ["i", "e", "a", "o", "u", "aː", "iː", "ie", "au", "ai"]) {
+      const r = applyRuleToWord(["t", "a", "t", v], RULE_BY_ID.reduce, MODES.initial);
+      expect(r).toEqual({ ids: ["t", "a", "t", "ə"], changed: true });
+    }
+  });
+  test("reduce is idempotent on an already-reduced ə: no churn", () => {
+    const r = applyRuleToWord(["t", "a", "t", "ə"], RULE_BY_ID.reduce, MODES.initial);
+    expect(r).toEqual({ ids: ["t", "a", "t", "ə"], changed: false });
+  });
+
+  test("reduce: disyllable [t,e,t,e] under each stress mode", () => {
+    const w = ["t", "e", "t", "e"];
+    expect(applyRuleToWord(w, RULE_BY_ID.reduce, MODES.initial)).toEqual({ ids: ["t", "e", "t", "ə"], changed: true });
+    expect(applyRuleToWord(w, RULE_BY_ID.reduce, MODES.final)).toEqual({ ids: ["t", "ə", "t", "e"], changed: true });
+    // weight-sensitive penult on a light disyllable falls back to antepenult (clamps to
+    // syllable 0), same as antepenult mode itself on a word with no antepenult.
+    expect(applyRuleToWord(w, RULE_BY_ID.reduce, MODES.penult)).toEqual({ ids: ["t", "e", "t", "ə"], changed: true });
+    expect(applyRuleToWord(w, RULE_BY_ID.reduce, MODES.antepenult)).toEqual({ ids: ["t", "e", "t", "ə"], changed: true });
+  });
+  test("reduce: trisyllable [t,e,t,e,t,e] under each stress mode", () => {
+    const w = ["t", "e", "t", "e", "t", "e"];
+    expect(applyRuleToWord(w, RULE_BY_ID.reduce, MODES.initial)).toEqual({ ids: ["t", "e", "t", "ə", "t", "ə"], changed: true });
+    expect(applyRuleToWord(w, RULE_BY_ID.reduce, MODES.final)).toEqual({ ids: ["t", "ə", "t", "ə", "t", "e"], changed: true });
+    expect(applyRuleToWord(w, RULE_BY_ID.reduce, MODES.antepenult)).toEqual({ ids: ["t", "e", "t", "ə", "t", "ə"], changed: true });
+  });
+  test("reduce never touches a coda, only the nucleus (role gate)", () => {
+    // syllable 1 (te.sta -> tes|ta) is unstressed under final, but its coda /s/ must
+    // survive untouched — only role==='nucleus' segments are eligible.
+    const r = applyRuleToWord(["t", "e", "s", "t", "a"], RULE_BY_ID.reduce, MODES.final);
+    expect(r).toEqual({ ids: ["t", "ə", "s", "t", "a"], changed: true });
+  });
+  test("reduce never fires on a monosyllable, under any stress mode (syllCount>1 gate)", () => {
+    for (const sr of Object.values(MODES)) {
+      expect(applyRuleToWord(["t", "e"], RULE_BY_ID.reduce, sr)).toEqual({ ids: ["t", "e"], changed: false });
+    }
+  });
+
+  test("syncope: disyllable [t,e,t,e] under each stress mode", () => {
+    const w = ["t", "e", "t", "e"];
+    expect(applyRuleToWord(w, RULE_BY_ID.syncope, MODES.initial)).toEqual({ ids: ["t", "e", "t"], changed: true });
+    expect(applyRuleToWord(w, RULE_BY_ID.syncope, MODES.final)).toEqual({ ids: ["t", "t", "e"], changed: true });
+  });
+  test("syncope: calidum-shape medial loss (k,a,l,i,t,u -> k,a,l,t under initial stress)", () => {
+    // ka.li.tu, initial stress on syllable 0 — syllables 1 and 2's nuclei both qualify,
+    // and both are deleted: this is the calidum > caldu shape the spike names, just
+    // compressed to one stress-conditioned pass rather than iterated turns.
+    const r = applyRuleToWord(["k", "a", "l", "i", "t", "u"], RULE_BY_ID.syncope, MODES.initial);
+    expect(r).toEqual({ ids: ["k", "a", "l", "t"], changed: true });
+  });
+  test("syncope never fires on a monosyllable, under any stress mode", () => {
+    for (const sr of Object.values(MODES)) {
+      expect(applyRuleToWord(["t", "e"], RULE_BY_ID.syncope, sr)).toEqual({ ids: ["t", "e"], changed: false });
+    }
+  });
+
+  // The exhaustive replacement for a second floor guard inside syncope (see the rule's
+  // own comment in phonology.ts): both that the raw output always retains a vowel AND
+  // that the floor at applyRuleToWord's tail never trips (changed stays true whenever
+  // the word had >1 syllable), or a future stressPosition bug would be silently caught
+  // by the floor instead of surfacing as a test failure. Capped at 3 segments (~18k
+  // applications) to keep this file's runtime reasonable; a wider 4-segment sweep
+  // (267,300 applications over the same alphabet) was run once at implementation time
+  // with zero violations.
+  test("syncope floor invariant: exhaustive over every word up to 3 segments x 5 stress configs", () => {
+    const V = ["i", "e", "a", "o", "u", "ə", "aː", "iː", "ie", "au"];
+    const C = ["t", "k", "s", "n", "r"];
+    const alphabet = [...V, ...C];
+    const configs: StressRule[] = [
+      MODES.initial, MODES.final, MODES.antepenult,
+      { mode: "penult", weightSensitive: true }, { mode: "penult", weightSensitive: false },
+    ];
+    let checked = 0;
+    const build = (n: number, acc: string[]): void => {
+      if (acc.length === n) {
+        if (!acc.some((x) => V.includes(x))) return;
+        for (const sr of configs) {
+          checked++;
+          const r = applyRuleToWord(acc, RULE_BY_ID.syncope, sr);
+          expect(r.ids.some((x) => V.includes(x))).toBe(true);
+        }
+        return;
+      }
+      for (const s of alphabet) build(n, [...acc, s]);
+    };
+    for (let n = 1; n <= 3; n++) build(n, []);
+    expect(checked).toBeGreaterThan(0);
+  });
+
+  test("fail-closed: neither rule fires when no StressRule is supplied", () => {
+    expect(applyRuleToWord(["t", "e", "t", "e"], RULE_BY_ID.reduce)).toEqual({ ids: ["t", "e", "t", "e"], changed: false });
+    expect(applyRuleToWord(["t", "e", "t", "e"], RULE_BY_ID.syncope)).toEqual({ ids: ["t", "e", "t", "e"], changed: false });
+  });
+  test("fail-closed: applyRuleToLex fires 0 without a StressRule, >0 with one", () => {
+    const LEX: Lexicon = [{ concept: "a", word: ["t", "a", "t", "e"] }];
+    expect(applyRuleToLex(LEX, RULE_BY_ID.reduce).fires).toBe(0);
+    expect(applyRuleToLex(LEX, RULE_BY_ID.syncope).fires).toBe(0);
+    expect(applyRuleToLex(LEX, RULE_BY_ID.reduce, { stress: MODES.initial }).fires).toBeGreaterThan(0);
+    expect(applyRuleToLex(LEX, RULE_BY_ID.syncope, { stress: MODES.initial }).fires).toBeGreaterThan(0);
+  });
+
+  // Affixes have a LIFTED vowel floor (an affix may legitimately erode to []), so this
+  // block is more than tidy symmetry with the 1ENG.30 synthetic-rule coverage above —
+  // it's what stops a firing syncope from genuinely emptying an affix.
+  test("applyRuleToAffix hard-blocks both rules — affixes have no independent stress domain", () => {
+    expect(applyRuleToAffix(["e"], RULE_BY_ID.reduce, "suffix", BY_ID.t)).toEqual(["e"]);
+    expect(applyRuleToAffix(["e"], RULE_BY_ID.syncope, "suffix", BY_ID.t)).toEqual(["e"]);
+    expect(applyRuleToAffix(["e"], RULE_BY_ID.reduce, "prefix", BY_ID.t)).toEqual(["e"]);
+  });
+
+  // The test that would have caught the integration gap this task closed: without a
+  // StressRule threaded through, firingRules reports 0 fires for both rules under the
+  // fail-closed conjunct, so driftRule could never select them.
+  test("reduce and syncope are selectable by driftRule only when a StressRule is threaded", () => {
+    const LEX: Lexicon = [{ concept: "a", word: ["t", "a", "t", "e"] }, { concept: "b", word: ["k", "o", "m", "i"] }];
+    const noStress = firingRules(LEX).map((f) => f.rule.id);
+    const withStress = firingRules(LEX, MODES.initial).map((f) => f.rule.id);
+    expect(noStress).not.toContain("reduce");
+    expect(noStress).not.toContain("syncope");
+    expect(withStress).toContain("reduce");
+    expect(withStress).toContain("syncope");
+  });
+  test("driftRule can actually select a stress-conditioned rule across a turn sweep", () => {
+    const LEX: Lexicon = [{ concept: "a", word: ["t", "a", "t", "e"] }, { concept: "b", word: ["k", "o", "m", "i"] }];
+    const picked = new Set<string>();
+    for (let turn = 0; turn < 300; turn++) {
+      picked.add(driftRule(LEX, 42, turn, 3, 0.5, undefined, MODES.initial)?.id ?? "");
+    }
+    expect(picked.has("reduce") || picked.has("syncope")).toBe(true);
+  });
+  test("omitting the StressRule reproduces the pre-1ENG.31 driftRule selection exactly", () => {
+    for (let turn = 0; turn < 50; turn++) {
+      expect(driftRule(MIXED_LEX, 42, turn, 3, 0.5, undefined, undefined)?.id)
+        .toBe(driftRule(MIXED_LEX, 42, turn, 3, 0.5)?.id);
+    }
+  });
+  test("firingRules threads stress but still withholds salience and syntax", () => {
+    // extends the existing terrain-agnostic pin (applyRuleToLex salience gating block
+    // above) to the stress-supplied call shape: firingRules must never gain a salience
+    // or syntax roll just because it now consults stress.
+    const LEX: Lexicon = [{ concept: "a", word: ["t", "a", "t", "e"] }];
+    const ungated = applyRuleToLex(LEX, RULE_BY_ID.reduce, { stress: MODES.initial }).fires;
+    const throughFiring = firingRules(LEX, MODES.initial).find((f) => f.rule.id === "reduce")?.fires;
+    expect(throughFiring).toBe(ungated);
+  });
 });
 
 describe("epenth / break (renewal rules)", () => {
@@ -307,7 +551,9 @@ describe("epenth / break (renewal rules)", () => {
   });
   test("break fires on a bare single-vowel word (the ossification floor)", () => {
     const r = applyRuleToWord(["a"], RULE_BY_ID.break);
-    expect(r).toEqual({ ids: ["ie"], changed: true }); // "a" is a front (non-back) vowel
+    // 1ENG.29: /a/ is central (see phonology.ts's vowel-row comment), so break's
+    // central arm fires — the ai diphthong the rule's own note has always advertised.
+    expect(r).toEqual({ ids: ["ai"], changed: true });
   });
   test("break does not fire on a non-final vowel", () => {
     const r = applyRuleToWord(["e", "t"], RULE_BY_ID.break);
@@ -415,6 +661,57 @@ describe("compleng / complengFinal (compensatory lengthening, 1ENG.13)", () => {
       if (r.id === "compleng" || r.id === "complengFinal") expect(r.lengthensPrev).toBe(true);
       else expect(r.lengthensPrev).toBeFalsy();
     }
+  });
+});
+
+describe("1ENG.29 schwa (1eng-24 spike §7)", () => {
+  // These drive applyRuleToWord with hand-built words containing "ə" directly, matching
+  // the other per-rule golden tests in this file. 1ENG.31: schwa is no longer
+  // unreachable through drift — reduce produces it, measured at ~0.17 schwa/word over
+  // 8 seeds x 80 turns of the real turn loop (see generation.test.ts) — but these stay
+  // hand-built deliberately: they pin how the PRE-EXISTING rules behave when they meet
+  // a schwa, a different question from how schwa gets there, and a drift-sourced
+  // fixture would make them stochastic.
+  test("frontV: palat does not fire before ə (schwa is not front)", () => {
+    const r = applyRuleToWord(["k", "ə", "t"], RULE_BY_ID.palat);
+    expect(r).toEqual({ ids: ["k", "ə", "t"], changed: false });
+  });
+  test("frontV: palat still fires before /i/ and /e/", () => {
+    expect(applyRuleToWord(["k", "i", "t"], RULE_BY_ID.palat)).toEqual({ ids: ["ʃ", "i", "t"], changed: true });
+    expect(applyRuleToWord(["k", "e", "t"], RULE_BY_ID.palat)).toEqual({ ids: ["ʃ", "e", "t"], changed: true });
+  });
+  // Deliberate, not a regression: /a/ is central (see phonology.ts's vowel-row
+  // comment), and palatalisation before a low/central vowel is the typologically
+  // marked pattern — Latin casa keeps /k/ while centum fronts it; French cantare ->
+  // chanter is cited as the exception precisely because it's unusual.
+  test("frontV: palat no longer fires before /a/", () => {
+    const r = applyRuleToWord(["k", "a", "t"], RULE_BY_ID.palat);
+    expect(r).toEqual({ ids: ["k", "a", "t"], changed: false });
+  });
+  test("resolve collision guard: ə and /e/ are distinct, not merged by a rule firing on schwa", () => {
+    // devoice doesn't touch vowels, but raise (mid -> high) does, and confirms
+    // resolve dispatches schwa (mid, central) to itself, not to /e/ (mid, front).
+    const r = applyRuleToWord(["m", "ə", "n"], RULE_BY_ID.finalC);
+    expect(r).toEqual({ ids: ["m", "ə"], changed: true });
+    expect(BY_ID.ə).not.toBe(BY_ID.e);
+  });
+  test("compleng on a schwa nucleus: lengthening is silently skipped, never throws (no əː phone)", () => {
+    expect(() => applyRuleToWord(["k", "ə", "s", "t"], RULE_BY_ID.compleng)).not.toThrow();
+    const r = applyRuleToWord(["k", "ə", "s", "t"], RULE_BY_ID.compleng);
+    expect(r).toEqual({ ids: ["k", "ə", "t"], changed: true }); // coda absorbed, vowel NOT lengthened
+  });
+  test("break: three-arm Backness coverage (front->ie, central->ai, back->uo)", () => {
+    expect(applyRuleToWord(["e"], RULE_BY_ID.break)).toEqual({ ids: ["ie"], changed: true });
+    expect(applyRuleToWord(["a"], RULE_BY_ID.break)).toEqual({ ids: ["ai"], changed: true });
+    expect(applyRuleToWord(["o"], RULE_BY_ID.break)).toEqual({ ids: ["uo"], changed: true });
+  });
+  test("break does not fire on a diphthong (match excludes p.diph, keeping the switch total)", () => {
+    const r = applyRuleToWord(["ie"], RULE_BY_ID.break);
+    expect(r).toEqual({ ids: ["ie"], changed: false });
+  });
+  test("smooth: an a-nucleus diphthong yields /e/, not ə", () => {
+    expect(applyRuleToWord(["au"], RULE_BY_ID.smooth)).toEqual({ ids: ["e"], changed: true });
+    expect(applyRuleToWord(["ai"], RULE_BY_ID.smooth)).toEqual({ ids: ["e"], changed: true });
   });
 });
 

@@ -1,6 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import { readFileSync } from "fs";
-import { syllabify, syllableCount, SONORITY } from "./syllable";
+import { syllabify, syllableCount, SONORITY, stressPosition, stressMap } from "./syllable";
+import type { StressMode, StressRule } from "./syllable";
 import { BY_ID } from "./phonology";
 
 const isV = (id: string) => BY_ID[id]?.type === "V";
@@ -74,6 +75,110 @@ describe("SONORITY", () => {
 // the specific export" — a source-string check catches both.
 describe("purity", () => {
   test("syllable.ts contains no hashRand call and no rng.ts import", () => {
+    const src = readFileSync(new URL("./syllable.ts", import.meta.url), "utf8");
+    expect(src).not.toContain("hashRand");
+    expect(src).not.toContain("./rng");
+  });
+});
+
+// 1ENG.30 (1eng-24 spike §4/§5) — stress substrate.
+describe("stressPosition", () => {
+  const MODES: StressMode[] = ["initial", "final", "penult", "antepenult"];
+  const rule = (mode: StressMode, weightSensitive = false): StressRule => ({ mode, weightSensitive });
+
+  // CV.CV.CV.CV — every syllable light, no coda/long/diph anywhere, so weightSensitive
+  // never engages regardless of mode. Golden table: 4 modes x 1-4 syllables.
+  const MONO = syllabify(["t", "a"]);
+  const DI = syllabify(["t", "a", "t", "a"]);
+  const TRI = syllabify(["t", "a", "t", "a", "t", "a"]);
+  const QUAD = syllabify(["t", "a", "t", "a", "t", "a", "t", "a"]);
+
+  test("monosyllable -> 0 under every mode (the one word shape that can't lose its vowel)", () => {
+    MODES.forEach((mode) => expect(stressPosition(MONO, rule(mode))).toBe(0));
+  });
+
+  test("nucleus === null -> -1 (reachable only via applyRuleToAffix's lifted floor)", () => {
+    const vowelless = syllabify(["s", "t"]);
+    MODES.forEach((mode) => expect(stressPosition(vowelless, rule(mode))).toBe(-1));
+  });
+
+  test("golden table: mode x syllable count (all light, weightSensitive irrelevant)", () => {
+    // [initial, final, penult, antepenult]
+    expect(MODES.map((m) => stressPosition(DI, rule(m)))).toEqual([0, 1, 0, 0]);
+    expect(MODES.map((m) => stressPosition(TRI, rule(m)))).toEqual([0, 2, 1, 0]);
+    expect(MODES.map((m) => stressPosition(QUAD, rule(m)))).toEqual([0, 3, 2, 1]);
+  });
+
+  test("disyllable + antepenult -> 0 (no antepenult exists; clamps to initial)", () => {
+    expect(stressPosition(DI, rule("antepenult"))).toBe(0);
+  });
+
+  test("weight-sensitive penult: heavy penult (coda) keeps the penult", () => {
+    // ta.pta split at TRI-length: [tap][ta] is the syllabify(["t","a","p","t","a"]) case.
+    const sylls = syllabify(["t", "a", "p", "t", "a"]);
+    expect(sylls[0].coda).toEqual(["p"]); // heavy via coda
+    expect(stressPosition(sylls, rule("penult", true))).toBe(0); // penult IS index 0 here
+  });
+
+  test("weight-sensitive penult: heavy penult (long vowel) keeps the penult", () => {
+    const sylls = syllabify(["t", "aː", "t", "a"]);
+    expect(stressPosition(sylls, rule("penult", true))).toBe(0);
+  });
+
+  test("weight-sensitive penult: heavy penult (diphthong) keeps the penult", () => {
+    const sylls = syllabify(["t", "ie", "t", "a"]);
+    expect(stressPosition(sylls, rule("penult", true))).toBe(0);
+  });
+
+  test("weight-sensitive penult: light penult falls back to the antepenult, clamped on a disyllable", () => {
+    expect(stressPosition(DI, rule("penult", true))).toBe(0); // disyllable clamps to 0
+    expect(stressPosition(TRI, rule("penult", true))).toBe(0); // light penult (index 1) -> antepenult (index 0)
+  });
+
+  test("weightSensitive only modifies penult placement — it is not a fifth mode", () => {
+    // initial/final/antepenult ignore weightSensitive entirely, even with a heavy syllable present.
+    const sylls = syllabify(["t", "a", "p", "t", "a"]); // heavy syllable at index 0
+    expect(stressPosition(sylls, rule("initial", true))).toBe(0);
+    expect(stressPosition(sylls, rule("final", true))).toBe(1);
+    expect(stressPosition(sylls, rule("antepenult", true))).toBe(0);
+  });
+});
+
+describe("stressMap", () => {
+  test("one entry per segment index, isStressed matches stressPosition, round-trips the word", () => {
+    const w = ["t", "a", "p", "t", "a"]; // ta.pta — heavy penult at syllable 0
+    const rule: StressRule = { mode: "final", weightSensitive: false };
+    const map = stressMap(w, rule);
+    expect(map.length).toBe(w.length);
+    // final mode -> syllable 1 (the last) is stressed: indices 3,4 (t,a of syllable 1)
+    expect(map.map((c) => c?.isStressed)).toEqual([false, false, false, true, true]);
+    expect(map.map((c) => c?.syllIdx)).toEqual([0, 0, 0, 1, 1]);
+    expect(map.every((c) => c?.syllCount === 2)).toBe(true);
+  });
+
+  test("role is correct across onset/nucleus/coda", () => {
+    const w = ["t", "a", "p"]; // one syllable: onset t, nucleus a, coda p
+    const map = stressMap(w, { mode: "initial", weightSensitive: false });
+    expect(map.map((c) => c?.role)).toEqual(["onset", "nucleus", "coda"]);
+  });
+
+  test("weight is heavy for the coda syllable, light for the open one", () => {
+    const w = ["t", "a", "p", "t", "a"]; // ta.pta
+    const map = stressMap(w, { mode: "initial", weightSensitive: false });
+    expect(map[0]?.weight).toBe("heavy"); // t (syll 0, has coda)
+    expect(map[3]?.weight).toBe("light"); // t (syll 1, no coda)
+  });
+
+  test("a wholly vowelless word maps every segment to isStressed:false (stressPosition -1 matches no index)", () => {
+    const map = stressMap(["s", "t"], { mode: "initial", weightSensitive: false });
+    expect(map.every((c) => c?.isStressed === false)).toBe(true);
+  });
+});
+
+// §6: purity pin on the stress additions — same source-string idiom as syllabify's own
+// purity test above.
+describe("1ENG.30 purity", () => {
+  test("stress additions draw no hashRand — every value is a pure function of the word/rule", () => {
     const src = readFileSync(new URL("./syllable.ts", import.meta.url), "utf8");
     expect(src).not.toContain("hashRand");
     expect(src).not.toContain("./rng");

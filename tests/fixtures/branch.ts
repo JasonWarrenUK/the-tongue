@@ -1,4 +1,5 @@
 import type { AffixState, Branch, FrameWeights, ParadigmCell, WordOrder } from "../../src/lib/engine/types";
+import type { StressRule } from "../../src/lib/engine/syllable";
 
 // 1ENG.20: a static, deterministic paradigm — all four cells affixal, suffixed (the
 // SOV default above), with short unambiguous forms. A static literal rather than
@@ -27,6 +28,11 @@ export const branchDefaults = {
   collisionPressure: {} as Record<string, number>,
   momentum: {} as Branch["momentum"],
   wordOrder: { basic: "SOV", adj: "AdjN" } as WordOrder,
+  // 1ENG.30: a neutral default (fixed initial stress, not weight-sensitive) — no test
+  // in this suite exercises stress-conditioned behaviour yet (that's 1ENG.31), so this
+  // exists purely to satisfy Branch's now-required field for the other 21 test literals
+  // that spread branchDefaults instead of naming every field by hand.
+  stressRule: { mode: "initial", weightSensitive: false } as StressRule,
   frameWeights: [1, 1, 1, 1] as FrameWeights,
   proDrop: false,
   paradigm: paradigmDefaults,
@@ -37,4 +43,5 @@ export const branchDefaults = {
 // literal the same way as branchDefaults above.
 export const worldDefaults = {
   wordOrder: { basic: "SOV", adj: "AdjN" } as WordOrder,
+  stressRule: { mode: "initial", weightSensitive: false } as StressRule,
 };

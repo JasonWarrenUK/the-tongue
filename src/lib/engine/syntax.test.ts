@@ -1,4 +1,5 @@
 import { describe, test, expect } from "bun:test";
+import { readFileSync, readdirSync } from "fs";
 import {
   FRAMES, EQUAL_WEIGHTS, frameOrder, positionProfile, walkFrameWeights,
   followerVowelShare, syntaxMult, FRAME_FLOOR, FRAME_WALK,
@@ -190,6 +191,18 @@ describe("syntaxMult", () => {
   test("unknown concept (not in CONCEPT_CLASS) is never gated", () => {
     expect(syntaxMult(RULE_BY_ID["apoc"], "nonexistent", branch, LEX)).toBe(1);
   });
+
+  // 1ENG.31: reduce/syncope are both post:null, so isBoundaryRule is false for both and
+  // syntaxMult short-circuits to 1 regardless of concept or position — stress
+  // conditioning and syntax (positional) conditioning are orthogonal channels, and this
+  // pins that they stay that way rather than silently interacting through the shared
+  // Rule shape.
+  test("reduce and syncope are not boundary rules: syntaxMult is always 1, unaffected by position", () => {
+    expect(syntaxMult(RULE_BY_ID["reduce"], "i", branch, LEX)).toBe(1);
+    expect(syntaxMult(RULE_BY_ID["reduce"], "eat", branch, LEX)).toBe(1);
+    expect(syntaxMult(RULE_BY_ID["syncope"], "i", branch, LEX)).toBe(1);
+    expect(syntaxMult(RULE_BY_ID["syncope"], "eat", branch, LEX)).toBe(1);
+  });
 });
 
 // 1ENG.19 salt-registry regression (spike §7): every (a,b,c) hashRand triple this
@@ -205,5 +218,38 @@ describe("1ENG.19 salt registry", () => {
     newFirstCoords.forEach((c) => expect(knownFirstCoords.has(c)).toBe(false));
     // pairwise-disjoint among themselves too
     expect(new Set(newFirstCoords).size).toBe(newFirstCoords.length);
+  });
+});
+
+// 1ENG.30 (1eng-24 spike §8, "Salt allocation: none needed"): the stress substrate
+// claims no hashRand family at all — every draw is either a tail-appended mulberry32
+// rng() at genesis or fully pure at transducer time. seed+47 must stay unclaimed so
+// the NEXT task to need a hashRand family (not this one) is free to take it.
+// 1ENG.31: reduce and syncope are both pure transducers (no RNG inside xform), and the
+// firingRules/driftRule threading added to consult them is plumbing, not a new roll —
+// so this task claims no salt either. seed+47 stays the correct answer, not moved.
+describe("1ENG.24/1ENG.30/1ENG.31 salt registry", () => {
+  // Scans the actual engine source for every `hashRand(seed ± N` / `hashRand(ctx.*.seed
+  // ± N` call site, rather than pinning a hand-maintained literal — the earlier version
+  // of this test asserted 47 was absent from a Set typed in by hand, which could only
+  // ever fail if someone also remembered to update that Set, i.e. never against a real
+  // regression. This reads every offset straight from source, so a future PR that
+  // actually adds a `hashRand(seed + 47, ...)` call anywhere in src/lib/engine fails
+  // this test for real.
+  const engineDir = new URL("./", import.meta.url);
+  const offsetsInUse = new Set<number>();
+  readdirSync(engineDir).filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts")).forEach((f) => {
+    const src = readFileSync(new URL(f, engineDir), "utf8");
+    for (const m of src.matchAll(/hashRand\(\s*(?:seed|[a-zA-Z.]+\.seed)\s*([+-]\s*\d+)?/g)) {
+      offsetsInUse.add(m[1] ? Number(m[1].replace(/\s+/g, "")) : 0);
+    }
+  });
+
+  test("seed+47 remains unclaimed — neither 1ENG.30 nor 1ENG.31 draws a hashRand triple", () => {
+    expect(offsetsInUse.has(47)).toBe(false);
+  });
+
+  test("sanity: the scan actually found the known offsets (proves the regex isn't silently matching nothing)", () => {
+    expect(offsetsInUse).toEqual(new Set([0, 7, 13, 19, 23, 29, 31, 37, 41, 43]));
   });
 });

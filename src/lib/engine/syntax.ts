@@ -103,7 +103,10 @@ export function positionProfile(
 // seed+13, borrow seed+19, contact seed+23, and (this task) the syntax gate seed+29,
 // reanalysis seed+37, morphology's placement/erosion-gate rolls seed+41 (1ENG.20),
 // univerbation's fire/class/modifier rolls seed+43 (1ENG.27) — so no (a,b,c) triple
-// can coincide regardless of turn, branch or sub-index.
+// can coincide regardless of turn, branch or sub-index. 1ENG.24/1ENG.30 claims NO
+// hashRand family: every stress draw is either a tail-appended mulberry32 rng() at
+// genesis (world.ts, not hashRand) or fully pure (stressPosition/stressMap/
+// Rule.stressed). seed+47 stays free for whichever task claims it next.
 export function walkFrameWeights(weights: FrameWeights, seed: number, turn: number, branchId: number): FrameWeights {
   return weights.map((w, k) =>
     Math.max(FRAME_FLOOR, w + (hashRand(seed + 31, turn * 257 + 43, branchId * 577 + k) * 2 - 1) * FRAME_WALK),

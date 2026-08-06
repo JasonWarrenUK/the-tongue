@@ -326,6 +326,29 @@ describe("1ENG.19 fracture-birth syntax inheritance & reanalysis", () => {
   });
 });
 
+// 1ENG.30 (1eng-24 spike §4) — fracture-birth stressRule inheritance. Same copy-not-
+// share treatment as frameWeights above, and for the same reason: a sibling's own
+// future state must never mutate the parent's. No divergence roll yet (unlike
+// wordOrder's reanalyse) — the value is inherited whole, unchanged.
+describe("1ENG.30 fracture-birth stressRule inheritance", () => {
+  test("a born sibling inherits the parent's stressRule by value", () => {
+    const out = resolveGeneration(fractureState());
+    const kid = childrenOf(out, 0)[0];
+    const parent = out.branches[0];
+    expect(kid.stressRule).toEqual(parent.stressRule);
+  });
+
+  test("stressRule is copied, not shared: mutating the child's object leaves the parent's untouched", () => {
+    const out = resolveGeneration(fractureState());
+    const kid = childrenOf(out, 0)[0];
+    const parent = out.branches[0];
+    expect(kid.stressRule).not.toBe(parent.stressRule); // distinct object identity
+    const beforeMutation = parent.stressRule.mode;
+    kid.stressRule.mode = "final";
+    expect(parent.stressRule.mode).toBe(beforeMutation); // parent's own object is unaffected
+  });
+});
+
 // 1ENG.20 (1eng-15 spike §4/§5) — the paradigm tick wired into step 1 and fracture.
 describe("1ENG.20 paradigm tick & fracture inheritance", () => {
   test("paradigm is deep-copied at fracture: distinct identity, equal values, mutating the child leaves the parent untouched", () => {
@@ -458,7 +481,7 @@ describe("1ENG.19 word-order-conditioned erosion asymmetry", () => {
   function orderState(basic: WordOrder["basic"], seed: number): GameState {
     const lex: Lexicon = [...VERBS, ...PRONOUNS].map((concept) => ({ concept, word: [...SHAPE] }));
     return {
-      world: { seed, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [{ id: 0, x: 0, y: 0 }], edges: [], adj: { 0: [] }, start: 0, compoundOrder: "modFirst", wordOrder: { basic, adj: "AdjN" } },
+      world: { seed, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [{ id: 0, x: 0, y: 0 }], edges: [], adj: { 0: [] }, start: 0, compoundOrder: "modFirst", wordOrder: { basic, adj: "AdjN" }, stressRule: { mode: "initial", weightSensitive: false } },
       branches: { 0: {
         id: 0, name: "Aenic", parentId: null, depth: 0, splitIndex: 0, history: [],
         lex, territory: [0], pressure: 0,
@@ -1240,5 +1263,26 @@ describe("1ENG.26 phonemic-event history (step 1 drift)", () => {
     const driftEntries = history.filter((h) => h.drift);
     expect(driftEntries.length).toBeGreaterThan(0);
     driftEntries.forEach((h) => expect(h.report).toBeUndefined());
+  });
+});
+
+// 1ENG.31 (1eng-24 spike §6): schwa reaching a live lexicon through the real turn loop,
+// not a hand-built fixture. The only test that would catch a future regression that
+// re-severs the generation.ts:64 stress-threading (driftRule selecting reduce/syncope
+// but applyRuleToLex applying with no stress view, so the selection silently no-ops)
+// while leaving firingRules' own threading intact — phonology.test.ts's unit-level
+// tests exercise each half in isolation, this exercises them wired together.
+describe("1ENG.31 reduce/syncope reachable through autonomous drift", () => {
+  test("a multi-seed run over the real 48-concept substrate produces schwa in some leaf's lexicon", async () => {
+    const { freshState } = await import("./world");
+    const { leavesOf } = await import("./tree");
+    const { BY_ID } = await import("./phonology");
+    let found = false;
+    for (let seed = 1; seed <= 8 && !found; seed++) {
+      let s = freshState(seed);
+      for (let turn = 0; turn < 80; turn++) s = resolveGeneration(s);
+      found = leavesOf(s.branches).some((L) => L.lex.some((e) => e.word.some((id) => BY_ID[id]?.id === "ə")));
+    }
+    expect(found).toBe(true);
   });
 });
