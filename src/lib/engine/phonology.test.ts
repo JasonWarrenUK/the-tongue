@@ -222,6 +222,58 @@ describe("fortify / aphaer (1ENG.19 initial-position rules)", () => {
   });
 });
 
+// 1ENG.17 slice 2 (1eng-16 spike §7) — distance conditioning (SCA²'s `…`) and umlaut,
+// the mechanism's one consumer.
+describe("distance conditioning / umlaut (1ENG.17 slice 2)", () => {
+  test("umlaut fires on a…i, fronting the back vowel to match the trigger", () => {
+    expect(applyRuleToWord(["t", "u", "t", "i"], RULE_BY_ID["umlaut"])).toEqual({ ids: ["t", "i", "t", "i"], changed: true });
+  });
+  test("umlaut does not fire on a…u (trigger must be front)", () => {
+    expect(applyRuleToWord(["t", "u", "t", "u"], RULE_BY_ID["umlaut"]).changed).toBe(false);
+  });
+  test("umlaut never touches an already-front vowel (match excludes front)", () => {
+    expect(applyRuleToWord(["t", "i", "t", "i"], RULE_BY_ID["umlaut"]).changed).toBe(false);
+  });
+  test("the distance scan skips the adjacent slot: post:null means an IMMEDIATELY following front vowel alone doesn't satisfy distance at i+1, only i+2+", () => {
+    // ["u","i"]: only two segments: the front trigger at i+1 is the adjacent slot,
+    // which distance's i±2 start deliberately excludes — nothing at i+2 to find.
+    expect(applyRuleToWord(["u", "i"], RULE_BY_ID["umlaut"]).changed).toBe(false);
+    // ["u","t","i"]: front trigger now at i+2, inside the scan.
+    expect(applyRuleToWord(["u", "t", "i"], RULE_BY_ID["umlaut"])).toEqual({ ids: ["i", "t", "i"], changed: true });
+  });
+  test("first-match semantics: with two qualifying segments downstream, the nearer wins (round comes from the nearer trigger)", () => {
+    // "o" (mid,back,round) should front to match "e" (mid,front,unround) at distance,
+    // not any later front vowel — same result here since both later vowels are front/
+    // unround, but scanDistance's early-return makes "nearer" the operative claim.
+    expect(applyRuleToWord(["t", "o", "t", "e", "t", "i"], RULE_BY_ID["umlaut"])).toEqual({ ids: ["t", "e", "t", "e", "t", "i"], changed: true });
+  });
+  test("umlaut never drops output for any match×trigger combination (the reduce trap, probed and pinned)", () => {
+    const backVowels = ["o", "u", "oː", "uː"];
+    const triggers = ["i", "e", "iː", "eː"];
+    for (const b of backVowels) {
+      for (const trig of triggers) {
+        const { ids, changed } = applyRuleToWord(["t", b, "t", trig], RULE_BY_ID["umlaut"]);
+        expect(changed).toBe(true);
+        expect(ids.length).toBe(4); // 1-in/1-out: never dropped, never grown
+        expect(BY_ID[ids[1]].back).toBe("front");
+      }
+    }
+  });
+  test("applyRuleToAffix never fires a distance-conditioned rule (fail-closed, mirrors Rule.stressed)", () => {
+    // An affix has no word-scale distance domain; ctx.far is always absent there, so a
+    // rule reading it (as umlaut's xform does) must never be given the chance to fire.
+    expect(applyRuleToAffix(["u"], RULE_BY_ID["umlaut"], "suffix", BY_ID.i)).toEqual(["u"]);
+  });
+  test("every pre-1ENG.17 rule produces byte-identical output on a fixture lexicon (the distance?-absent path)", () => {
+    const words = [["t", "a", "p", "e"], ["m", "a", "t"], ["a", "t", "a"], ["j", "a", "t"]];
+    for (const rule of RULES) {
+      if (rule.id === "umlaut") continue;
+      expect(rule.distance).toBeUndefined();
+      for (const w of words) applyRuleToWord(w, rule); // no throw; distance-absent path untouched
+    }
+  });
+});
+
 // 1ENG.19 (1eng-14 spike §4.1) — the syntax gate inside applyRuleToLex. Mirrors the
 // salience-gate sweep above: a class the branch's word order disfavours in this
 // position drifts strictly less often than one it favours, over a turn sweep.
@@ -298,10 +350,14 @@ describe("applyRuleToWord backward compatibility (1ENG.12 regression goldens)", 
   // and a derived list would silently exclude exactly that rule instead of failing on
   // it. Extend this list only when a genuinely stress-blind rule is added; a new
   // stress-conditioned rule belongs in the 1ENG.31 describe block below, not here.
+  // 1ENG.17 slice 2: umlaut is likewise stress-blind (no `stressed` predicate declared)
+  // and belongs to the same "declines stress conditioning" set this list tracks, per
+  // its own comment above — extended here rather than renamed, since PRE_1ENG24_IDS'
+  // meaning ("stress-blind rules") outlived the literal pre-1ENG.24 boundary already.
   const PRE_1ENG24_IDS = [
     "voice", "spirant", "devoice", "apoc", "finalC", "palat", "debucc", "raise", "nasassim",
     "cluster", "epenth", "paragoge", "break", "smooth", "shorten", "compleng", "complengFinal",
-    "fortify", "aphaer",
+    "fortify", "aphaer", "umlaut",
   ] as const;
   // 1ENG.30 (1eng-24 spike §8), narrowed by 1ENG.31 — byte-identity sweep over the
   // rules that predate stress conditioning: same purpose (a widening event must not

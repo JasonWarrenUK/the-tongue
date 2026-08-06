@@ -89,6 +89,22 @@ export const RULES: Rule[] = [
   { id:"debucc", name:"Debuccalisation", note:"s → h / _ #", w:1.5, category:"lenition", match:(p)=>isC(p)&&p.place==="alv"&&p.manner==="fric"&&!p.voice, pre:null, post:bound, xform:()=>({place:"glo"}) },
   { id:"raise", name:"Final vowel raising", note:"mid vowel → high / _ #", w:2.5, category:"vowelShift", match:(p)=>isV(p)&&p.height==="mid", pre:null, post:bound, xform:()=>({height:"high"}) },
   { id:"nasassim", name:"Nasal place assimilation", note:"nasal → [place of stop] / _ stop", w:3, category:"assimilation", match:(p)=>isC(p)&&p.manner==="nasal", pre:null, post:stopC, xform:(_p,ctx)=>({place:ctx.post!.place}) },
+  // 1ENG.17 (1eng-16 spike §7 slice 2) — Germanic umlaut / i-mutation (fōt/fēt), the
+  // slice-2 mechanism's reason to exist: long-distance assimilation, expressible for
+  // the first time via `distance`. w=2, category "assimilation" (it IS assimilation,
+  // and the 0.4 contact affinity is the right tilt — no new RuleCategory, unlike
+  // fortify's "fortition").
+  //   xform copies back/round off ctx.far (the found front trigger) rather than
+  // patching a fixed target — nasassim's shape, not reduce's. reduce's comment above
+  // documents a self-seg vowel patch resolving to null for most inputs and silently
+  // deleting; probed at spec time (every back-vowel × front-trigger combination in the
+  // match/distance sets resolves cleanly — height and long come from the input via
+  // applyXform's diff, back/round from the trigger), so that trap doesn't apply here.
+  { id:"umlaut", name:"Umlaut", note:"back V → front / _ … front V  (i-mutation: fōt/fēt)",
+    w:2, category:"assimilation",
+    match:(p)=>isV(p)&&p.back==="back"&&!p.diph, pre:null, post:null,
+    distance:{ dir:"post", test:(p)=>isV(p)&&p.back==="front"&&!p.diph },
+    xform:(_p,ctx)=>({ back:ctx.far!.back, round:ctx.far!.round }) },
   { id:"cluster", name:"Cluster reduction", note:"consonant → ∅ / _ C", w:2, category:"deletion", match:isC, pre:null, post:isC, xform:()=>({delete:true}) },
   // 1ENG.12 renewal + the erosion rules that consume it — see 1eng-11 spike §3.2/§3.3.
   // epenth and break rebuild structure (clusters/hiatus broken, mid V -> diphthong);
@@ -252,6 +268,20 @@ export const MAX_LEN = 12; // ~4-5 syllables; growth ceiling, symmetric with the
 // producing byte-identical output — see the backward-compatibility sweep. When supplied,
 // stressMap is computed ONCE before the loop (not per-segment), since it's a pure
 // function of the whole word and syllable boundaries don't move mid-application.
+// 1ENG.17 slice 2 (1eng-16 spike §7): SCA²'s `…` wildcard. Scans `ph` — the INPUT
+// array, same convention pre/post already follow, so an already-rewritten neighbour
+// earlier in this word's pass is invisible, matching every other rule's semantics.
+// Starts at i±2 (the adjacent slot is pre/post's job already) and walks to the word
+// edge; first-match, so a rule can be conditioned on the NEAREST qualifying segment
+// rather than any.
+function scanDistance(ph: Phone[], i: number, d: { dir: "pre" | "post"; test: (p: Phone) => boolean }): Phone | null {
+  const step = d.dir === "post" ? 1 : -1;
+  for (let j = i + step * 2; j >= 0 && j < ph.length; j += step) {
+    if (d.test(ph[j])) return ph[j];
+  }
+  return null;
+}
+
 export function applyRuleToWord(ids: string[], rule: Rule, stressRule?: StressRule): { ids: string[]; changed: boolean } {
   const ph = ids.map((id) => BY_ID[id]);
   const stress = stressRule ? stressMap(ids, stressRule) : undefined;
@@ -265,12 +295,15 @@ export function applyRuleToWord(ids: string[], rule: Rule, stressRule?: StressRu
     // 1ENG.30: fail-closed. A rule declaring `stressed` never fires when the stress
     // view is absent — no StressRule supplied, or (defensively) no StressCtx at this
     // index — rather than firing unconditioned, which would be a silent unconditioned
-    // sound change (1eng-24 spike §3).
+    // sound change (1eng-24 spike §3). 1ENG.17: `distance` is evaluated the same way —
+    // a rule declaring it never fires without a qualifying segment in range.
+    const far = rule.distance ? scanDistance(ph, i, rule.distance) : null;
     const hit = rule.match(p) && (rule.pre ? rule.pre(pre) : true) && (rule.post ? rule.post(post) : true)
-      && (rule.stressed ? (st ? rule.stressed(st) : false) : true);
+      && (rule.stressed ? (st ? rule.stressed(st) : false) : true)
+      && (rule.distance ? far !== null : true);
     if (!hit) { out.push(p.id); continue; }
     const before = out.length;
-    for (const s of normalise(rule.xform(p, { pre, post, stress: st }))) {
+    for (const s of normalise(rule.xform(p, { pre, post, stress: st, far }))) {
       const nid = resolveSeg(p, s);
       if (nid !== null) out.push(nid); // an unresolvable seg is dropped, as delete was pre-1ENG.12
     }
@@ -319,8 +352,13 @@ export function applyRuleToAffix(ids: string[], rule: Rule, edge: "suffix" | "pr
     // 1ENG.30: same fail-closed conjunct as applyRuleToWord, with the stress view
     // always absent — affixes have no independent stress domain (they attach inside a
     // stem's own syllable structure), so a stress-conditioned rule never fires on one.
+    // 1ENG.17: `distance` gets the same fail-closed treatment and for the same reason —
+    // an affix is a handful of segments with no meaningful word-scale distance domain,
+    // so a distance-conditioned rule (umlaut) never fires here. Without this, umlaut's
+    // xform would read the always-absent ctx.far and crash (caught by the integration
+    // suites that exercise tickParadigm/applyRuleToAffix over the real rule set).
     const hit = rule.match(p) && (rule.pre ? rule.pre(pre) : true) && (rule.post ? rule.post(post) : true)
-      && (rule.stressed ? false : true);
+      && (rule.stressed ? false : true) && (rule.distance ? false : true);
     if (!hit) { out.push(p.id); continue; }
     for (const s of normalise(rule.xform(p, { pre, post }))) {
       const nid = resolveSeg(p, s);

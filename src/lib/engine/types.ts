@@ -43,11 +43,12 @@ export interface Rule {
   pre: ((p: Phone | null) => boolean) | null;
   post: ((p: Phone | null) => boolean) | null;
   // 1ENG.30: ctx widens with an optional `stress` field rather than a required one, so
-  // all 17 pre-1ENG.24 rules (none of which read it) stay byte-identical — see the
+  // all 19 pre-1ENG.24 rules (none of which read it) stay byte-identical — see the
   // backward-compatibility sweep in phonology.test.ts. EXTEND this object, never
-  // replace it: 1ENG.17 slice 2 plans its own optional `distance` field on the same
-  // ctx (1eng-24 spike §3) — whichever lands second must add alongside, not redefine.
-  xform: (p: Phone, ctx: { pre: Phone | null; post: Phone | null; stress?: StressCtx }) => XformResult;
+  // replace it: 1ENG.17 slice 2 adds its own optional `far` field on the same ctx
+  // (1eng-24 spike §3, 1eng-16 spike §7 slice 2) — whichever lands second must add
+  // alongside, not redefine. 1ENG.17 landed second: `far` sits beside `stress`.
+  xform: (p: Phone, ctx: { pre: Phone | null; post: Phone | null; stress?: StressCtx; far?: Phone | null }) => XformResult;
   // 1ENG.13: on a hit, lengthen the previously-emitted output vowel (compensatory
   // lengthening — a coda deletes itself and the vowel before it goes long instead).
   // Optional and false for every pre-1ENG.13 rule, so their output is unaffected.
@@ -58,6 +59,11 @@ export interface Rule {
   // stress rule firing unconditioned would be a silent unconditioned sound change, the
   // same class of bug isBoundaryRule (syntax.ts) guards a future boundary rule against.
   stressed?: (s: StressCtx) => boolean;
+  // 1ENG.17 (1eng-16 spike §7 slice 2) — SCA²'s `…` wildcard: an optional condition on
+  // a segment ANYWHERE downstream (`dir:"post"`) or upstream (`dir:"pre"`) of the match,
+  // scanning outward from the adjacent segment (i±2) to the word edge, first-match
+  // semantics. Absent on every pre-1ENG.17 rule, so their matching is byte-identical.
+  distance?: { dir: "pre" | "post"; test: (p: Phone) => boolean };
 }
 
 export interface LexEntry { concept: string; word: string[] }
