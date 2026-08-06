@@ -26,6 +26,57 @@ export const ORDER_CONTACT_CUT = 0.6;     // stage B (1ENG.21): pairContact floo
 // routinely-hit clamp — first-pass tuning, same ledger treatment as SYNTAX_STRENGTH.
 export const FRAME_FLOOR = 0.1;
 
+// 1ENG.21 (1eng-14 spike §5, decision 5) — the six logical S/O/V orders, though
+// WordOrder.basic only ever holds three (SOV/SVO/VSO). Stored/computed over all six so
+// swapDistance means the real permutohedron rather than an ad hoc three-value line, and
+// a future task admitting OSV/OVS/VOS to WordOrder needs no change here.
+export type BasicOrder = "SOV" | "SVO" | "VSO" | "VOS" | "OSV" | "OVS";
+
+// Swap distance: the minimum number of adjacent-constituent transpositions needed to
+// turn one S/O/V order into another (Ferrer-i-Cancho et al., "Swap distance
+// minimization shapes the order of subject, object and verb in languages of the world",
+// arXiv 2604.26726 — the established metric for this exact question). Computed via BFS
+// over the permutohedron (adjacent orders = one transposition apart) rather than
+// hardcoded, so the six-order table is derived, not guessed, and needs no maintenance
+// if WordOrder ever grows to admit the other three. Pinned as a golden against the
+// paper's own stated distances: from SOV, 1 to SVO/OSV, 2 to VSO/OVS, 3 to VOS.
+function adjacentOrders(o: BasicOrder): BasicOrder[] {
+  const chars = o.split("");
+  const out: BasicOrder[] = [];
+  for (let i = 0; i < chars.length - 1; i++) {
+    const swapped = [...chars];
+    [swapped[i], swapped[i + 1]] = [swapped[i + 1], swapped[i]];
+    out.push(swapped.join("") as BasicOrder);
+  }
+  return out;
+}
+export function swapDistance(a: BasicOrder, b: BasicOrder): number {
+  if (a === b) return 0;
+  const dist = new Map<BasicOrder, number>([[a, 0]]);
+  const queue: BasicOrder[] = [a];
+  while (queue.length > 0) {
+    const cur = queue.shift()!;
+    const d = dist.get(cur)!;
+    for (const next of adjacentOrders(cur)) {
+      if (dist.has(next)) continue;
+      dist.set(next, d + 1);
+      if (next === b) return d + 1;
+      queue.push(next);
+    }
+  }
+  return dist.get(b)!; // the permutohedron is fully connected: any permutation is reachable by adjacent swaps
+}
+// One swap along a shortest path from `from` toward `to` — the contact driver's "one
+// step toward the neighbour's order" (spike §5), disambiguated per decision 5. Among
+// our three admitted values (SOV/SVO/VSO) the swap graph is the line SOV-SVO-VSO, which
+// independently matches the diachronic finding that SOV drift passes through SVO before
+// (if ever) reaching VSO — so `to` unreachable from `from` in one step lands on SVO.
+export function stepOrderToward(from: BasicOrder, to: BasicOrder): BasicOrder {
+  if (from === to) return from;
+  const candidates = adjacentOrders(from).filter((o) => swapDistance(o, to) < swapDistance(from, to));
+  return candidates[0] ?? from;
+}
+
 export interface Slot { class: ConceptClass; role: string }
 export interface Frame { id: string; slots: Slot[] }
 

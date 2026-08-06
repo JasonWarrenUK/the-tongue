@@ -2,8 +2,9 @@ import { describe, test, expect } from "bun:test";
 import { readFileSync, readdirSync } from "fs";
 import {
   FRAMES, EQUAL_WEIGHTS, frameOrder, positionProfile, walkFrameWeights,
-  followerVowelShare, syntaxMult, FRAME_FLOOR, FRAME_WALK,
+  followerVowelShare, syntaxMult, FRAME_FLOOR, FRAME_WALK, swapDistance, stepOrderToward,
 } from "./syntax";
+import type { BasicOrder } from "./syntax";
 import { RULE_BY_ID } from "./phonology";
 import type { FrameWeights, Lexicon, WordOrder } from "./types";
 
@@ -24,6 +25,53 @@ const GOLDEN: Record<string, Record<string, { final: number; initial: number }>>
   "VSO|AdjN": { verb: { final: 0, initial: 1 }, noun: { final: 0.8, initial: 0.2 }, pronoun: { final: 0, initial: 0 }, adjective: { final: 0, initial: 1 } },
   "VSO|NAdj": { verb: { final: 0, initial: 1 }, noun: { final: 0.6, initial: 0.4 }, pronoun: { final: 0, initial: 0 }, adjective: { final: 1, initial: 0 } },
 };
+
+// 1ENG.21 (1eng-14 spike §5, decision 5) — swap distance on the six-order
+// permutohedron. Golden table pinned against Ferrer-i-Cancho et al.'s own stated
+// distances (arXiv 2604.26726): from SOV, 1 to SVO/OSV, 2 to VSO/OVS, 3 to VOS.
+describe("swapDistance", () => {
+  test("matches the paper's stated distances from SOV", () => {
+    expect(swapDistance("SOV", "SOV")).toBe(0);
+    expect(swapDistance("SOV", "SVO")).toBe(1);
+    expect(swapDistance("SOV", "OSV")).toBe(1);
+    expect(swapDistance("SOV", "VSO")).toBe(2);
+    expect(swapDistance("SOV", "OVS")).toBe(2);
+    expect(swapDistance("SOV", "VOS")).toBe(3);
+  });
+  test("symmetric: distance(a,b) === distance(b,a)", () => {
+    const orders: BasicOrder[] = ["SOV", "SVO", "VSO", "VOS", "OSV", "OVS"];
+    for (const a of orders) for (const b of orders) expect(swapDistance(a, b)).toBe(swapDistance(b, a));
+  });
+  test("among the three admitted WordOrder values, the swap graph is the line SOV-SVO-VSO", () => {
+    expect(swapDistance("SOV", "SVO")).toBe(1);
+    expect(swapDistance("SVO", "VSO")).toBe(1);
+    expect(swapDistance("SOV", "VSO")).toBe(2); // not adjacent — SVO is the midpoint
+  });
+});
+
+describe("stepOrderToward", () => {
+  test("identity is a no-op", () => {
+    expect(stepOrderToward("SOV", "SOV")).toBe("SOV");
+  });
+  test("adjacent orders reach the target in one step", () => {
+    expect(stepOrderToward("SOV", "SVO")).toBe("SVO");
+    expect(stepOrderToward("SVO", "SOV")).toBe("SOV");
+    expect(stepOrderToward("SVO", "VSO")).toBe("VSO");
+  });
+  test("SOV -> VSO takes two events via SVO (distance 2, not a direct jump)", () => {
+    const first = stepOrderToward("SOV", "VSO");
+    expect(first).toBe("SVO");
+    expect(stepOrderToward(first, "VSO")).toBe("VSO");
+  });
+  test("every step strictly reduces swap distance to the target", () => {
+    const orders: BasicOrder[] = ["SOV", "SVO", "VSO", "VOS", "OSV", "OVS"];
+    for (const a of orders) for (const b of orders) {
+      if (a === b) continue;
+      const stepped = stepOrderToward(a, b);
+      expect(swapDistance(stepped, b)).toBe(swapDistance(a, b) - 1);
+    }
+  });
+});
 
 describe("positionProfile: equal-weight golden table (spike §3.4)", () => {
   (["SOV", "SVO", "VSO"] as const).forEach((basic) => {

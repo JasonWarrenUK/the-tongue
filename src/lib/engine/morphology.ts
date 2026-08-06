@@ -204,3 +204,14 @@ export function licensesProDrop(paradigm: Record<ParadigmCell, AffixState>): boo
   const agreement: ParadigmCell[] = ["p1sg", "p2", "p1pl"];
   return agreement.filter((c) => paradigm[c].stage !== "zero").length >= 2;
 }
+
+// 1ENG.21 (1eng-14 spike §5, decision 4) — full agreement collapse: all three cells at
+// zero, strictly STRONGER than !licensesProDrop (which already goes false at two dead
+// cells). This is the state the rigidification driver reads, not the pro-drop licence
+// boundary — by the time all three are dead, proDrop has already gone false via
+// generation.ts's per-turn licensesProDrop recompute, so rigidification firing here
+// never needs its own write to proDrop (see the ordering pin in generation.test.ts).
+export function agreementCollapsed(paradigm: Record<ParadigmCell, AffixState>): boolean {
+  const agreement: ParadigmCell[] = ["p1sg", "p2", "p1pl"];
+  return agreement.every((c) => paradigm[c].stage === "zero");
+}

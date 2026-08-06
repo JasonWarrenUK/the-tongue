@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { seedParadigm, affixContext, tickParadigm, inflect, licensesProDrop, PATHWAY, RENEWAL_TURNS, FUSE_TURNS } from "./morphology";
+import { seedParadigm, affixContext, tickParadigm, inflect, licensesProDrop, agreementCollapsed, PATHWAY, RENEWAL_TURNS, FUSE_TURNS } from "./morphology";
 import { applyRuleToAffix, RULE_BY_ID, BY_ID } from "./phonology";
 import type { AffixState, Lexicon, ParadigmCell, WordOrder } from "./types";
 
@@ -309,6 +309,44 @@ describe("licensesProDrop", () => {
     const p = seedParadigm(LEX, SOV, 1);
     const collapsed = { ...p, past: { ...p.past, stage: "zero" as const, form: [] } };
     expect(licensesProDrop(collapsed)).toBe(true);
+  });
+});
+
+// 1ENG.21 (decision 4) — agreementCollapsed is strictly STRONGER than !licensesProDrop:
+// the licence already dies at 2 dead cells, collapse needs all 3. The rigidification
+// driver reads collapse, not the licence boundary.
+describe("agreementCollapsed", () => {
+  test("all four cells affixal (genesis) -> not collapsed", () => {
+    const p = seedParadigm(LEX, SOV, 1);
+    expect(agreementCollapsed(p)).toBe(false);
+  });
+
+  test("2 of 3 agreement cells dead: licence already gone, but collapse is still false", () => {
+    const p = seedParadigm(LEX, SOV, 1);
+    const twoDead = {
+      ...p,
+      p1sg: { ...p.p1sg, stage: "zero" as const, form: [] },
+      p2: { ...p.p2, stage: "zero" as const, form: [] },
+    };
+    expect(licensesProDrop(twoDead)).toBe(false);
+    expect(agreementCollapsed(twoDead)).toBe(false);
+  });
+
+  test("all three agreement cells zero -> collapsed", () => {
+    const p = seedParadigm(LEX, SOV, 1);
+    const collapsed = {
+      ...p,
+      p1sg: { ...p.p1sg, stage: "zero" as const, form: [] },
+      p2: { ...p.p2, stage: "zero" as const, form: [] },
+      p1pl: { ...p.p1pl, stage: "zero" as const, form: [] },
+    };
+    expect(agreementCollapsed(collapsed)).toBe(true);
+  });
+
+  test("past (tense, not agreement) dying has no bearing on collapse", () => {
+    const p = seedParadigm(LEX, SOV, 1);
+    const collapsed = { ...p, past: { ...p.past, stage: "zero" as const, form: [] } };
+    expect(agreementCollapsed(collapsed)).toBe(false);
   });
 });
 
