@@ -305,22 +305,23 @@ export function resolveGeneration(s: GameState): GameState {
     }
 
     // External driver: intense-contact alignment (the Ethio-Semitic path). Per
-    // neighbour whose pairContact share meets ORDER_CONTACT_CUT, tick a pressure
-    // counter keyed by neighbour id — rebuilt fresh from THIS turn's qualifying
-    // neighbours (the step-1.5 collisionPressure idiom), so a pair that stops
-    // qualifying drops its key with no separate delete pass.
+    // neighbour whose pairContact share meets ORDER_CONTACT_CUT AND whose order
+    // actually differs (nothing to pull toward otherwise, so a converged pair accrues
+    // no pressure), tick a pressure counter keyed by neighbour id — rebuilt fresh from
+    // THIS turn's qualifying neighbours (the step-1.5 collisionPressure idiom), so a
+    // pair that stops qualifying OR converges drops its key with no separate delete pass.
     const cur = branches[L.id]; // re-read: rigidification above may have just changed wordOrder
     const contactPressure: Record<number, number> = {};
     let aligned = false;
     neighborsOf(L.id, cur.territory, s.world.edges, owner).forEach((nId) => {
       if (aligned) return; // one order event per branch per turn, mirroring rigidification
       const N = branches[nId]; if (!N) return;
+      if (N.wordOrder.basic === cur.wordOrder.basic) return; // already converged: nothing to align toward
       const share = pairContact(L.id, nId, cur.territory, s.world.edges, owner);
       if (share < ORDER_CONTACT_CUT) return;
       const prior = cur.orderContactPressure[nId] ?? 0;
       const pressure = prior + 1;
       if (pressure < ORDER_TURNS) { contactPressure[nId] = pressure; return; }
-      if (N.wordOrder.basic === cur.wordOrder.basic) { contactPressure[nId] = pressure; return; } // nothing to align toward
       // Seeded roll: even at threshold, alignment isn't guaranteed every qualifying
       // turn — same "sustained pressure gates a probabilistic event" shape as borrowing.
       // Salt (seed+47, turn*.., L.id*..+nId*..): seed+47 is the offset syntax.ts's

@@ -5,6 +5,7 @@ import { intelligibility } from "./intelligibility";
 import { basePool, ASSIM_TURNS } from "./geography";
 import { routeKey, routeOpen, CONTACT_YIELD, CONTACT_TRADE_LOSS, ROUTE_TURNS } from "./contact";
 import { pairThreshold } from "./collision";
+import { ORDER_TURNS } from "./syntax";
 import { branchDefaults, worldDefaults } from "../../../tests/fixtures/branch";
 import type { GameState, Lexicon, Branch, Adjacency, Edge, WordOrder } from "./types";
 
@@ -1284,5 +1285,190 @@ describe("1ENG.31 reduce/syncope reachable through autonomous drift", () => {
       found = leavesOf(s.branches).some((L) => L.lex.some((e) => e.word.some((id) => BY_ID[id]?.id === "ə")));
     }
     expect(found).toBe(true);
+  });
+});
+
+// 1ENG.21 (1eng-14 spike §5/§6 stage B) — the two word-order pressure drivers, step
+// 3.75. Single-branch fixture for rigidification (mirrors collisionState's shape);
+// two-branch bordering fixture for contact alignment (mirrors smallVsLarge's shape).
+describe("1ENG.21 word-order pressure drivers", () => {
+  const COLLAPSED_CELL = { stage: "zero" as const, form: [], suffixed: true, clock: 0 };
+  const ALIVE_CELL = { stage: "affixal" as const, form: ["m", "e"], suffixed: true, clock: 0 };
+
+  function rigidificationState(opts: { collapsed?: boolean; orderPressure?: number; basic?: WordOrder["basic"] } = {}): GameState {
+    const lex: Lexicon = [{ concept: "water", word: ["t", "a"] }];
+    const paradigm = {
+      past: ALIVE_CELL,
+      p1sg: opts.collapsed === false ? ALIVE_CELL : COLLAPSED_CELL,
+      p2: opts.collapsed === false ? ALIVE_CELL : COLLAPSED_CELL,
+      p1pl: opts.collapsed === false ? ALIVE_CELL : COLLAPSED_CELL,
+    };
+    const branch: Branch = {
+      id: 0, name: "Aenic", parentId: null, depth: 0, splitIndex: 0, history: [],
+      lex, territory: [0], pressure: 0, anchors: birthAnchor(lex),
+      ...branchDefaults, paradigm, orderPressure: opts.orderPressure ?? 0,
+      wordOrder: { basic: opts.basic ?? "SOV", adj: "AdjN" },
+    };
+    return {
+      world: { seed: 1, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [{ id: 0, x: 0, y: 0 }], edges: [], adj: { 0: [] }, start: 0, compoundOrder: "modFirst", ...worldDefaults },
+      branches: { 0: branch }, rootId: 0, selectedId: 0, nextId: 1, turn: 0,
+      settings: { pool: 10, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
+      pool: 10, touched: { 0: true }, log: [], appliedRules: {},
+      focusId: 0, mourning: null, pendingFocusChoice: null, ended: false, routes: {},
+    };
+  }
+
+  describe("rigidification (internal driver)", () => {
+    test("pressure ticks only while agreement stays fully collapsed", () => {
+      let s = rigidificationState();
+      s = resolveGeneration({ ...s, touched: { 0: true } });
+      expect(s.branches[0].orderPressure).toBe(1);
+      // re-force collapse: tickParadigm may otherwise begin renewing a dead cell
+      s.branches[0] = { ...s.branches[0], paradigm: rigidificationState().branches[0].paradigm };
+      s = resolveGeneration({ ...s, touched: { 0: true } });
+      expect(s.branches[0].orderPressure).toBe(2);
+    });
+
+    test("a living paradigm (not collapsed) never accrues pressure", () => {
+      let s = rigidificationState({ collapsed: false });
+      for (let i = 0; i < 3; i++) s = resolveGeneration({ ...s, touched: { 0: true } });
+      expect(s.branches[0].orderPressure).toBe(0);
+    });
+
+    test("resets to 0 the instant collapse stops holding", () => {
+      let s = rigidificationState({ orderPressure: 3 });
+      s.branches[0] = { ...s.branches[0], paradigm: { ...s.branches[0].paradigm, p1sg: ALIVE_CELL } };
+      s = resolveGeneration({ ...s, touched: { 0: true } });
+      expect(s.branches[0].orderPressure).toBe(0);
+    });
+
+    test("fires once at ORDER_TURNS: SOV rigidifies to SVO, pressure resets, and it's logged", () => {
+      let s = rigidificationState();
+      for (let i = 0; i < ORDER_TURNS; i++) {
+        s = resolveGeneration({ ...s, touched: { 0: true } });
+        s.branches[0] = { ...s.branches[0], paradigm: rigidificationState().branches[0].paradigm };
+      }
+      expect(s.branches[0].wordOrder.basic).toBe("SVO");
+      expect(s.branches[0].orderPressure).toBe(0);
+      // rigidification/reanalysis/assimilation are all log-only structural events (no
+      // HistoryEntry), matching the existing "speak in a new order"/"assimilated into"
+      // convention — not every state change gets a per-branch history entry.
+      expect(s.log.some((l) => l.includes("fixed its words in place"))).toBe(true);
+    });
+
+    test("a branch already at SVO holds at threshold without re-firing (nowhere to rigidify to)", () => {
+      let s = rigidificationState({ basic: "SVO" });
+      for (let i = 0; i < ORDER_TURNS + 2; i++) {
+        s = resolveGeneration({ ...s, touched: { 0: true } });
+        s.branches[0] = { ...s.branches[0], paradigm: rigidificationState().branches[0].paradigm };
+      }
+      expect(s.branches[0].wordOrder.basic).toBe("SVO");
+      // no log line — SVO-at-SVO never fires the rigidification event
+      expect(s.log.some((l) => l.includes("fixed its words in place"))).toBe(false);
+    });
+
+    // decision 4: no proDrop write at rigidification — licensesProDrop already recomputes
+    // to false at TWO dead cells (step 1, every turn), strictly before agreementCollapsed's
+    // three-dead trigger, so proDrop is already false by the time rigidification could fire.
+    test("proDrop is already false at the moment rigidification fires (the ordering decision 4 relies on)", () => {
+      let s = rigidificationState();
+      for (let i = 0; i < ORDER_TURNS; i++) {
+        s = resolveGeneration({ ...s, touched: { 0: true } });
+        s.branches[0] = { ...s.branches[0], paradigm: rigidificationState().branches[0].paradigm };
+      }
+      expect(s.branches[0].wordOrder.basic).toBe("SVO"); // confirms it actually fired
+      expect(s.branches[0].proDrop).toBe(false);
+    });
+  });
+
+  // Two-branch bordering fixture (mirrors smallVsLarge's shape, contact.test.ts §-style):
+  // a single passable edge between them, so pairContact is 1.0 for both directions —
+  // comfortably above ORDER_CONTACT_CUT — and orders differ so there's something to align.
+  function contactPairState(seed: number, turn: number, aBasic: WordOrder["basic"], bBasic: WordOrder["basic"],
+    aPressure: Record<number, number> = {}): GameState {
+    const lex: Lexicon = [{ concept: "water", word: ["t", "a"] }];
+    const edges: Edge[] = [{ a: 0, b: 1, passable: true, cost: 1, name: "plain" }];
+    const adj: Adjacency = { 0: [{ to: 1, passable: true, cost: 1 }], 1: [{ to: 0, passable: true, cost: 1 }] };
+    const mk = (id: number, basic: WordOrder["basic"], orderContactPressure: Record<number, number>): Branch => ({
+      id, name: id === 0 ? "Aenic" : "Boric", parentId: null, depth: 0, splitIndex: 0, history: [],
+      lex, territory: [id], pressure: 0, anchors: birthAnchor(lex),
+      ...branchDefaults, wordOrder: { basic, adj: "AdjN" }, orderContactPressure,
+    });
+    return {
+      world: { seed, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [{ id: 0, x: 0, y: 0 }, { id: 1, x: 1, y: 0 }], edges, adj, start: 0, compoundOrder: "modFirst", ...worldDefaults },
+      branches: { 0: mk(0, aBasic, aPressure), 1: mk(1, bBasic, {}) },
+      rootId: 0, selectedId: 0, nextId: 2, turn,
+      settings: { pool: 999, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 999 },
+      pool: 999, touched: { 0: true, 1: true }, log: [], appliedRules: {}, routes: {},
+      focusId: 0, mourning: null, pendingFocusChoice: null, ended: false,
+    };
+  }
+
+  describe("contact alignment (external driver)", () => {
+    test("respects ORDER_CONTACT_CUT: no qualifying border means no pressure at all", () => {
+      // isolated single-branch state: neighborsOf is empty, so the loop body never runs.
+      const s = rigidificationState({ collapsed: false });
+      const out = resolveGeneration({ ...s, touched: { 0: true } });
+      expect(out.branches[0].orderContactPressure).toEqual({});
+    });
+
+    test("pressure ticks per-neighbour while the pair keeps qualifying and orders differ", () => {
+      let s = contactPairState(1, 0, "SOV", "VSO");
+      s = resolveGeneration(s);
+      expect(s.branches[0].orderContactPressure[1]).toBeGreaterThanOrEqual(1);
+    });
+
+    test("per-neighbour key drops the instant the pair's orders converge (nothing left to align)", () => {
+      // same order on both sides from the start: never accrues, since there's nothing
+      // to align toward — the branch reads convergence every turn from live state.
+      let s = contactPairState(1, 0, "SOV", "SOV", { 1: 3 });
+      s = resolveGeneration(s);
+      // pre-primed 3 is simply not carried forward once orders already match.
+      expect(s.branches[0].orderContactPressure[1] ?? 0).toBe(0);
+    });
+
+    test("SOV -> VSO takes two events via SVO, not a direct jump (swap distance 2)", () => {
+      // sweep seeds until we find one where alignment actually fires (seeded 50% roll
+      // at threshold — see generation.ts step 3.75) — same "sweep then assert" idiom
+      // as the 1ENG.19 reanalysis tests above.
+      for (let seed = 1; seed <= 200; seed++) {
+        let s = contactPairState(seed, 0, "SOV", "VSO", { 1: ORDER_TURNS - 1 });
+        s = resolveGeneration(s);
+        if (s.branches[0].wordOrder.basic !== "SOV") {
+          expect(s.branches[0].wordOrder.basic).toBe("SVO"); // one swap toward VSO, not VSO itself
+          expect(s.log.some((l) => l.includes("word order toward"))).toBe(true);
+          return;
+        }
+      }
+      throw new Error("contact alignment never fired in 200 seeds at a primed threshold — rate or wiring is wrong");
+    });
+
+    test("determinism: identical seed/turn/state produces an identical outcome", () => {
+      const build = () => contactPairState(42, 3, "SOV", "VSO", { 1: ORDER_TURNS - 1 });
+      const a = resolveGeneration(build());
+      const b = resolveGeneration(build());
+      expect(a.branches[0].wordOrder).toEqual(b.branches[0].wordOrder);
+      expect(a.branches[0].orderContactPressure).toEqual(b.branches[0].orderContactPressure);
+    });
+  });
+
+  describe("fracture birth (decision 6)", () => {
+    test("orderPressure is inherited, orderContactPressure resets to {}", () => {
+      const s = fractureState();
+      // orderPressure only survives step 3.75 while agreement stays collapsed (same
+      // reset-on-heal rule rigidification's own tests exercise above) — force collapse
+      // so the pre-set 4 isn't zeroed out before fracture (step 5) ever reads it.
+      // 4 + step 3.75's own increment = 5, still below ORDER_TURNS (6), so it neither
+      // resets nor fires this same turn — isolating the inheritance question cleanly.
+      s.branches[0] = { ...s.branches[0], orderPressure: 4, orderContactPressure: { 99: 5 },
+        paradigm: { ...s.branches[0].paradigm,
+          p1sg: { stage: "zero", form: [], suffixed: true, clock: 0 },
+          p2: { stage: "zero", form: [], suffixed: true, clock: 0 },
+          p1pl: { stage: "zero", form: [], suffixed: true, clock: 0 } } };
+      const out = resolveGeneration(s);
+      const kid = childrenOf(out, 0)[0];
+      expect(kid.orderPressure).toBe(5);
+      expect(kid.orderContactPressure).toEqual({});
+    });
   });
 });
