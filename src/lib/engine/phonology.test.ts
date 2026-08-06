@@ -274,6 +274,53 @@ describe("distance conditioning / umlaut (1ENG.17 slice 2)", () => {
   });
 });
 
+// 1ENG.17 slice 3 (1eng-16 spike §7) — metathesis, riding the third Seg variant
+// (consumes:true) on top of 1ENG.12's Seg[] shape.
+describe("metathesis (1ENG.17 slice 3)", () => {
+  test("brid -> bird (stop-liquid pair swaps)", () => {
+    expect(applyRuleToWord(["b", "r", "i", "d"], RULE_BY_ID["metath"])).toEqual({ ids: ["r", "b", "i", "d"], changed: true });
+  });
+  // Regression pin: /l/ and /r/ are featurally identical in this engine's consonant
+  // model ({place:"alv", manner:"liquid", voice:true} — nothing else distinguishes
+  // them). resolveSeg's neighbour-diff path used to re-resolve the moved segment from
+  // its OWN features via PHONES.find, which silently returned /l/ (PHONES' first
+  // liquid match) for a moved /r/ regardless of which one actually moved. Fixed by
+  // special-casing an empty patch to the neighbour's own id. Both liquids pinned here
+  // so neither direction of the bug can return.
+  test("the moved liquid keeps its own identity: /r/ stays /r/, /l/ stays /l/", () => {
+    expect(applyRuleToWord(["b", "r", "a"], RULE_BY_ID["metath"]).ids).toEqual(["r", "b", "a"]);
+    expect(applyRuleToWord(["k", "l", "a"], RULE_BY_ID["metath"]).ids).toEqual(["l", "k", "a"]);
+  });
+  test("does not fire when post is a non-liquid consonant", () => {
+    expect(applyRuleToWord(["t", "a", "p"], RULE_BY_ID["metath"]).changed).toBe(false);
+  });
+  test("does not fire word-finally (no post at all)", () => {
+    expect(applyRuleToWord(["a", "t"], RULE_BY_ID["metath"]).changed).toBe(false);
+  });
+  test("does not fire when match is itself a liquid (match excludes manner===liquid)", () => {
+    expect(applyRuleToWord(["r", "l", "a"], RULE_BY_ID["metath"]).changed).toBe(false);
+  });
+  // Regression guard for the double-emit bug the consumes:true shape invites: without
+  // skipNext, the loop's next iteration would re-process the already-moved neighbour
+  // and emit it a second time.
+  test("the consumed neighbour is emitted exactly once", () => {
+    const { ids } = applyRuleToWord(["b", "r", "i", "d"], RULE_BY_ID["metath"]);
+    expect(ids.filter((id) => id === "r").length).toBe(1);
+    expect(ids.length).toBe(4); // length-preserving: no segment lost or duplicated
+  });
+  test("consumes at the word edge is a no-op, not a crash — no liquid ever sits at index length-1 given post:liquidC requires a following segment", () => {
+    expect(() => applyRuleToWord(["p", "r"], RULE_BY_ID["metath"])).not.toThrow();
+  });
+  test("word invariants hold: length unchanged, vowel floor intact, over a longer word", () => {
+    const { ids } = applyRuleToWord(["b", "r", "a", "t", "a", "b", "r"], RULE_BY_ID["metath"]);
+    expect(ids.length).toBe(7);
+    expect(ids.some((id) => BY_ID[id].type === "V")).toBe(true);
+  });
+  test("category is 'metathesis', not 'assimilation' (decision 2 — no invented contact tilt)", () => {
+    expect(RULE_BY_ID["metath"].category).toBe("metathesis");
+  });
+});
+
 // 1ENG.19 (1eng-14 spike §4.1) — the syntax gate inside applyRuleToLex. Mirrors the
 // salience-gate sweep above: a class the branch's word order disfavours in this
 // position drifts strictly less often than one it favours, over a turn sweep.
@@ -350,14 +397,15 @@ describe("applyRuleToWord backward compatibility (1ENG.12 regression goldens)", 
   // and a derived list would silently exclude exactly that rule instead of failing on
   // it. Extend this list only when a genuinely stress-blind rule is added; a new
   // stress-conditioned rule belongs in the 1ENG.31 describe block below, not here.
-  // 1ENG.17 slice 2: umlaut is likewise stress-blind (no `stressed` predicate declared)
-  // and belongs to the same "declines stress conditioning" set this list tracks, per
-  // its own comment above — extended here rather than renamed, since PRE_1ENG24_IDS'
-  // meaning ("stress-blind rules") outlived the literal pre-1ENG.24 boundary already.
+  // 1ENG.17 slices 2/3: umlaut and metath are likewise stress-blind (no `stressed`
+  // predicate declared) and belong to the same "declines stress conditioning" set this
+  // list tracks, per its own comment above — extended here rather than renamed, since
+  // PRE_1ENG24_IDS' meaning ("stress-blind rules") outlived the literal pre-1ENG.24
+  // boundary already.
   const PRE_1ENG24_IDS = [
     "voice", "spirant", "devoice", "apoc", "finalC", "palat", "debucc", "raise", "nasassim",
     "cluster", "epenth", "paragoge", "break", "smooth", "shorten", "compleng", "complengFinal",
-    "fortify", "aphaer", "umlaut",
+    "fortify", "aphaer", "umlaut", "metath",
   ] as const;
   // 1ENG.30 (1eng-24 spike §8), narrowed by 1ENG.31 — byte-identity sweep over the
   // rules that predate stress conditioning: same purpose (a widening event must not
@@ -786,6 +834,17 @@ describe("biasedMult epenthesis (1ENG.12)", () => {
       const m = biasedMult("epenthesis", iso);
       expect(m).toBeGreaterThanOrEqual(0.5);
       expect(m).toBeLessThanOrEqual(2);
+    }
+  });
+});
+
+// 1ENG.17 slice 3 (decision 2): metathesis gets fortition's neutral treatment (0.0
+// affinity, "no claim" rather than an invented tilt) — metath's attested cases carry no
+// contact-vs-isolation evidence either direction.
+describe("biasedMult metathesis (1ENG.17 decision 2)", () => {
+  test("metathesis is neutral (1.0) at every iso — no contact-bias claim", () => {
+    for (const iso of [0, 0.25, 0.5, 0.75, 1]) {
+      expect(biasedMult("metathesis", iso)).toBeCloseTo(1, 5);
     }
   });
 });

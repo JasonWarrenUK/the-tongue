@@ -75,6 +75,7 @@ const isC = (p: Phone | null) => !!p && p.type === "C";
 // palatalisation outright. Must be an explicit equality test (1eng-24 spike §7).
 const frontV = (p: Phone | null) => isV(p) && p!.back === "front";
 const stopC = (p: Phone | null) => isC(p) && p!.manner === "stop";
+const liquidC = (p: Phone | null) => isC(p) && p!.manner === "liquid";
 const bound = (p: Phone | null) => p === null;
 
 // w = cross-linguistic naturalness weight, biases autonomous drift
@@ -106,6 +107,24 @@ export const RULES: Rule[] = [
     distance:{ dir:"post", test:(p)=>isV(p)&&p.back==="front"&&!p.diph },
     xform:(_p,ctx)=>({ back:ctx.far!.back, round:ctx.far!.round }) },
   { id:"cluster", name:"Cluster reduction", note:"consonant → ∅ / _ C", w:2, category:"deletion", match:isC, pre:null, post:isC, xform:()=>({delete:true}) },
+  // 1ENG.17 (1eng-16 spike §7 slice 3) — metathesis (brid→bird, parabola→palabra):
+  // real, attested, genuinely sporadic. w=1, the floor of RULES alongside fortify/
+  // aphaer, precisely because it is not a regular change. Restricted to stop-liquid
+  // pairs (the attested English/Romance cases), not any C-C pair — narrower than real
+  // metathesis, flagged as a proxy. category "metathesis" (decision 2, not the spike's
+  // "assimilation" — see the RuleCategory comment in types.ts): metathesis is
+  // reordering, not feature-spreading, so assimilation's 0.4 contact affinity would be
+  // an invented tilt.
+  //   xform rides the third Seg variant: emit the post neighbour first (consumes:true,
+  // so applyRuleToWord's loop skips it on its own turn rather than double-emitting),
+  // then self unchanged. Net effect: [C, liquid] → [liquid, C].
+  { id:"metath", name:"Metathesis", note:"C r → r C / _  (brid → bird)",
+    w:1, category:"metathesis",
+    match:(p)=>isC(p)&&p.manner!=="liquid", pre:null, post:liquidC,
+    xform:()=>[
+      { from:"post", patch:{}, consumes:true },
+      { from:"self", patch:{} },
+    ] },
   // 1ENG.12 renewal + the erosion rules that consume it — see 1eng-11 spike §3.2/§3.3.
   // epenth and break rebuild structure (clusters/hiatus broken, mid V -> diphthong);
   // smooth and shorten are erosion's grip on that new structure, closing the cycle.
@@ -249,9 +268,27 @@ export const RULE_BY_ID: Record<string, Rule> = Object.fromEntries(RULES.map((r)
 // the pre-1ENG.12 applyXform path (diff-from-input); "abs" resolves a brand-new
 // segment from the patch alone (an inserted/broken-off phone with no source to diff
 // against). See 1eng-11 spike §3.
-function resolveSeg(input: Phone, seg: Seg): string | null {
+// 1ENG.17 slice 3: "post"/"pre" resolves against the NEIGHBOUR (diff-from-neighbour,
+// applyXform's path again but against `neighbour` instead of `input`) — the moved
+// segment keeps its own features, patched. `neighbour` is only absent if a rule
+// declares `consumes` at the word edge, which applyRuleToWord below guards against
+// before ever calling this, so the null case here is defensive, not a real path.
+//   An EMPTY patch (metath's shape: move the neighbour unchanged) is special-cased to
+// the neighbour's own id rather than round-tripped through resolve/PHONES.find. The
+// consonant feature model doesn't fully individuate every phone — /l/ and /r/ are both
+// {alv, liquid, voiced} with nothing else to tell them apart — so re-resolving an
+// unchanged /r/ from its own features returns PHONES' FIRST matching entry (/l/, which
+// happens to sort earlier), silently swapping the moved segment's identity. No existing
+// self-seg rule hits this (none diffs a consonant with an empty patch), so it was never
+// exercised before metath. Diffing a NON-empty patch still goes through resolve/
+// applyXform as normal — only "unchanged" is special, matching what an unchanged phone
+// means everywhere else in this loop (out.push(p.id) on a non-hit).
+function resolveSeg(input: Phone, seg: Seg, neighbour: Phone | null): string | null {
   if (seg.from === "self") return applyXform(input, seg.patch);
-  return resolve(seg.type, seg.patch as Record<string, unknown>);
+  if (seg.from === "abs") return resolve(seg.type, seg.patch as Record<string, unknown>);
+  if (!neighbour) return null;
+  if (Object.keys(seg.patch).length === 0) return neighbour.id;
+  return applyXform(neighbour, seg.patch);
 }
 // Normalise a rule's xform result to Seg[]. A legacy Patch (the pre-1ENG.12 shape,
 // still used by all 9 original rules plus `shorten`) becomes a single self-seg, or
@@ -287,7 +324,14 @@ export function applyRuleToWord(ids: string[], rule: Rule, stressRule?: StressRu
   const stress = stressRule ? stressMap(ids, stressRule) : undefined;
   const out: string[] = [];
   let changed = false;
+  // 1ENG.17 slice 3: the one place this task touches the loop's own control flow. A
+  // "post"-consuming Seg moves ph[i+1] into this iteration's output, so the NEXT
+  // iteration (i+1) must not also emit it — skipNext carries that forward one step. A
+  // "pre"-consuming Seg reaches BACKWARD into out itself (the neighbour was already
+  // emitted last iteration), so it pops rather than skipping ahead.
+  let skipNext = false;
   for (let i = 0; i < ph.length; i++) {
+    if (skipNext) { skipNext = false; continue; }
     const p = ph[i];
     const pre = i > 0 ? ph[i - 1] : null;
     const post = i < ph.length - 1 ? ph[i + 1] : null;
@@ -304,8 +348,15 @@ export function applyRuleToWord(ids: string[], rule: Rule, stressRule?: StressRu
     if (!hit) { out.push(p.id); continue; }
     const before = out.length;
     for (const s of normalise(rule.xform(p, { pre, post, stress: st, far }))) {
-      const nid = resolveSeg(p, s);
+      // 1ENG.17 slice 3: a "post"-consuming seg needs post itself (not p) as the
+      // resolve target, and it must not read past the word edge — post is already
+      // null there, so resolveSeg's neighbour-null guard makes an edge consume a
+      // (defensive) no-op rather than a crash. "pre" is symmetric, included for a
+      // future rule shape even though no shipped rule emits it yet.
+      const neighbour = s.from === "post" ? post : s.from === "pre" ? pre : null;
+      const nid = resolveSeg(p, s, neighbour);
       if (nid !== null) out.push(nid); // an unresolvable seg is dropped, as delete was pre-1ENG.12
+      if (s.from === "post" && post !== null) skipNext = true;
     }
     const slice = out.slice(before);
     if (slice.length !== 1 || slice[0] !== p.id) changed = true;
@@ -342,7 +393,12 @@ export function applyRuleToWord(ids: string[], rule: Rule, stressRule?: StressRu
 export function applyRuleToAffix(ids: string[], rule: Rule, edge: "suffix" | "prefix", ctx: Phone | null): string[] {
   const ph = ids.map((id) => BY_ID[id]);
   const out: string[] = [];
+  // 1ENG.17 slice 3: same skip mechanism as applyRuleToWord — metath is neither
+  // stressed nor distance-conditioned, so it isn't fail-closed out of the affix path,
+  // and a consuming Seg here needs the same double-emit guard.
+  let skipNext = false;
   for (let i = 0; i < ph.length; i++) {
+    if (skipNext) { skipNext = false; continue; }
     const p = ph[i];
     // suffix: left (pre) is injected at i===0, right (post) is the real boundary at the
     // last index. prefix: mirrored — right (post) is injected at the last index, left
@@ -361,8 +417,10 @@ export function applyRuleToAffix(ids: string[], rule: Rule, edge: "suffix" | "pr
       && (rule.stressed ? false : true) && (rule.distance ? false : true);
     if (!hit) { out.push(p.id); continue; }
     for (const s of normalise(rule.xform(p, { pre, post }))) {
-      const nid = resolveSeg(p, s);
+      const neighbour = s.from === "post" ? post : s.from === "pre" ? pre : null;
+      const nid = resolveSeg(p, s, neighbour);
       if (nid !== null) out.push(nid); // unresolvable/deleted seg dropped — no floor to protect
+      if (s.from === "post" && post !== null) skipNext = true;
     }
     if (rule.lengthensPrev && out.length > 0) {
       const long = applyXform(BY_ID[out[out.length - 1]], { long: true });
@@ -649,6 +707,10 @@ export const CATEGORY_AFFINITY: Record<RuleCategory, number> = {
   // no evidence to offer either direction, so 0 is the principled "no tilt" rather
   // than an invented one. biasedMult(fortition, iso) === 1 for every iso.
   fortition: 0.0,
+  // 1ENG.17 slice 3 (decision 2): same treatment as fortition, for the same reason —
+  // metathesis's attestation (brid->bird, parabola->palabra) carries no contact-vs-
+  // isolation claim either direction, so 0 is "no tilt" rather than a guess.
+  metathesis: 0.0,
 };
 export function biasedMult(category: RuleCategory, iso: number): number {
   const tilt = 1 - 2 * iso; // contact tilt ∈ [-1,+1]: +1 fully open, -1 fully walled

@@ -142,9 +142,10 @@ describe("syntaxMult", () => {
   ];
 
   test("position-blind rules (no post:bound, not fortify/aphaer) always return exactly 1", () => {
-    // 1ENG.17: umlaut (distance-conditioned, not boundary-conditioned) belongs in this
-    // set too — isBoundaryRule reads only post:bound, and umlaut's post is null.
-    ["voice", "spirant", "palat", "nasassim", "cluster", "epenth", "smooth", "compleng", "umlaut"].forEach((id) => {
+    // 1ENG.17: umlaut (distance-conditioned, not boundary-conditioned) and metath
+    // (post:liquidC, not post:bound) both belong in this set — isBoundaryRule reads
+    // only post:bound specifically.
+    ["voice", "spirant", "palat", "nasassim", "cluster", "epenth", "smooth", "compleng", "umlaut", "metath"].forEach((id) => {
       expect(syntaxMult(RULE_BY_ID[id], "eat", branch, LEX)).toBe(1);
     });
   });

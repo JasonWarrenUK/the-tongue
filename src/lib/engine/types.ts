@@ -24,15 +24,27 @@ export interface Patch {
 // 1ENG.19 (1eng-14 spike §4.3): "fortition" covers fortify, the engine's one
 // strengthening rule so far — deliberately kept apart from "lenition" (its opposite)
 // so 2STK.3 momentum can't read a lenition streak as a reason to fortify more.
-export type RuleCategory = "lenition" | "deletion" | "assimilation" | "vowelShift" | "epenthesis" | "fortition";
+// 1ENG.17 slice 3 (decision 2, 1eng-16 spike §7): "metathesis" covers metath. The spike
+// text specified category:"assimilation", but metathesis is reordering, not feature-
+// spreading — assimilation's 0.4 contact affinity would be an invented tilt with no
+// evidence behind it. A new category, mirroring exactly what 1ENG.19 did for
+// fortify/"fortition" (affinity 0.0 in CATEGORY_AFFINITY, "no claim" rather than a
+// guess).
+export type RuleCategory = "lenition" | "deletion" | "assimilation" | "vowelShift" | "epenthesis" | "fortition" | "metathesis";
 
 // 1ENG.12: a single output segment. `from:"self"` = resolve as (input phone features
 // + patch) — the pre-1ENG.12 applyXform semantics. `from:"abs"` = a brand-new segment
 // resolved from the patch alone (an inserted/broken-off phone with no source to diff
 // against). See 1eng-11 spike §3.
+// 1ENG.17 slice 3 (1eng-16 spike §7): a third variant, `from:"post"|"pre"`, emits a
+// NEIGHBOUR of the matched phone (SCA²'s `\`, metathesis) so a rule can reorder
+// segments. `consumes: true` marks that the neighbour is MOVED, not copied — the
+// neighbour's own loop iteration in applyRuleToWord is skipped rather than emitting it
+// a second time (the double-emit bug this shape invites, guarded by a regression test).
 export type Seg =
   | { from: "self"; patch: Patch }
-  | { from: "abs"; type: PhoneType; patch: Patch };
+  | { from: "abs"; type: PhoneType; patch: Patch }
+  | { from: "post" | "pre"; patch: Patch; consumes: true };
 // A rule's xform may return a legacy Patch (1-in/<=1-out, pre-1ENG.12 shape) or an
 // ordered Seg[] (1-in/N-out, for renewal rules like epenthesis and breaking).
 export type XformResult = Patch | Seg[];
