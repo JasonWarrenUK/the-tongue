@@ -1367,6 +1367,30 @@ describe("1ENG.21 word-order pressure drivers", () => {
       expect(s.log.some((l) => l.includes("fixed its words in place"))).toBe(false);
     });
 
+    // Regression: the tests above all re-force the paradigm collapsed after every turn,
+    // which is exactly the artificial condition that masked a real reachability bug.
+    // ORDER_TURNS used to equal RENEWAL_TURNS (both 6); step 1 (tickParadigm) runs
+    // BEFORE step 3.75 in the same turn, and renewal fires the instant its own clock
+    // reaches RENEWAL_TURNS — so on the would-be firing turn, tickParadigm revived all
+    // three dead cells to periphrastic microseconds before step 3.75 checked collapse,
+    // and rigidification always lost that race. A live playtest sweep (many seeds,
+    // hundreds of turns, natural autonomous erosion) found zero rigidification events
+    // ever, which is what surfaced this. Fixed by moving ORDER_TURNS below
+    // RENEWAL_TURNS so rigidification's check wins the race instead. This test lets
+    // tickParadigm run UNFORCED — the real path — so a regression back to a shared
+    // threshold value fails here even though the forced-collapse tests above would not.
+    test("fires under NATURAL (unforced) paradigm collapse — regression for the ORDER_TURNS/RENEWAL_TURNS race", () => {
+      let s = rigidificationState();
+      let fired = false;
+      for (let i = 0; i < 20 && !fired; i++) {
+        // touched:{} (not the fixture's baked-in {0:true}) — tickParadigm's renewal
+        // clock runs unforced, the real path the bug lived in.
+        s = resolveGeneration({ ...s, touched: {} });
+        if (s.branches[0].wordOrder.basic === "SVO") fired = true;
+      }
+      expect(fired).toBe(true);
+    });
+
     // decision 4: no proDrop write at rigidification — licensesProDrop already recomputes
     // to false at TWO dead cells (step 1, every turn), strictly before agreementCollapsed's
     // three-dead trigger, so proDrop is already false by the time rigidification could fire.
@@ -1457,17 +1481,17 @@ describe("1ENG.21 word-order pressure drivers", () => {
       const s = fractureState();
       // orderPressure only survives step 3.75 while agreement stays collapsed (same
       // reset-on-heal rule rigidification's own tests exercise above) — force collapse
-      // so the pre-set 4 isn't zeroed out before fracture (step 5) ever reads it.
-      // 4 + step 3.75's own increment = 5, still below ORDER_TURNS (6), so it neither
+      // so the pre-set 3 isn't zeroed out before fracture (step 5) ever reads it.
+      // 3 + step 3.75's own increment = 4, still below ORDER_TURNS (5), so it neither
       // resets nor fires this same turn — isolating the inheritance question cleanly.
-      s.branches[0] = { ...s.branches[0], orderPressure: 4, orderContactPressure: { 99: 5 },
+      s.branches[0] = { ...s.branches[0], orderPressure: 3, orderContactPressure: { 99: 5 },
         paradigm: { ...s.branches[0].paradigm,
           p1sg: { stage: "zero", form: [], suffixed: true, clock: 0 },
           p2: { stage: "zero", form: [], suffixed: true, clock: 0 },
           p1pl: { stage: "zero", form: [], suffixed: true, clock: 0 } } };
       const out = resolveGeneration(s);
       const kid = childrenOf(out, 0)[0];
-      expect(kid.orderPressure).toBe(5);
+      expect(kid.orderPressure).toBe(4);
       expect(kid.orderContactPressure).toEqual({});
     });
   });

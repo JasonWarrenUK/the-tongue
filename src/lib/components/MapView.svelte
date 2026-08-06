@@ -6,7 +6,10 @@
     { world: World; branches: Record<number, Branch>; selectedId: number; pool: number;
       onselect: (id: number) => void; onexpand: (region: number) => void } = $props();
 
-  const W = 360, H = 240, R = 12;
+  // 1ENG.21: W/H unchanged (viewBox), R shrunk 12->6 — genRegions grew 4x3 (12
+  // regions) to 10x8 (80 regions), so nodes at the old radius would overlap heavily
+  // in the same fixed viewBox.
+  const W = 360, H = 240, R = 6;
   const pos = $derived(Object.fromEntries(world.regions.map((r) => [r.id, { x: r.x * W, y: r.y * H }])));
   const owner = $derived(ownerMap(branches));
   const expandable = $derived.by<Record<number, FreeRegion>>(() => {

@@ -15,7 +15,18 @@ export type { FrameWeights } from "./types";
 export const SYNTAX_STRENGTH = 0.7;       // tuning constant, deliberately the same shape as BIAS_STRENGTH
 export const FRAME_WALK = 0.02;           // per-turn step of the seeded frame-weight walk
 export const ORDER_INNOVATE_RATE = 0.08;  // stage A: per-birth chance of a one-axis reanalysis flip
-export const ORDER_TURNS = 6;             // stage B (1ENG.21): sustained turns before an order event
+// stage B (1ENG.21): sustained turns before an order event.
+// NOT 6 — a playtest sweep found rigidification structurally unreachable at 6: step 1
+// (tickParadigm) runs before step 3.75 in the same turn, and RENEWAL_TURNS is also 6, so
+// on the 6th consecutive collapsed turn tickParadigm revives all three dead cells to
+// periphrastic in the SAME turn rigidification's counter would have reached threshold —
+// renewal always wins the same-turn race by running first. 5 sides the race the other
+// way: rigidification's check fires a turn before renewal's clock would. (Also governs
+// the contact driver, which shares no such race — this simply tightens its threshold by
+// one turn, harmlessly.) Whether either clock should vary stochastically instead of
+// being a fixed integer is a real, separate design question, filed for a future spike
+// rather than folded into this fix.
+export const ORDER_TURNS = 5;
 export const ORDER_CONTACT_CUT = 0.6;     // stage B (1ENG.21): pairContact floor for the contact driver
 
 // §3.2 names a floor without a value ("clamped to a floor so no frame never
