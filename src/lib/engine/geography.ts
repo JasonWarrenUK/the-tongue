@@ -148,13 +148,44 @@ export function pairContact(
 // Language-shift/assimilation death constants — shared between the engine step
 // (generation.ts) and the live UI warning check (game.svelte.ts), which is why the
 // selection logic lives here rather than duplicated in both call sites.
-// Tuned from an initial 0.75/3/5 after end-to-end sweeps showed fracture itself is
-// infrequent (0-2 events/150 turns per 1ENG.10's own testing), so few small/large
-// sibling pairs ever coexist long enough to trigger a stricter threshold — loosened so
-// assimilation is a regularly-visible dynamic rather than a rare event.
+// Tuned from an initial 0.75/3/5 after end-to-end sweeps showed fracture itself was
+// infrequent (0 events/150 turns on the 10x8 grid at baseline terrain probability,
+// unchanged by 2geo-10-family-structure-reachability's FRACTURE_COOLDOWN/STUCK_TURNS —
+// see that spike: they fix fracture's SAFETY, not its reachability, which stays gated
+// by genesis map connectivity, 2GEO.9's territory), so few small/large sibling pairs
+// ever coexisted long enough to trigger a stricter threshold — loosened so assimilation
+// is a regularly-visible dynamic rather than a rare event.
 export const ASSIM_INTEL_CUT = 0.75; // near-identical dialects
 export const ASSIM_SIZE_RATIO = 2; // small must be under 1/2 the neighbour's territory
 export const ASSIM_TURNS = 3; // sustained turns before assimilation completes
+
+// 2GEO.10 (2geo-10-family-structure-reachability spike): turns a freshly-spun-off
+// fracture fragment must wait before it can itself fracture again. Without this, the
+// passive-spread impassable-terrain fallback and per-generation fracture checking form
+// a feedback loop on any map with enough impassable terrain to matter — a boxed-in
+// branch crosses a barrier, the new region is disconnected, fracture splits it into a
+// territory-1 fragment, that fragment is immediately boxed in again, repeat. Measured
+// as unbounded branch-count runaway (20-35 living branches/150 turns) at every terrain
+// probability tried once impassable share rose enough for fracture to fire at all — no
+// graduated middle ground existed between that and zero fracture. This constant caps
+// the cascade; it does NOT by itself make fracture reachable at the shipped baseline
+// terrain probability (see ASSIM_INTEL_CUT comment above) — that's still gated by
+// genesis map connectivity, which a 40-seed sample found highly seed-variable and
+// squarely 2GEO.9's ("map-shape diversification") to properly address. First-pass
+// tuning constant.
+export const FRACTURE_COOLDOWN = 8;
+
+// 2GEO.10: consecutive stalled spread attempts (b.pressure counts these — see
+// generation.ts step 3) before a branch may cross impassable terrain when it has NO
+// passable option at all. Without this floor, a territory-1 branch crosses on its
+// FIRST stall, immediately creating two territory-1 fragments (the fracture-runaway
+// mechanism FRACTURE_COOLDOWN alone doesn't stop, since each fragment is freshly
+// eligible to repeat once past its own cooldown). But refusing to cross at all traps
+// any branch whose start region is fully walled in — measured: permanent territory=1
+// for an entire 150-turn run, strictly worse than the pre-2GEO.10 baseline. Expressed
+// as a multiple of spreadEvery (turns per spread attempt, not per pressure tick) so it
+// scales if that setting changes. First-pass tuning constant.
+export const STUCK_TURNS = 4;
 
 // The neighbour a small, near-identical branch would be assimilated into RIGHT NOW, if
 // any qualifies — most mutually intelligible passable-bordering neighbour that's at

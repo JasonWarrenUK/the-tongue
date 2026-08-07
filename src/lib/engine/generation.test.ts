@@ -255,6 +255,123 @@ describe("1ENG.10 lineage-continuation fracture", () => {
   });
 });
 
+// 2GEO.10 (2geo-10-family-structure-reachability spike) — fracture cooldown and the
+// stuck-turn crossing floor. A 12-seed autonomous census found the pre-existing
+// impassable-terrain spread fallback and per-generation fracture checking form a
+// feedback loop on any map with enough impassable terrain to matter: a boxed-in branch
+// crosses a barrier, the new region is disconnected, fracture splits it into a
+// territory-1 fragment, that fragment is immediately boxed in again — measured as
+// unbounded branch-count runaway. FRACTURE_COOLDOWN rate-limits re-fracturing;
+// STUCK_TURNS still lets a genuinely walled-in branch escape eventually rather than
+// freezing forever (also measured, as a regression the cooldown alone introduced).
+describe("2GEO.10 fracture cooldown", () => {
+  test("a branch on cooldown does not fracture even though its territory is disconnected", () => {
+    const s = fractureState();
+    s.branches[0] = { ...s.branches[0], fractureCooldown: 3 };
+    const out = resolveGeneration(s);
+    expect(childrenOf(out, 0).length).toBe(0);
+    expect(out.branches[0].territory.sort((a, b) => a - b)).toEqual([0, 1, 2, 3]); // untouched, still disconnected
+  });
+
+  test("cooldown ticks down by exactly 1 per generation at repool, for every branch including dead ones", () => {
+    const s = fractureState();
+    s.branches[0] = { ...s.branches[0], fractureCooldown: 3 };
+    const out = resolveGeneration(s);
+    expect(out.branches[0].fractureCooldown).toBe(2);
+  });
+
+  test("cooldown never goes negative once it reaches 0", () => {
+    const s = fractureState();
+    s.branches[0] = { ...s.branches[0], fractureCooldown: 0 };
+    const out = resolveGeneration(s); // fires this turn (cooldown 0 = unrestricted)
+    // whichever branch continues the lineage (id 0) took no cooldown (see next test);
+    // the newborn sibling took a fresh FRACTURE_COOLDOWN, which must not underflow on
+    // its own first repool tick.
+    const kid = childrenOf(out, 0)[0];
+    expect(kid.fractureCooldown).toBeGreaterThanOrEqual(0);
+  });
+
+  test("a newly-split sibling starts on full FRACTURE_COOLDOWN; the continuing lineage takes none", () => {
+    const out = resolveGeneration(fractureState());
+    const kid = childrenOf(out, 0)[0];
+    // one repool tick has already run on the returned state, so the newborn's cooldown
+    // reads FRACTURE_COOLDOWN - 1, not the raw constant — same timing convention as
+    // momentum's post-birth decay tick, pinned elsewhere in this file.
+    expect(kid.fractureCooldown).toBeGreaterThan(0);
+    expect(out.branches[0].fractureCooldown).toBe(0); // continuing parent: unrestricted
+  });
+
+  test("once cooldown lapses, a still-disconnected branch fractures again", () => {
+    let s = fractureState();
+    s.branches[0] = { ...s.branches[0], fractureCooldown: 1 };
+    s = resolveGeneration(s); // cooldown blocks this generation, ticks to 0
+    expect(childrenOf(s, 0).length).toBe(0);
+    // re-disconnect (resolveGeneration doesn't touch territory when fracture is
+    // withheld, so it's already disconnected — confirm, then let it fire next turn)
+    expect(s.branches[0].territory.sort((a, b) => a - b)).toEqual([0, 1, 2, 3]);
+    const out = resolveGeneration({ ...s, touched: {} });
+    expect(childrenOf(out, 0).length).toBe(1);
+  });
+});
+
+// The stuck-turn escape hatch lives in passive spread (step 3), not the fracture step,
+// so it needs its own small fixture with spreadEvery enabled (fractureState() above
+// sets spreadEvery: 999 specifically to keep spread out of the fracture tests).
+function stuckState(): GameState {
+  // A single region (0) walled in on every side — no passable neighbour exists at all,
+  // mirroring the real walled-start seed the census caught (2geo-10 spike).
+  const edges: Edge[] = [
+    { a: 0, b: 1, passable: false, cost: 3, name: "water" },
+    { a: 0, b: 2, passable: false, cost: 3, name: "water" },
+  ];
+  const adj: Adjacency = { 0: [], 1: [], 2: [] };
+  edges.forEach((e) => { adj[e.a].push({ to: e.b, passable: e.passable, cost: e.cost }); adj[e.b].push({ to: e.a, passable: e.passable, cost: e.cost }); });
+  const branch: Branch = {
+    id: 0, name: "Aenic", parentId: null, depth: 0, splitIndex: 0, history: [],
+    lex: MIXED_LEX.map((e) => ({ concept: e.concept, word: [...e.word] })),
+    territory: [0], pressure: 0, anchors: birthAnchor(MIXED_LEX), ...branchDefaults,
+  };
+  return {
+    world: { seed: 555, inv: { vowels: [], consonants: [] }, tmpl: { onset: "req", coda: "opt", clusters: true, label: "" }, lex: [], regions: [0, 1, 2].map((id) => ({ id, x: id, y: 0 })), edges, adj, start: 0, compoundOrder: "modFirst", ...worldDefaults },
+    branches: { 0: branch }, rootId: 0, selectedId: 0,
+    nextId: 1, turn: 0,
+    settings: { pool: 10, growth: 1, overhead: 1, changeCost: 1, spreadEvery: 1 }, // spread attempted every turn
+    pool: 10, touched: { 0: true }, log: [], appliedRules: {},
+    focusId: 0, mourning: null, pendingFocusChoice: null, ended: false, routes: {},
+  };
+}
+
+describe("2GEO.10 stuck-turn crossing floor", () => {
+  test("a branch with zero passable neighbours does not cross before STUCK_TURNS stalled attempts", () => {
+    let s = stuckState();
+    for (let t = 0; t < 3; t++) s = resolveGeneration({ ...s, touched: {} });
+    expect(s.branches[0].territory).toEqual([0]); // still stuck, no cross yet
+  });
+
+  test("a genuinely walled-in branch eventually crosses rather than freezing forever", () => {
+    // A crossed region is, by construction, disconnected from the branch's existing
+    // single region — passableComponents splits them the SAME generation, so the
+    // cross shows up as family growth (a new sibling spun off), not as branch 0's own
+    // territory count increasing. Region-id tie-break keeps id 0 on its original seat
+    // (regression-pinned by the lineage-continuation describe block above), so id 0
+    // itself can stay at territory=1 indefinitely once every neighbour is claimed —
+    // that's the correct end state for a 2-neighbour fixture this small, not a bug.
+    let s = stuckState();
+    for (let t = 0; t < 20; t++) s = resolveGeneration({ ...s, touched: {} });
+    expect(Object.keys(s.branches).length).toBeGreaterThan(1); // escaped: the family grew
+    expect(s.branches[0].territory).toEqual([0]); // ...via siblings, not id 0's own ground
+  });
+
+  test("a branch with any passable neighbour never needs the stuck-turn floor (pressure resets every spread)", () => {
+    let s = stuckState();
+    s.world.edges[0] = { ...s.world.edges[0], passable: true }; // 0-1 now passable
+    s.world.adj[0][0] = { ...s.world.adj[0][0], passable: true };
+    s.world.adj[1][0] = { ...s.world.adj[1][0], passable: true };
+    for (let t = 0; t < 3; t++) s = resolveGeneration({ ...s, touched: {} });
+    expect(s.branches[0].territory.sort((a, b) => a - b)).toEqual([0, 1]); // spread normally, well within STUCK_TURNS
+  });
+});
+
 // 1ENG.19 (1eng-14 spike §5, §7) — fracture-birth syntax inheritance and reanalysis.
 describe("1ENG.19 fracture-birth syntax inheritance & reanalysis", () => {
   test("a born sibling inherits the parent's wordOrder/frameWeights/proDrop by default", () => {

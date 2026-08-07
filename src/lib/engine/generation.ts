@@ -1,6 +1,6 @@
 import { hashRand } from "./rng";
 import { driftRule, applyRuleToLex, formOf, RULE_BY_ID, inventoryOf, phonemicDiff, describeEvent } from "./phonology";
-import { ownerMap, freeAdjacentFor, passableComponents, basePool, isolationScore, dominantTerrain, dominantAssimilator, neighborsOf, pairContact, ASSIM_TURNS } from "./geography";
+import { ownerMap, freeAdjacentFor, passableComponents, basePool, isolationScore, dominantTerrain, dominantAssimilator, neighborsOf, pairContact, ASSIM_TURNS, FRACTURE_COOLDOWN, STUCK_TURNS } from "./geography";
 import { leavesOf, isLeaf, childrenOf } from "./tree";
 import { genStem, RENAME_CUT } from "./naming";
 import { intelligibility } from "./intelligibility";
@@ -197,10 +197,26 @@ export function resolveGeneration(s: GameState): GameState {
     if (b.pressure >= s.settings.spreadEvery) {
       const free = freeAdjacentFor(b, adj, owner);
       if (free.length) {
-        const passable = free.filter((f) => f.passable); const poolF = passable.length ? passable : free;
-        const r = poolF[Math.floor(hashRand(seed, turn * 7 + 1, L.id * 13 + 5) * poolF.length)];
-        b.territory.push(r.region); owner[r.region] = L.id; b.pressure = 0;
-        log.push(`${L.name} spread`);
+        const passable = free.filter((f) => f.passable);
+        // 2GEO.10: a territory-1 branch crossing immediately on its first stalled
+        // attempt creates two territory-1 fragments — both boxed in, both eligible
+        // to repeat next tick, the fracture-runaway mechanism itself (measured:
+        // unbounded branch-count growth at every terrain-probability value tried).
+        // But refusing to cross AT ALL traps a branch whose start region is walled
+        // in on every side (measured: permanent territory=1 for the whole game,
+        // strictly worse than the pre-2GEO.10 baseline). So: allow the cross once
+        // b.pressure shows the branch has been stalled with no passable option for
+        // STUCK_TURNS consecutive spread attempts, not merely the first one — long
+        // enough that a branch with ANY passable neighbour never needs it (pressure
+        // resets to 0 on every successful passable spread), short enough that a
+        // genuinely walled-in branch isn't frozen for the whole run.
+        const stuck = b.pressure >= s.settings.spreadEvery * STUCK_TURNS;
+        const poolF = passable.length ? passable : stuck ? free : [];
+        if (poolF.length) {
+          const r = poolF[Math.floor(hashRand(seed, turn * 7 + 1, L.id * 13 + 5) * poolF.length)];
+          b.territory.push(r.region); owner[r.region] = L.id; b.pressure = 0;
+          log.push(`${L.name} spread`);
+        }
       }
     }
   });
@@ -437,6 +453,12 @@ export function resolveGeneration(s: GameState): GameState {
   };
 
   leavesOf(branches).forEach((L) => {
+    // 2GEO.10: a branch still on cooldown from its own birth (or a prior split this
+    // same generation) cannot fracture again yet, breaking the boxed-in-spread ⇄
+    // fracture feedback loop (see FRACTURE_COOLDOWN, geography.ts). It still owns
+    // whatever disconnected territory it holds — this only withholds the SPLIT, not
+    // spread, drift, or anything else.
+    if (branches[L.id].fractureCooldown > 0) return;
     const comps = passableComponents(branches[L.id].territory, adj);
     if (comps.length > 1) {
       const parent = branches[L.id];
@@ -476,9 +498,14 @@ export function resolveGeneration(s: GameState): GameState {
           // it is itself inherited via `paradigm` just above, so the clock should track
           // it. orderContactPressure reset — it's keyed by neighbour id, and a newborn's
           // neighbours differ from its parent's, so inherited keys would be stale.
-          orderPressure: parent.orderPressure, orderContactPressure: {} };
+          orderPressure: parent.orderPressure, orderContactPressure: {},
+          // 2GEO.10: a fresh fragment starts on full cooldown — it just came into
+          // being this generation and needs to settle before it can split again.
+          fractureCooldown: FRACTURE_COOLDOWN };
       });
-      branches[L.id] = { ...parent, territory: main };
+      // 2GEO.10: the CONTINUING lineage takes no cooldown — it isn't a new community,
+      // same reasoning as it taking no birth-divergence step either (comment above).
+      branches[L.id] = { ...parent, territory: main, fractureCooldown: 0 };
       // parent keeps its component; siblings own theirs — ownerMap reflects the
       // post-split ownership (incl. any earlier parent's split committed this same
       // generation).
@@ -514,6 +541,12 @@ export function resolveGeneration(s: GameState): GameState {
   // frozen-mid-decay artefact if the model changes; living or not, this is a pure
   // per-turn tick like mourning/routes below).
   Object.values(branches).forEach((b) => (branches[b.id] = decayMomentum(b)));
+  // 2GEO.10: fracture cooldown ticks down toward 0 every generation, same pure-clock
+  // treatment as momentum just above — dead branches tick too, cheaply, for the same
+  // "no frozen-mid-decay artefact" reason.
+  Object.values(branches).forEach((b) => {
+    if (b.fractureCooldown > 0) branches[b.id] = { ...b, fractureCooldown: b.fractureCooldown - 1 };
+  });
   // 2STK.2: mourning ticks down toward expiry alongside every other per-turn clock.
   const mourning = s.mourning && turn + 1 >= s.mourning.untilTurn ? null : s.mourning;
   // 2STK.5 §5: routes lapse and are renewed by fresh successes — prune expired keys
