@@ -2,8 +2,9 @@ import { describe, test, expect } from "bun:test";
 import { readFileSync, readdirSync } from "fs";
 import {
   FRAMES, EQUAL_WEIGHTS, frameOrder, positionProfile, walkFrameWeights,
-  followerVowelShare, syntaxMult, FRAME_FLOOR, FRAME_WALK,
+  followerVowelShare, syntaxMult, FRAME_FLOOR, FRAME_WALK, swapDistance, stepOrderToward,
 } from "./syntax";
+import type { BasicOrder } from "./syntax";
 import { RULE_BY_ID } from "./phonology";
 import type { FrameWeights, Lexicon, WordOrder } from "./types";
 
@@ -24,6 +25,53 @@ const GOLDEN: Record<string, Record<string, { final: number; initial: number }>>
   "VSO|AdjN": { verb: { final: 0, initial: 1 }, noun: { final: 0.8, initial: 0.2 }, pronoun: { final: 0, initial: 0 }, adjective: { final: 0, initial: 1 } },
   "VSO|NAdj": { verb: { final: 0, initial: 1 }, noun: { final: 0.6, initial: 0.4 }, pronoun: { final: 0, initial: 0 }, adjective: { final: 1, initial: 0 } },
 };
+
+// 1ENG.21 (1eng-14 spike §5, decision 5) — swap distance on the six-order
+// permutohedron. Golden table pinned against Ferrer-i-Cancho et al.'s own stated
+// distances (arXiv 2604.26726): from SOV, 1 to SVO/OSV, 2 to VSO/OVS, 3 to VOS.
+describe("swapDistance", () => {
+  test("matches the paper's stated distances from SOV", () => {
+    expect(swapDistance("SOV", "SOV")).toBe(0);
+    expect(swapDistance("SOV", "SVO")).toBe(1);
+    expect(swapDistance("SOV", "OSV")).toBe(1);
+    expect(swapDistance("SOV", "VSO")).toBe(2);
+    expect(swapDistance("SOV", "OVS")).toBe(2);
+    expect(swapDistance("SOV", "VOS")).toBe(3);
+  });
+  test("symmetric: distance(a,b) === distance(b,a)", () => {
+    const orders: BasicOrder[] = ["SOV", "SVO", "VSO", "VOS", "OSV", "OVS"];
+    for (const a of orders) for (const b of orders) expect(swapDistance(a, b)).toBe(swapDistance(b, a));
+  });
+  test("among the three admitted WordOrder values, the swap graph is the line SOV-SVO-VSO", () => {
+    expect(swapDistance("SOV", "SVO")).toBe(1);
+    expect(swapDistance("SVO", "VSO")).toBe(1);
+    expect(swapDistance("SOV", "VSO")).toBe(2); // not adjacent — SVO is the midpoint
+  });
+});
+
+describe("stepOrderToward", () => {
+  test("identity is a no-op", () => {
+    expect(stepOrderToward("SOV", "SOV")).toBe("SOV");
+  });
+  test("adjacent orders reach the target in one step", () => {
+    expect(stepOrderToward("SOV", "SVO")).toBe("SVO");
+    expect(stepOrderToward("SVO", "SOV")).toBe("SOV");
+    expect(stepOrderToward("SVO", "VSO")).toBe("VSO");
+  });
+  test("SOV -> VSO takes two events via SVO (distance 2, not a direct jump)", () => {
+    const first = stepOrderToward("SOV", "VSO");
+    expect(first).toBe("SVO");
+    expect(stepOrderToward(first, "VSO")).toBe("VSO");
+  });
+  test("every step strictly reduces swap distance to the target", () => {
+    const orders: BasicOrder[] = ["SOV", "SVO", "VSO", "VOS", "OSV", "OVS"];
+    for (const a of orders) for (const b of orders) {
+      if (a === b) continue;
+      const stepped = stepOrderToward(a, b);
+      expect(swapDistance(stepped, b)).toBe(swapDistance(a, b) - 1);
+    }
+  });
+});
 
 describe("positionProfile: equal-weight golden table (spike §3.4)", () => {
   (["SOV", "SVO", "VSO"] as const).forEach((basic) => {
@@ -142,7 +190,10 @@ describe("syntaxMult", () => {
   ];
 
   test("position-blind rules (no post:bound, not fortify/aphaer) always return exactly 1", () => {
-    ["voice", "spirant", "palat", "nasassim", "cluster", "epenth", "smooth", "compleng"].forEach((id) => {
+    // 1ENG.17: umlaut (distance-conditioned, not boundary-conditioned) and metath
+    // (post:liquidC, not post:bound) both belong in this set — isBoundaryRule reads
+    // only post:bound specifically.
+    ["voice", "spirant", "palat", "nasassim", "cluster", "epenth", "smooth", "compleng", "umlaut", "metath"].forEach((id) => {
       expect(syntaxMult(RULE_BY_ID[id], "eat", branch, LEX)).toBe(1);
     });
   });
@@ -223,18 +274,21 @@ describe("1ENG.19 salt registry", () => {
 
 // 1ENG.30 (1eng-24 spike §8, "Salt allocation: none needed"): the stress substrate
 // claims no hashRand family at all — every draw is either a tail-appended mulberry32
-// rng() at genesis or fully pure at transducer time. seed+47 must stay unclaimed so
-// the NEXT task to need a hashRand family (not this one) is free to take it.
+// rng() at genesis or fully pure at transducer time.
 // 1ENG.31: reduce and syncope are both pure transducers (no RNG inside xform), and the
 // firingRules/driftRule threading added to consult them is plumbing, not a new roll —
-// so this task claims no salt either. seed+47 stays the correct answer, not moved.
-describe("1ENG.24/1ENG.30/1ENG.31 salt registry", () => {
+// so this task claims no salt either.
+// 1ENG.21: the contact alignment driver DOES draw — one seeded roll (whether a
+// threshold-reached pair actually aligns this turn) — and claims the seed+47 this
+// block's comment previously reserved for exactly this. seed+53 is the new free
+// offset for whichever task needs a family next.
+describe("1ENG.24/1ENG.30/1ENG.31/1ENG.21 salt registry", () => {
   // Scans the actual engine source for every `hashRand(seed ± N` / `hashRand(ctx.*.seed
   // ± N` call site, rather than pinning a hand-maintained literal — the earlier version
   // of this test asserted 47 was absent from a Set typed in by hand, which could only
   // ever fail if someone also remembered to update that Set, i.e. never against a real
   // regression. This reads every offset straight from source, so a future PR that
-  // actually adds a `hashRand(seed + 47, ...)` call anywhere in src/lib/engine fails
+  // actually adds a `hashRand(seed + 53, ...)` call anywhere in src/lib/engine fails
   // this test for real.
   const engineDir = new URL("./", import.meta.url);
   const offsetsInUse = new Set<number>();
@@ -245,11 +299,15 @@ describe("1ENG.24/1ENG.30/1ENG.31 salt registry", () => {
     }
   });
 
-  test("seed+47 remains unclaimed — neither 1ENG.30 nor 1ENG.31 draws a hashRand triple", () => {
-    expect(offsetsInUse.has(47)).toBe(false);
+  test("seed+47 is claimed by 1ENG.21's contact-alignment roll", () => {
+    expect(offsetsInUse.has(47)).toBe(true);
+  });
+
+  test("seed+53 remains unclaimed — the next free offset", () => {
+    expect(offsetsInUse.has(53)).toBe(false);
   });
 
   test("sanity: the scan actually found the known offsets (proves the regex isn't silently matching nothing)", () => {
-    expect(offsetsInUse).toEqual(new Set([0, 7, 13, 19, 23, 29, 31, 37, 41, 43]));
+    expect(offsetsInUse).toEqual(new Set([0, 7, 13, 19, 23, 29, 31, 37, 41, 43, 47]));
   });
 });

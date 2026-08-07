@@ -222,6 +222,152 @@ describe("fortify / aphaer (1ENG.19 initial-position rules)", () => {
   });
 });
 
+// 1ENG.17 slice 2 (1eng-16 spike §7) — distance conditioning (SCA²'s `…`) and umlaut,
+// the mechanism's one consumer.
+describe("distance conditioning / umlaut (1ENG.17 slice 2)", () => {
+  test("umlaut fires on a…i, fronting the back vowel to match the trigger", () => {
+    expect(applyRuleToWord(["t", "u", "t", "i"], RULE_BY_ID["umlaut"])).toEqual({ ids: ["t", "i", "t", "i"], changed: true });
+  });
+  test("umlaut does not fire on a…u (trigger must be front)", () => {
+    expect(applyRuleToWord(["t", "u", "t", "u"], RULE_BY_ID["umlaut"]).changed).toBe(false);
+  });
+  test("umlaut never touches an already-front vowel (match excludes front)", () => {
+    expect(applyRuleToWord(["t", "i", "t", "i"], RULE_BY_ID["umlaut"]).changed).toBe(false);
+  });
+  test("the distance scan skips the adjacent slot: post:null means an IMMEDIATELY following front vowel alone doesn't satisfy distance at i+1, only i+2+", () => {
+    // ["u","i"]: only two segments: the front trigger at i+1 is the adjacent slot,
+    // which distance's i±2 start deliberately excludes — nothing at i+2 to find.
+    expect(applyRuleToWord(["u", "i"], RULE_BY_ID["umlaut"]).changed).toBe(false);
+    // ["u","t","i"]: front trigger now at i+2, inside the scan.
+    expect(applyRuleToWord(["u", "t", "i"], RULE_BY_ID["umlaut"])).toEqual({ ids: ["i", "t", "i"], changed: true });
+  });
+  test("first-match semantics: with two qualifying segments downstream, the nearer wins (round comes from the nearer trigger)", () => {
+    // "o" (mid,back,round) should front to match "e" (mid,front,unround) at distance,
+    // not any later front vowel — same result here since both later vowels are front/
+    // unround, but scanDistance's early-return makes "nearer" the operative claim.
+    expect(applyRuleToWord(["t", "o", "t", "e", "t", "i"], RULE_BY_ID["umlaut"])).toEqual({ ids: ["t", "e", "t", "e", "t", "i"], changed: true });
+  });
+  test("umlaut never drops output for any match×trigger combination (the reduce trap, probed and pinned)", () => {
+    const backVowels = ["o", "u", "oː", "uː"];
+    const triggers = ["i", "e", "iː", "eː"];
+    for (const b of backVowels) {
+      for (const trig of triggers) {
+        const { ids, changed } = applyRuleToWord(["t", b, "t", trig], RULE_BY_ID["umlaut"]);
+        expect(changed).toBe(true);
+        expect(ids.length).toBe(4); // 1-in/1-out: never dropped, never grown
+        expect(BY_ID[ids[1]].back).toBe("front");
+      }
+    }
+  });
+  test("applyRuleToAffix never fires a distance-conditioned rule (fail-closed, mirrors Rule.stressed)", () => {
+    // An affix has no word-scale distance domain; ctx.far is always absent there, so a
+    // rule reading it (as umlaut's xform does) must never be given the chance to fire.
+    expect(applyRuleToAffix(["u"], RULE_BY_ID["umlaut"], "suffix", BY_ID.i)).toEqual(["u"]);
+  });
+  test("every pre-1ENG.17 rule produces byte-identical output on a fixture lexicon (the distance?-absent path)", () => {
+    const words = [["t", "a", "p", "e"], ["m", "a", "t"], ["a", "t", "a"], ["j", "a", "t"]];
+    for (const rule of RULES) {
+      if (rule.id === "umlaut") continue;
+      expect(rule.distance).toBeUndefined();
+      for (const w of words) applyRuleToWord(w, rule); // no throw; distance-absent path untouched
+    }
+  });
+});
+
+// 1ENG.17 slice 3 (1eng-16 spike §7) — metathesis, riding the third Seg variant
+// (consumes:true) on top of 1ENG.12's Seg[] shape.
+describe("metathesis (1ENG.17 slice 3)", () => {
+  test("brid -> bird (stop-liquid pair swaps)", () => {
+    expect(applyRuleToWord(["b", "r", "i", "d"], RULE_BY_ID["metath"])).toEqual({ ids: ["r", "b", "i", "d"], changed: true });
+  });
+  // Regression pin: /l/ and /r/ are featurally identical in this engine's consonant
+  // model ({place:"alv", manner:"liquid", voice:true} — nothing else distinguishes
+  // them). resolveSeg's neighbour-diff path used to re-resolve the moved segment from
+  // its OWN features via PHONES.find, which silently returned /l/ (PHONES' first
+  // liquid match) for a moved /r/ regardless of which one actually moved. Fixed by
+  // special-casing an empty patch to the neighbour's own id. Both liquids pinned here
+  // so neither direction of the bug can return.
+  test("the moved liquid keeps its own identity: /r/ stays /r/, /l/ stays /l/", () => {
+    expect(applyRuleToWord(["b", "r", "a"], RULE_BY_ID["metath"]).ids).toEqual(["r", "b", "a"]);
+    expect(applyRuleToWord(["k", "l", "a"], RULE_BY_ID["metath"]).ids).toEqual(["l", "k", "a"]);
+  });
+  test("does not fire when post is a non-liquid consonant", () => {
+    expect(applyRuleToWord(["t", "a", "p"], RULE_BY_ID["metath"]).changed).toBe(false);
+  });
+  test("does not fire word-finally (no post at all)", () => {
+    expect(applyRuleToWord(["a", "t"], RULE_BY_ID["metath"]).changed).toBe(false);
+  });
+  test("does not fire when match is itself a liquid (match excludes manner===liquid)", () => {
+    expect(applyRuleToWord(["r", "l", "a"], RULE_BY_ID["metath"]).changed).toBe(false);
+  });
+  // Regression guard for the double-emit bug the consumes:true shape invites: without
+  // skipNext, the loop's next iteration would re-process the already-moved neighbour
+  // and emit it a second time.
+  test("the consumed neighbour is emitted exactly once", () => {
+    const { ids } = applyRuleToWord(["b", "r", "i", "d"], RULE_BY_ID["metath"]);
+    expect(ids.filter((id) => id === "r").length).toBe(1);
+    expect(ids.length).toBe(4); // length-preserving: no segment lost or duplicated
+  });
+  test("consumes at the word edge is a no-op, not a crash — no liquid ever sits at index length-1 given post:liquidC requires a following segment", () => {
+    expect(() => applyRuleToWord(["p", "r"], RULE_BY_ID["metath"])).not.toThrow();
+  });
+  test("word invariants hold: length unchanged, vowel floor intact, over a longer word", () => {
+    const { ids } = applyRuleToWord(["b", "r", "a", "t", "a", "b", "r"], RULE_BY_ID["metath"]);
+    expect(ids.length).toBe(7);
+    expect(ids.some((id) => BY_ID[id].type === "V")).toBe(true);
+  });
+  test("category is 'metathesis', not 'assimilation' (decision 2 — no invented contact tilt)", () => {
+    expect(RULE_BY_ID["metath"].category).toBe("metathesis");
+  });
+});
+
+// pr-review-comment follow-up: no shipped rule emits `from:"pre"` (metath only emits
+// "post"), but the Seg type admits it and resolveSeg already resolved a "pre" neighbour
+// correctly — the loop-level pop was the missing half. A synthetic rule exercises it
+// directly: liquid+V -> V+liquid (metath's mirror image, consuming backward instead of
+// forward) so the regression is pinned even though no real rule needs this direction yet.
+describe("\"pre\"-consuming Seg (loop-level pop, symmetric with \"post\")", () => {
+  // emits self BEFORE pre — the reverse of the input order — which is what actually
+  // performs the swap: pre's own earlier iteration already pushed it unchanged, so
+  // popping it and re-pushing it AFTER self is what moves it, not just re-affirms it.
+  const preSwap: Rule = {
+    id: "_preSwapTest", name: "test-only", note: "", w: 1, category: "metathesis",
+    match: (p) => !!p && p.type === "V", pre: (p) => !!p && p.type === "C" && p.manner === "liquid", post: null,
+    xform: () => [{ from: "self", patch: {} }, { from: "pre", patch: {}, consumes: true }],
+  };
+  test("liquid+V -> V+liquid: the popped neighbour is emitted exactly once, in its new position", () => {
+    expect(applyRuleToWord(["b", "r", "a"], preSwap)).toEqual({ ids: ["b", "a", "r"], changed: true });
+  });
+  test("the moved neighbour keeps its own identity (both liquids pinned, mirroring the /l/-/r/ regression)", () => {
+    expect(applyRuleToWord(["r", "a"], preSwap).ids).toEqual(["a", "r"]);
+    expect(applyRuleToWord(["l", "a"], preSwap).ids).toEqual(["a", "l"]);
+  });
+  test("does not fire on the word-initial phone (no pre at all to satisfy the pre predicate)", () => {
+    expect(() => applyRuleToWord(["a"], preSwap)).not.toThrow();
+    expect(applyRuleToWord(["a"], preSwap).changed).toBe(false);
+  });
+  test("word invariants hold over a longer word: length unchanged, vowel floor intact", () => {
+    const { ids } = applyRuleToWord(["t", "r", "a", "t", "a", "l", "i"], preSwap);
+    expect(ids.length).toBe(7);
+    expect(ids.some((id) => BY_ID[id].type === "V")).toBe(true);
+  });
+
+  // applyRuleToAffix has its own separate pop guard: `pre` at i===0 (suffix) may be the
+  // INJECTED stem-context phone rather than a real preceding affix segment already
+  // pushed to `out` — nothing to pop there, unlike applyRuleToWord where `pre` is only
+  // ever a real ph[i-1].
+  test("applyRuleToAffix: pops a real preceding affix segment (i>0)", () => {
+    expect(applyRuleToAffix(["r", "a"], preSwap, "suffix", BY_ID.t)).toEqual(["a", "r"]);
+  });
+  test("applyRuleToAffix: injected ctx at i===0 still resolves the neighbour, but never pops (it isn't in this affix's own out)", () => {
+    // ctx=r (liquid) satisfies preSwap's `pre` predicate at i===0, so the rule DOES fire
+    // and DOES emit r via resolveSeg — but there is nothing in this affix's own `out` to
+    // pop, since ctx was injected context, not a segment of the affix itself.
+    expect(() => applyRuleToAffix(["a"], preSwap, "suffix", BY_ID.r)).not.toThrow();
+    expect(applyRuleToAffix(["a"], preSwap, "suffix", BY_ID.r)).toEqual(["a", "r"]);
+  });
+});
+
 // 1ENG.19 (1eng-14 spike §4.1) — the syntax gate inside applyRuleToLex. Mirrors the
 // salience-gate sweep above: a class the branch's word order disfavours in this
 // position drifts strictly less often than one it favours, over a turn sweep.
@@ -298,10 +444,15 @@ describe("applyRuleToWord backward compatibility (1ENG.12 regression goldens)", 
   // and a derived list would silently exclude exactly that rule instead of failing on
   // it. Extend this list only when a genuinely stress-blind rule is added; a new
   // stress-conditioned rule belongs in the 1ENG.31 describe block below, not here.
+  // 1ENG.17 slices 2/3: umlaut and metath are likewise stress-blind (no `stressed`
+  // predicate declared) and belong to the same "declines stress conditioning" set this
+  // list tracks, per its own comment above — extended here rather than renamed, since
+  // PRE_1ENG24_IDS' meaning ("stress-blind rules") outlived the literal pre-1ENG.24
+  // boundary already.
   const PRE_1ENG24_IDS = [
     "voice", "spirant", "devoice", "apoc", "finalC", "palat", "debucc", "raise", "nasassim",
     "cluster", "epenth", "paragoge", "break", "smooth", "shorten", "compleng", "complengFinal",
-    "fortify", "aphaer",
+    "fortify", "aphaer", "umlaut", "metath",
   ] as const;
   // 1ENG.30 (1eng-24 spike §8), narrowed by 1ENG.31 — byte-identity sweep over the
   // rules that predate stress conditioning: same purpose (a widening event must not
@@ -730,6 +881,17 @@ describe("biasedMult epenthesis (1ENG.12)", () => {
       const m = biasedMult("epenthesis", iso);
       expect(m).toBeGreaterThanOrEqual(0.5);
       expect(m).toBeLessThanOrEqual(2);
+    }
+  });
+});
+
+// 1ENG.17 slice 3 (decision 2): metathesis gets fortition's neutral treatment (0.0
+// affinity, "no claim" rather than an invented tilt) — metath's attested cases carry no
+// contact-vs-isolation evidence either direction.
+describe("biasedMult metathesis (1ENG.17 decision 2)", () => {
+  test("metathesis is neutral (1.0) at every iso — no contact-bias claim", () => {
+    for (const iso of [0, 0.25, 0.5, 0.75, 1]) {
+      expect(biasedMult("metathesis", iso)).toBeCloseTo(1, 5);
     }
   });
 });

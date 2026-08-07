@@ -12,7 +12,18 @@ export function pickTerrain(rng: () => number): { name: Terrain; passable: boole
   return { name: "water", passable: false, cost: 3 };
 }
 export function genRegions(rng: () => number): { regions: Region[]; edges: Edge[]; adj: Adjacency; start: number } {
-  const cols = 4, rows = 3;
+  // 1ENG.21 (decision, playtest finding): raised from cols=4,rows=3 (12 regions). At
+  // that size a branch's neighbours were too few for any single pairContact share to
+  // clear ORDER_CONTACT_CUT (0.6) in practice — a 5812-pair-check playtest sweep never
+  // saw a share above 0.5, so the contact-alignment driver was correctly wired but
+  // structurally unreachable. A larger grid gives branches more neighbours and more
+  // varied border compositions, so a dominant single-neighbour share becomes possible.
+  // Every consumer (ownerMap, freeAdjacentFor, basePool, isolationScore, neighborsOf,
+  // pairContact, etc.) walks Region[]/Edge[]/Adjacency generically with no region-count
+  // assumption — audited before this change — so this is safe on its own. Broader map
+  // generation (varied shapes, non-rectangular layouts) is filed as its own roadmap
+  // task rather than folded into this one.
+  const cols = 10, rows = 8;
   const regions: Region[] = [];
   for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++)
     regions.push({ id: r * cols + c, x: (c + 0.5 + (rng() - 0.5) * 0.45) / cols, y: (r + 0.5 + (rng() - 0.5) * 0.45) / rows });

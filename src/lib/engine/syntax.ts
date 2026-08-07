@@ -15,16 +15,89 @@ export type { FrameWeights } from "./types";
 export const SYNTAX_STRENGTH = 0.7;       // tuning constant, deliberately the same shape as BIAS_STRENGTH
 export const FRAME_WALK = 0.02;           // per-turn step of the seeded frame-weight walk
 export const ORDER_INNOVATE_RATE = 0.08;  // stage A: per-birth chance of a one-axis reanalysis flip
-export const ORDER_TURNS = 6;             // stage B (1ENG.21): sustained turns before an order event
+// stage B (1ENG.21): sustained turns before an order event.
+// NOT 6 — a playtest sweep found rigidification structurally unreachable at 6: step 1
+// (tickParadigm) runs before step 3.75 in the same turn, and RENEWAL_TURNS is also 6, so
+// on the 6th consecutive collapsed turn tickParadigm revives all three dead cells to
+// periphrastic in the SAME turn rigidification's counter would have reached threshold —
+// renewal always wins the same-turn race by running first. 5 sides the race the other
+// way: rigidification's check fires a turn before renewal's clock would. (Also governs
+// the contact driver, which shares no such race — this simply tightens its threshold by
+// one turn, harmlessly.) Whether either clock should vary stochastically instead of
+// being a fixed integer is a real, separate design question, filed for a future spike
+// rather than folded into this fix.
+export const ORDER_TURNS = 5;
 export const ORDER_CONTACT_CUT = 0.6;     // stage B (1ENG.21): pairContact floor for the contact driver
-// ORDER_TURNS/ORDER_CONTACT_CUT are declared now, unused until 1ENG.21, so stage B
-// tunes against constants stage A's own goldens already pin (spike §6/§7).
 
 // §3.2 names a floor without a value ("clamped to a floor so no frame never
 // vanishes"). 0.1 against a genesis weight of 1.0 takes ~45 consecutive negative
 // walk steps to reach (FRAME_WALK = 0.02), so it is a genuine backstop, not a
 // routinely-hit clamp — first-pass tuning, same ledger treatment as SYNTAX_STRENGTH.
 export const FRAME_FLOOR = 0.1;
+
+// 1ENG.21 (1eng-14 spike §5, decision 5) — the six logical S/O/V orders, though
+// WordOrder.basic only ever holds three (SOV/SVO/VSO). Stored/computed over all six so
+// swapDistance means the real permutohedron rather than an ad hoc three-value line, and
+// a future task admitting OSV/OVS/VOS to WordOrder needs no change here.
+export type BasicOrder = "SOV" | "SVO" | "VSO" | "VOS" | "OSV" | "OVS";
+
+// Swap distance: the minimum number of adjacent-constituent transpositions needed to
+// turn one S/O/V order into another (Ferrer-i-Cancho et al., "Swap distance
+// minimization shapes the order of subject, object and verb in languages of the world",
+// arXiv 2604.26726 — the established metric for this exact question). Computed via BFS
+// over the permutohedron (adjacent orders = one transposition apart) rather than
+// hardcoded, so the six-order table is derived, not guessed, and needs no maintenance
+// if WordOrder ever grows to admit the other three. Pinned as a golden against the
+// paper's own stated distances: from SOV, 1 to SVO/OSV, 2 to VSO/OVS, 3 to VOS.
+function adjacentOrders(o: BasicOrder): BasicOrder[] {
+  const chars = o.split("");
+  const out: BasicOrder[] = [];
+  for (let i = 0; i < chars.length - 1; i++) {
+    const swapped = [...chars];
+    [swapped[i], swapped[i + 1]] = [swapped[i + 1], swapped[i]];
+    out.push(swapped.join("") as BasicOrder);
+  }
+  return out;
+}
+export function swapDistance(a: BasicOrder, b: BasicOrder): number {
+  if (a === b) return 0;
+  const dist = new Map<BasicOrder, number>([[a, 0]]);
+  const queue: BasicOrder[] = [a];
+  while (queue.length > 0) {
+    const cur = queue.shift()!;
+    const d = dist.get(cur)!;
+    for (const next of adjacentOrders(cur)) {
+      if (dist.has(next)) continue;
+      dist.set(next, d + 1);
+      if (next === b) return d + 1;
+      queue.push(next);
+    }
+  }
+  return dist.get(b)!; // the permutohedron is fully connected: any permutation is reachable by adjacent swaps
+}
+// One swap along a shortest path from `from` toward `to` — the contact driver's "one
+// step toward the neighbour's order" (spike §5), disambiguated per decision 5. Among
+// our three admitted values (SOV/SVO/VSO) the swap graph is the line SOV-SVO-VSO, which
+// independently matches the diachronic finding that SOV drift passes through SVO before
+// (if ever) reaching VSO — so `to` unreachable from `from` in one step lands on SVO.
+export function stepOrderToward(from: BasicOrder, to: BasicOrder): BasicOrder {
+  if (from === to) return from;
+  const candidates = adjacentOrders(from).filter((o) => swapDistance(o, to) < swapDistance(from, to));
+  return candidates[0] ?? from;
+}
+// generation.ts's contact driver only ever holds WordOrder["basic"] values (the three
+// this engine actually admits), not the full six-order BasicOrder swapDistance is
+// computed over. Among just {SOV,SVO,VSO} the swap graph is the closed line
+// SOV-SVO-VSO (each is one swap from the other two's midpoint), so a step from one
+// provably lands back within the three — this narrows that guarantee into the type
+// system rather than asserting it at the call site. Throws if it somehow doesn't
+// (a change to ALL_ORDERS's graph shape, or a caller passing a value outside the
+// three, would be a real bug worth surfacing loudly, not silently coercing).
+export function stepWordOrderToward(from: WordOrder["basic"], to: WordOrder["basic"]): WordOrder["basic"] {
+  const stepped = stepOrderToward(from, to);
+  if (stepped === "SOV" || stepped === "SVO" || stepped === "VSO") return stepped;
+  throw new Error(`stepWordOrderToward: stepped outside {SOV,SVO,VSO} to ${stepped} — swap-graph invariant broken`);
+}
 
 export interface Slot { class: ConceptClass; role: string }
 export interface Frame { id: string; slots: Slot[] }
@@ -106,7 +179,9 @@ export function positionProfile(
 // can coincide regardless of turn, branch or sub-index. 1ENG.24/1ENG.30 claims NO
 // hashRand family: every stress draw is either a tail-appended mulberry32 rng() at
 // genesis (world.ts, not hashRand) or fully pure (stressPosition/stressMap/
-// Rule.stressed). seed+47 stays free for whichever task claims it next.
+// Rule.stressed). 1ENG.21's contact-alignment driver (generation.ts step 3.75) claims
+// seed+47 — the offset this comment previously reserved for exactly this task.
+// seed+53 stays free for whichever task claims it next.
 export function walkFrameWeights(weights: FrameWeights, seed: number, turn: number, branchId: number): FrameWeights {
   return weights.map((w, k) =>
     Math.max(FRAME_FLOOR, w + (hashRand(seed + 31, turn * 257 + 43, branchId * 577 + k) * 2 - 1) * FRAME_WALK),

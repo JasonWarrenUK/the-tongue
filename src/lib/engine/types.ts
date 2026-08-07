@@ -24,15 +24,27 @@ export interface Patch {
 // 1ENG.19 (1eng-14 spike §4.3): "fortition" covers fortify, the engine's one
 // strengthening rule so far — deliberately kept apart from "lenition" (its opposite)
 // so 2STK.3 momentum can't read a lenition streak as a reason to fortify more.
-export type RuleCategory = "lenition" | "deletion" | "assimilation" | "vowelShift" | "epenthesis" | "fortition";
+// 1ENG.17 slice 3 (decision 2, 1eng-16 spike §7): "metathesis" covers metath. The spike
+// text specified category:"assimilation", but metathesis is reordering, not feature-
+// spreading — assimilation's 0.4 contact affinity would be an invented tilt with no
+// evidence behind it. A new category, mirroring exactly what 1ENG.19 did for
+// fortify/"fortition" (affinity 0.0 in CATEGORY_AFFINITY, "no claim" rather than a
+// guess).
+export type RuleCategory = "lenition" | "deletion" | "assimilation" | "vowelShift" | "epenthesis" | "fortition" | "metathesis";
 
 // 1ENG.12: a single output segment. `from:"self"` = resolve as (input phone features
 // + patch) — the pre-1ENG.12 applyXform semantics. `from:"abs"` = a brand-new segment
 // resolved from the patch alone (an inserted/broken-off phone with no source to diff
 // against). See 1eng-11 spike §3.
+// 1ENG.17 slice 3 (1eng-16 spike §7): a third variant, `from:"post"|"pre"`, emits a
+// NEIGHBOUR of the matched phone (SCA²'s `\`, metathesis) so a rule can reorder
+// segments. `consumes: true` marks that the neighbour is MOVED, not copied — the
+// neighbour's own loop iteration in applyRuleToWord is skipped rather than emitting it
+// a second time (the double-emit bug this shape invites, guarded by a regression test).
 export type Seg =
   | { from: "self"; patch: Patch }
-  | { from: "abs"; type: PhoneType; patch: Patch };
+  | { from: "abs"; type: PhoneType; patch: Patch }
+  | { from: "post" | "pre"; patch: Patch; consumes: true };
 // A rule's xform may return a legacy Patch (1-in/<=1-out, pre-1ENG.12 shape) or an
 // ordered Seg[] (1-in/N-out, for renewal rules like epenthesis and breaking).
 export type XformResult = Patch | Seg[];
@@ -43,11 +55,12 @@ export interface Rule {
   pre: ((p: Phone | null) => boolean) | null;
   post: ((p: Phone | null) => boolean) | null;
   // 1ENG.30: ctx widens with an optional `stress` field rather than a required one, so
-  // all 17 pre-1ENG.24 rules (none of which read it) stay byte-identical — see the
+  // all 19 pre-1ENG.24 rules (none of which read it) stay byte-identical — see the
   // backward-compatibility sweep in phonology.test.ts. EXTEND this object, never
-  // replace it: 1ENG.17 slice 2 plans its own optional `distance` field on the same
-  // ctx (1eng-24 spike §3) — whichever lands second must add alongside, not redefine.
-  xform: (p: Phone, ctx: { pre: Phone | null; post: Phone | null; stress?: StressCtx }) => XformResult;
+  // replace it: 1ENG.17 slice 2 adds its own optional `far` field on the same ctx
+  // (1eng-24 spike §3, 1eng-16 spike §7 slice 2) — whichever lands second must add
+  // alongside, not redefine. 1ENG.17 landed second: `far` sits beside `stress`.
+  xform: (p: Phone, ctx: { pre: Phone | null; post: Phone | null; stress?: StressCtx; far?: Phone | null }) => XformResult;
   // 1ENG.13: on a hit, lengthen the previously-emitted output vowel (compensatory
   // lengthening — a coda deletes itself and the vowel before it goes long instead).
   // Optional and false for every pre-1ENG.13 rule, so their output is unaffected.
@@ -58,6 +71,11 @@ export interface Rule {
   // stress rule firing unconditioned would be a silent unconditioned sound change, the
   // same class of bug isBoundaryRule (syntax.ts) guards a future boundary rule against.
   stressed?: (s: StressCtx) => boolean;
+  // 1ENG.17 (1eng-16 spike §7 slice 2) — SCA²'s `…` wildcard: an optional condition on
+  // a segment ANYWHERE downstream (`dir:"post"`) or upstream (`dir:"pre"`) of the match,
+  // scanning outward from the adjacent segment (i±2) to the word edge, first-match
+  // semantics. Absent on every pre-1ENG.17 rule, so their matching is byte-identical.
+  distance?: { dir: "pre" | "post"; test: (p: Phone) => boolean };
 }
 
 export interface LexEntry { concept: string; word: string[] }
@@ -124,6 +142,18 @@ export interface Branch {
   // near-identical neighbour (see generation.ts). Resets to 0 the moment the trigger
   // stops holding; reaching the threshold empties `territory`, killing the branch.
   assimilationPressure: number;
+  // 1ENG.21 (1eng-14 spike §5/§6, stage B) — the internal driver's clock: turns
+  // sustained under full agreement collapse (morphology.ts agreementCollapsed).
+  // Mirrors assimilationPressure's scalar reset-on-heal shape exactly. Inherited
+  // (not reset) at fracture birth — the paradigm state driving it is itself
+  // inherited via the lexicon, so the clock should track it (decision 6).
+  orderPressure: number;
+  // 1ENG.21 — the external driver's clock, keyed by neighbour branch id (geography.ts
+  // pairContact). Rebuilt fresh from this turn's qualifying neighbours each generation
+  // (the step-1.5 collisionPressure idiom), so a pair that stops qualifying drops its
+  // key with no separate delete pass. Reset to {} at fracture birth (decision 6): a
+  // newborn's neighbours differ from its parent's, so inherited keys would be stale.
+  orderContactPressure: Record<number, number>;
   // 2LEX.2 (2lex-1 spike §3.2): per-pair grace-period counter for severe homophone
   // collisions, key = sorted "concept|concept". Increments each consecutive turn the
   // pair still collides (generation.ts step 1.5); deleted the moment it heals, repairs,

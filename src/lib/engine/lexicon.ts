@@ -1,4 +1,4 @@
-import { pick } from "./rng";
+import { pick, pickRanked } from "./rng";
 import type { Inventory, Template, Lexicon, Terrain } from "./types";
 
 // The 32 original concepts, now the noun class's membership rather than the whole
@@ -77,22 +77,31 @@ export function conceptsOfClass(cls: ConceptClass): string[] {
 const DIPHTHONGS = ["ie", "uo", "ei", "ou", "au", "ai"];
 const LONG_VOWELS = ["iː", "eː", "aː", "oː", "uː"];
 
+// 1ENG.17 (1eng-16 spike §7 slice 1, amended): the pre-1ENG.17 gate order below built
+// `cons` by PUSH order, so index 7+ was whichever optional consonant's gate happened to
+// pass first for this seed — not a frequency rank at all, just draw order. pickRanked
+// needs the input array's index to MEAN something (markedness-descending), so this is a
+// fixed canonical order, independent of which gates pass. Same members, same gates, same
+// number/sequence of rng() draws as before (only the OUTPUT ORDER changes) — draw-count
+// parity is load-bearing, see pickRanked's own comment in rng.ts.
+const CONSONANT_RANK = ["p","t","k","m","n","s","l","b","d","g","r","h","f","ʃ","j","w","ŋ","z"];
+
 export function genInventory(rng: () => number): Inventory {
   const vowels = rng() < 0.2 ? ["i","a","u"] : ["i","e","a","o","u"];
   if (rng() < 0.3) vowels.push(pick(DIPHTHONGS, rng));
   if (rng() < 0.25) vowels.push(pick(LONG_VOWELS, rng));
-  const cons = ["p","t","k","m","n","s","l"];
+  const present = new Set(["p","t","k","m","n","s","l"]);
   const voiced = rng() < 0.7;
-  if (voiced) cons.push("b","d","g");
-  if (rng() < 0.7) cons.push("r");
-  if (rng() < 0.6) cons.push("h");
-  if (rng() < 0.5) cons.push("f");
-  if (rng() < 0.45) cons.push("ʃ");
-  if (rng() < 0.6) cons.push("j");
-  if (rng() < 0.6) cons.push("w");
-  if (rng() < 0.4) cons.push("ŋ");
-  if (voiced && rng() < 0.4) cons.push("z");
-  return { vowels, consonants: [...new Set(cons)] };
+  if (voiced) { present.add("b"); present.add("d"); present.add("g"); }
+  if (rng() < 0.7) present.add("r");
+  if (rng() < 0.6) present.add("h");
+  if (rng() < 0.5) present.add("f");
+  if (rng() < 0.45) present.add("ʃ");
+  if (rng() < 0.6) present.add("j");
+  if (rng() < 0.6) present.add("w");
+  if (rng() < 0.4) present.add("ŋ");
+  if (voiced && rng() < 0.4) present.add("z");
+  return { vowels, consonants: CONSONANT_RANK.filter((c) => present.has(c)) };
 }
 
 export function genTemplate(rng: () => number): Template {
@@ -103,12 +112,16 @@ export function genTemplate(rng: () => number): Template {
   return { onset: "opt", coda: "opt", clusters: true, label: "(C)(C)V(C)" };
 }
 
+// 1ENG.17 slice 1: pickRanked over inv.consonants/inv.vowels, gen's geometric dropoff —
+// earlier (more typologically core / markedness-unmarked) members draw more often. The
+// two genInventory picks (DIPHTHONGS, LONG_VOWELS) stay `pick` (uniform): those lists
+// aren't frequency-ordered, and which diphthong a world has isn't a frequency question.
 function genSyllable(rng: () => number, inv: Inventory, t: Template): string[] {
   const s: string[] = [];
   const onset = t.onset === "req" ? true : rng() < 0.6;
-  if (onset) { s.push(pick(inv.consonants, rng)); if (t.clusters && rng() < 0.25) s.push(pick(inv.consonants, rng)); }
-  s.push(pick(inv.vowels, rng));
-  if (t.coda === "opt" && rng() < 0.4) s.push(pick(inv.consonants, rng));
+  if (onset) { s.push(pickRanked(inv.consonants, rng)); if (t.clusters && rng() < 0.25) s.push(pickRanked(inv.consonants, rng)); }
+  s.push(pickRanked(inv.vowels, rng));
+  if (t.coda === "opt" && rng() < 0.4) s.push(pickRanked(inv.consonants, rng));
   return s;
 }
 function genWord(rng: () => number, inv: Inventory, t: Template): string[] {
