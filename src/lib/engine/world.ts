@@ -71,7 +71,7 @@ export function freshState(seed: number): GameState {
   // cells are alive, and the root is born with all three affixal, so it starts licensed.
   const frameWeights: FrameWeights = [1, 1, 1, 1];
   const paradigm = seedParadigm(world.lex, world.wordOrder, seed);
-  const root = { id: 0, name: genStem(world.inv, seed, 0), parentId: null, depth: 0, splitIndex: 0, history: [], lex: world.lex, territory: [world.start], pressure: 0, anchors: [{ lex: world.lex, turn: 0, historyIndex: 0, driftFromPrev: 0 }], assimilationPressure: 0, collisionPressure: {}, momentum: {}, wordOrder: { ...world.wordOrder }, stressRule: { ...world.stressRule }, frameWeights, proDrop: licensesProDrop(paradigm), paradigm, orderPressure: 0, orderContactPressure: {} };
+  const root = { id: 0, name: genStem(world.inv, seed, 0), parentId: null, depth: 0, splitIndex: 0, history: [], lex: world.lex, territory: [world.start], pressure: 0, anchors: [{ lex: world.lex, turn: 0, historyIndex: 0, driftFromPrev: 0 }], assimilationPressure: 0, collisionPressure: {}, momentum: {}, wordOrder: { ...world.wordOrder }, stressRule: { ...world.stressRule }, frameWeights, proDrop: licensesProDrop(paradigm), paradigm, orderPressure: 0, orderContactPressure: {}, fractureCooldown: 0 };
   // 2STK.2: the root is the self at world start; no mourning, no queued focus
   // decision, run not yet ended. 2STK.5: no trade routes open yet.
   return { world, branches: { 0: root }, rootId: 0, selectedId: 0, nextId: 1, turn: 1, settings: { ...DEFAULTS }, pool: DEFAULTS.pool, touched: {}, appliedRules: {}, log: [], focusId: 0, mourning: null, pendingFocusChoice: null, ended: false, routes: {} };

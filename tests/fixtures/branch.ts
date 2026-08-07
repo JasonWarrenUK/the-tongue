@@ -40,6 +40,9 @@ export const branchDefaults = {
   // fixture's reason to exist, per its own comment above.
   orderPressure: 0,
   orderContactPressure: {} as Record<number, number>,
+  // 2GEO.10: unrestricted by default — most fixtures aren't testing fracture-cooldown
+  // behaviour, same reasoning as stressRule's neutral default above.
+  fractureCooldown: 0,
 };
 
 // The three 1ENG.19 World fields (wordOrder is the genesis seed the root's own

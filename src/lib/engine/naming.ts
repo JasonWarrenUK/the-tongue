@@ -83,8 +83,10 @@ export type CollapsePolicy = (marks: AnchorMark[]) => EraBucket[];
 // same order of magnitude as the app's existing "different language" framing.
 export const STAGE_CUT = 0.5;
 // Fine-grained rename cutoff: an anchor freezes whenever drift since the last anchor
-// (or birth) crosses this. Frequent by design (~6-10+ anchors over a long game) — the
-// collapse policy, not the freeze rate, is what keeps the *displayed* names legible.
+// (or birth) crosses this. Frequent by design — the collapse policy, not the freeze
+// rate, is what keeps the *displayed* names legible. Measured (2geo-10 spike census,
+// single-branch autonomous play): ~48 anchors at 150 turns (mean gap ~3.1 turns), ~84
+// at 300 — roughly 5x this comment's original "~6-10+ over a long game" estimate.
 export const RENAME_CUT = 0.85;
 
 // Event-density collapse: prefer high-driftFromPrev anchors as bucket boundaries (a

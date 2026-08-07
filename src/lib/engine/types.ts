@@ -160,6 +160,20 @@ export interface Branch {
   // or either concept stops being severe. Children inherit it whole at fracture — the
   // community carried the ambiguity across the split.
   collisionPressure: Record<string, number>;
+  // 2GEO.10: turns remaining before this branch may fracture again. A newborn spun off
+  // by a fracture starts at FRACTURE_COOLDOWN (geography.ts); the continuing parent
+  // starts at 0 (unrestricted — it isn't a new community, it's the same one mid-
+  // sentence, matching how it takes no birth-divergence step either). Ticks down to 0
+  // each repool. Exists because passive spread's impassable-terrain fallback (a boxed-
+  // in branch crosses a barrier rather than stalling) and per-generation fracture
+  // checking form a feedback loop on any map where impassable terrain is common enough
+  // to matter: crossing creates disconnection, fracture resolves it into a territory-1
+  // fragment, that fragment is immediately boxed in again, repeat — measured as
+  // unbounded branch-count runaway (20-35 living branches/150 turns) with no terrain-
+  // probability value avoiding it. The cooldown breaks the loop at its own source
+  // rather than suppressing the spread fallback that boxed-in branches otherwise need
+  // (2geo-10-family-structure-reachability spike).
+  fractureCooldown: number;
   // 2STK.3 (2stk-1 spike §3): a decaying per-category multiplier ∈ [1, MOMENTUM_CAP];
   // an absent category reads as 1 (no tendency set yet). Player-applied rules bump
   // their category at full weight, autonomous drift at half (stakes.ts bumpMomentum);
