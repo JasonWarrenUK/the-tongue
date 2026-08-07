@@ -281,14 +281,16 @@ describe("2GEO.10 fracture cooldown", () => {
   });
 
   test("cooldown never goes negative once it reaches 0", () => {
-    const s = fractureState();
-    s.branches[0] = { ...s.branches[0], fractureCooldown: 0 };
-    const out = resolveGeneration(s); // fires this turn (cooldown 0 = unrestricted)
-    // whichever branch continues the lineage (id 0) took no cooldown (see next test);
-    // the newborn sibling took a fresh FRACTURE_COOLDOWN, which must not underflow on
-    // its own first repool tick.
-    const kid = childrenOf(out, 0)[0];
-    expect(kid.fractureCooldown).toBeGreaterThanOrEqual(0);
+    // fractureState()'s branch 0 always fractures, which resets its own cooldown to 0
+    // via the fracture path regardless of decrement logic — no good for pinning the
+    // underflow guard itself. stuckState() (below) has a single connected region that
+    // never fractures, so its cooldown only ever moves through the decrement guard.
+    let s = stuckState();
+    s.branches[0] = { ...s.branches[0], fractureCooldown: 1 };
+    s = resolveGeneration(s);
+    expect(s.branches[0].fractureCooldown).toBe(0); // ticked down from 1, not underflowed
+    s = resolveGeneration({ ...s, touched: {} });
+    expect(s.branches[0].fractureCooldown).toBe(0); // guarded: stays at 0, never goes negative
   });
 
   test("a newly-split sibling starts on full FRACTURE_COOLDOWN; the continuing lineage takes none", () => {
