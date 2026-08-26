@@ -74,9 +74,9 @@
   const CELL_LABEL: Record<ParadigmCell, string> = { past: "past", p1sg: "1sg", p2: "2", p1pl: "1pl" };
 </script>
 
-<div class="space-y-2.5">
-  <div class="text-xs text-muted flex items-center gap-2 flex-wrap">
-    <span>{order.basic} · {order.adj}{#if proDrop} · pro-drop{/if}</span>
+<div class="flex flex-col gap-3.5">
+  <div class="text-xs flex items-center gap-2.5 flex-wrap">
+    <span class="font-mono text-[13px] text-text">{order.basic} · {order.adj}{#if proDrop} · pro-drop{/if}</span>
     <!-- 1ENG.21: order-pressure context sits beside the order it's about to change
          (spike §4.4's named home for this warning), mirroring pressureLabel's
          "N/M turns until X" idiom (game.svelte.ts). Shown whenever the clock is
@@ -97,12 +97,12 @@
   {#each FRAMES as frame, i}
     {@const slots = fill(frame)}
     <div class="flex items-baseline gap-3">
-      <span class="text-muted text-xs w-6 shrink-0">{frame.id}</span>
+      <span class="font-mono text-[11px] text-text-faint w-5 shrink-0">{frame.id}</span>
       <div class="flex-1 min-w-0">
-        <div class="font-mono text-fg">{slots.map((s) => (s.marker ? `${s.form} ${s.marker}` : s.form)).join(" ")}</div>
-        <div class="text-xs text-muted truncate">{slots.map((s) => s.concept).join(" ")}</div>
+        <div class="font-mono text-base text-text">{slots.map((s) => (s.marker ? `${s.form} ${s.marker}` : s.form)).join(" ")}</div>
+        <div class="text-[11px] text-text-muted truncate">{slots.map((s) => s.concept).join(" ")}</div>
       </div>
-      <span class="text-muted text-xs tabular-nums shrink-0" title="frame usage weight">
+      <span class="font-mono text-[11px] text-text-faint tabular-nums shrink-0" title="frame usage weight">
         {totalWeight > 0 ? Math.round((weights[i] / totalWeight) * 100) : 0}%
       </span>
     </div>
@@ -111,13 +111,13 @@
        Follows Changes.svelte's chip conventions (text-xs, a title on every chip,
        semantic tokens); unlike Changes' fire-gated chips this row always renders,
        since an all-"—" row IS the collapse state worth seeing. -->
-  <div class="flex items-center gap-3 flex-wrap pt-1 border-t border-border">
+  <div class="flex items-center gap-3.5 flex-wrap pt-2.5 border-t border-border-subtle">
     {#each (["past", "p1sg", "p2", "p1pl"] as ParadigmCell[]) as cell}
       {@const st = paradigm[cell]}
       {@const shown = st.stage === "zero" ? "—" : st.stage === "periphrastic" ? `(${formOf(st.form) || "—"})` : formOf(st.form) || "—"}
-      <span class="text-xs {st.stage === 'zero' ? 'text-warn' : st.stage === 'periphrastic' ? 'text-accent' : 'text-muted'}"
+      <span class="text-xs {st.stage === 'zero' ? 'text-warn' : st.stage === 'periphrastic' ? 'text-accent' : 'text-text-muted'}"
         title="{CELL_LABEL[cell]}: {st.stage}{st.stage === 'affixal' ? (st.suffixed ? ' (suffix)' : ' (prefix)') : ''}">
-        {CELL_LABEL[cell]} {shown}
+        {CELL_LABEL[cell]} <span class="font-mono">{shown}</span>
       </span>
     {/each}
   </div>

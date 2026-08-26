@@ -14,28 +14,32 @@
   const shown = $derived(pending.candidates.slice(0, 6));
 </script>
 
-<div class="fixed inset-0 z-20 bg-bg/80 flex items-center justify-center p-4">
-  <div class="bg-surface rounded-lg border border-border p-4 max-w-sm w-full space-y-3">
-    <h2 class="text-accent font-medium">'{pending.pair[0]}' and '{pending.pair[1]}' are now one word</h2>
-    <p class="text-muted text-xs">
+<div class="fixed inset-0 z-20 flex items-center justify-center p-6" style="background:rgba(33,30,25,0.55)">
+  <div class="w-full max-w-[436px] max-h-[90dvh] overflow-y-auto bg-surface border border-border-strong rounded-[10px] p-6" style="box-shadow:0 24px 60px rgba(33,30,25,0.28)">
+    <h2 class="font-serif text-xl font-semibold m-0">'{pending.pair[0]}' and '{pending.pair[1]}' are now one word</h2>
+    <p class="my-2 mb-4.5 text-sm text-text-muted">
       '{pending.yielding}' yields — choose a modifier to disambiguate, or gamble that drift heals it.
     </p>
-    <div class="space-y-1.5">
+    <div class="flex flex-col gap-2">
       {#each shown as modifier (modifier)}
         {@const word = formOf(compoundWord(byConcept[modifier], head, order))}
         <button onclick={() => onrepair(modifier)} disabled={!affordable}
-          class="w-full text-left px-3 py-2 rounded bg-surface-2 hover:bg-muted/20 text-fg disabled:opacity-40 disabled:cursor-not-allowed">
-          <span class="font-mono font-medium text-xs">{word}</span>
-          <span class="block text-muted text-xs">'{pending.yielding}' + '{modifier}' · costs {cost}</span>
+          class="flex items-baseline justify-between gap-3 w-full text-left px-3.5 py-3 border border-border rounded-lg bg-bg hover:border-accent hover:bg-accent-bg-strong disabled:opacity-40 disabled:cursor-not-allowed">
+          <span>
+            <span class="block font-mono text-base font-medium">{word}</span>
+            <span class="block text-xs text-text-muted">'{pending.yielding}' + '{modifier}'</span>
+          </span>
+          <span class="font-mono text-xs text-accent shrink-0">costs {cost}</span>
         </button>
       {/each}
     </div>
     {#if !affordable}
-      <p class="text-warn text-xs">not enough influence to repair now</p>
+      <p class="text-warn text-xs mt-3">not enough influence to repair now</p>
     {/if}
-    <button onclick={ontolerate} class="w-full text-left px-3 py-2 rounded border border-warn/40 text-warn hover:bg-warn/10">
-      <span class="font-medium text-xs">Tolerate</span>
-      <span class="block text-xs opacity-80">free · the pair enters the pressure clock</span>
+    <button onclick={ontolerate}
+      class="w-full text-left px-3.5 py-3 mt-2 border border-warn-border rounded-lg bg-warn-bg-2 hover:bg-warn-bg">
+      <span class="block text-sm font-semibold text-warn">Tolerate</span>
+      <span class="block text-xs text-warn-text-2">free · the pair enters the pressure clock</span>
     </button>
   </div>
 </div>
