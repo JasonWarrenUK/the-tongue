@@ -1,15 +1,16 @@
 <script lang="ts">
   import { formOf } from "$lib/engine/phonology";
   import type { Lexicon } from "$lib/engine/types";
-  let { lex, previewLex, curHomo, prevHomo, severeConcepts, pressureLabel }:
+  // fill: take the parent's free height (a `grow` Panel) instead of the 344px cap.
+  let { lex, previewLex, curHomo, prevHomo, severeConcepts, pressureLabel, fill = false }:
     { lex: Lexicon; previewLex: Lexicon | null; curHomo: Set<string>; prevHomo: Set<string> | null;
-      severeConcepts: Set<string>; pressureLabel: Record<string, string> } = $props();
+      severeConcepts: Set<string>; pressureLabel: Record<string, string>; fill?: boolean } = $props();
 </script>
 
-<div class="grid grid-cols-2 px-4 py-2 border-b border-border-subtle text-[10px] tracking-[0.09em] uppercase text-text-faint">
+<div class="shrink-0 grid grid-cols-2 px-4 py-2 border-b border-border-subtle text-[10px] tracking-[0.09em] uppercase text-text-faint">
   <span>concept</span><span>form</span>
 </div>
-<div class="overflow-y-auto max-h-[344px] max-md:max-h-none">
+<div class="overflow-y-auto {fill ? 'flex-1 min-h-0' : 'max-h-[344px] max-md:max-h-none'}">
   {#each lex as e, i}
     {@const before = formOf(e.word)}
     {@const after = previewLex ? formOf(previewLex[i].word) : before}

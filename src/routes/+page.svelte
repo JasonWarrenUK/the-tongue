@@ -94,11 +94,11 @@
   </section>
 {/snippet}
 
-{#snippet lexiconTile()}
+{#snippet lexiconTile(fill: boolean)}
   {#if game.viewing}
     {@const v = game.viewing}
     {@const anchor = game.viewedStage?.anchorIndex != null ? game.st.branches[v.branchId]?.anchors[game.viewedStage.anchorIndex] : null}
-    <Panel noPadding title={game.viewedStage?.text ?? ""}>
+    <Panel noPadding grow={fill} title={game.viewedStage?.text ?? ""}>
       {#snippet titlePrefix()}
         <span class="w-2.75 h-2.75 rounded-sm shrink-0" style="background:{branchColor(v.branchId)}"></span>
       {/snippet}
@@ -107,10 +107,10 @@
         <button class="ml-auto text-accent hover:underline" onclick={() => game.selectBranch(v.branchId)}>← back to {game.displayNames[v.branchId] ?? game.st.branches[v.branchId]?.name}</button>
       {/snippet}
       <WordTable lex={game.viewedLex ?? []} previewLex={null} curHomo={game.viewedHomo ?? new Set()}
-        prevHomo={null} severeConcepts={new Set()} pressureLabel={{}} />
+        prevHomo={null} severeConcepts={new Set()} pressureLabel={{}} {fill} />
     </Panel>
   {:else}
-    <Panel noPadding title={game.selEra[game.selEra.length - 1]?.text ?? game.sel.name}
+    <Panel noPadding grow={fill} title={game.selEra[game.selEra.length - 1]?.text ?? game.sel.name}
       titleHint={game.selEra.map((s) => s.text).join(" → ")}>
       {#snippet titlePrefix()}
         <span class="w-2.75 h-2.75 rounded-sm shrink-0" style="background:{branchColor(game.sel.id)}"></span>
@@ -120,9 +120,23 @@
         <span>{game.sel.territory.length} region{game.sel.territory.length !== 1 ? "s" : ""} · {game.st.touched[game.st.selectedId] ? "held" : "will drift"}</span>
       {/snippet}
       <WordTable lex={game.sel.lex} previewLex={game.previewLex} curHomo={game.curHomo} prevHomo={game.prevHomo}
-        severeConcepts={game.severeConcepts} pressureLabel={game.pressureLabel} />
+        severeConcepts={game.severeConcepts} pressureLabel={game.pressureLabel} {fill} />
     </Panel>
   {/if}
+{/snippet}
+
+{#snippet inventoryTile()}
+  <Panel title="{game.displayNames[game.sel.id] ?? game.sel.name} · inventory">
+    {#snippet titlePrefix()}
+      <span class="w-2.75 h-2.75 rounded-sm shrink-0" style="background:{branchColor(game.sel.id)}"></span>
+    {/snippet}
+    {#snippet aside()}<span>the selected branch's live phoneme set, not the genesis record</span>{/snippet}
+    <div class="font-mono text-[13px]" style="line-height:1.7">
+      <div><span class="text-text-faint">syl </span>{game.st.world.tmpl.label}</div>
+      <div><span class="text-text-faint">V &nbsp;&nbsp;</span>{game.liveInventory.vowels.map(graph).join(" ")}</div>
+      <div><span class="text-text-faint">C &nbsp;&nbsp;</span>{game.liveInventory.consonants.map(graph).join(" ")}</div>
+    </div>
+  </Panel>
 {/snippet}
 
 {#snippet changesTile()}
@@ -165,8 +179,8 @@
   {/if}
 {/snippet}
 
-{#snippet rail()}
-  <div>
+{#snippet languagesBlock()}
+  <div class="shrink-0">
     <div class="text-[11px] tracking-[0.1em] uppercase text-text-faint mb-2.5">Languages</div>
     <div class="flex flex-col gap-1">
       {#each game.leaves.slice().sort((a, b) => a.id - b.id) as b (b.id)}
@@ -184,19 +198,11 @@
     </div>
   </div>
 
-  {@render warnings()}
+{/snippet}
 
-  <div class="border-t border-border pt-4">
-    <div class="text-[11px] tracking-[0.1em] uppercase text-text-faint mb-2">{game.displayNames[game.sel.id] ?? game.sel.name} · inventory</div>
-    <div class="font-mono text-[13px]" style="line-height:1.7">
-      <div><span class="text-text-faint">syl </span>{game.st.world.tmpl.label}</div>
-      <div><span class="text-text-faint">V &nbsp;&nbsp;</span>{game.liveInventory.vowels.map(graph).join(" ")}</div>
-      <div><span class="text-text-faint">C &nbsp;&nbsp;</span>{game.liveInventory.consonants.map(graph).join(" ")}</div>
-    </div>
-  </div>
-
+{#snippet chronologyBlock()}
   {#if game.sel.history.length}
-    <div class="border-t border-border pt-4 flex flex-col min-h-0">
+    <div class="shrink-0 border-t border-border pt-4 flex flex-col min-h-0">
       <HistoryList history={game.sel.history} splitIndex={game.sel.splitIndex} />
     </div>
   {/if}
@@ -243,12 +249,17 @@
         {@render territoryTile()}
         {@render intelTile()}
       {:else if mobileTab === "lexicon"}
-        {@render lexiconTile()}
+        {@render lexiconTile(false)}
+        {@render inventoryTile()}
         <Panel title="Phrases">{@render phrasesBody()}</Panel>
       {:else if mobileTab === "changes"}
         {@render changesTile()}
       {:else}
-        <div class="bg-surface-sunken border border-border rounded-lg p-4 flex flex-col gap-4.5">{@render rail()}</div>
+        <div class="bg-surface-sunken border border-border rounded-lg p-4 flex flex-col gap-4.5">
+          {@render languagesBlock()}
+          {@render warnings()}
+          {@render chronologyBlock()}
+        </div>
       {/if}
     </main>
     <MobileTabBar bind:tab={mobileTab} warn={hasWarn} />
@@ -260,16 +271,21 @@
       onload={() => game.loadWorld(game.seed)} onnew={newWorld}
       onend={() => game.endTurn()} ontogglecfg={() => (game.showCfg = !game.showCfg)} />
     {@render contextBar()}
-    <div class="flex items-stretch" style="min-height:calc(100vh - 118px)">
+    <div class="flex items-start" style="min-height:calc(100vh - 118px)">
       <div class="flex-1 min-w-0 p-5 grid gap-4 content-start" style="grid-template-columns:repeat(auto-fit,minmax(400px,1fr))">
         {@render treeTile()}
         {@render territoryTile()}
         {@render secondaryTile()}
-        {@render lexiconTile()}
+        {@render inventoryTile()}
         {@render changesTile()}
       </div>
-      <aside class="w-[308px] shrink-0 border-l border-border bg-surface-sunken p-5 flex flex-col gap-4.5 overflow-y-auto">
-        {@render rail()}
+      <!-- sticky, viewport-tall, scrolls on its own; the lexicon (the tall element) lives
+           here and takes whatever height languages/warnings/chronology leave over -->
+      <aside class="w-[308px] shrink-0 sticky top-0 h-screen border-l border-border bg-surface-sunken p-5 flex flex-col gap-4.5 overflow-y-auto">
+        {@render languagesBlock()}
+        {@render warnings()}
+        {@render lexiconTile(true)}
+        {@render chronologyBlock()}
       </aside>
     </div>
   </div>
