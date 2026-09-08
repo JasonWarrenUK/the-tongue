@@ -28,10 +28,17 @@
     return Math.hypot(a.x - b.x, a.y - b.y);
   };
 
+  // Capture is deferred until a gesture is confirmed (a 2nd pointer, or movement past
+  // TAP_SLOP) rather than grabbed on first contact — capturing on every pointerdown
+  // retargets the compatibility click to `frame` itself, so a plain tap never reaches
+  // the SVG region underneath and the header comment above goes false.
+  const grab = () => {
+    for (const id of pointers.keys()) if (!frame.hasPointerCapture(id)) try { frame.setPointerCapture(id); } catch {}
+  };
+
   function down(e: PointerEvent) {
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    frame.setPointerCapture(e.pointerId);
-    if (pointers.size === 2) { lastDist = dist(); lastMid = mid(); }
+    if (pointers.size === 2) { grab(); lastDist = dist(); lastMid = mid(); }
     if (pointers.size === 1) { moved = 0; dragged = false; }
   }
   function move(e: PointerEvent) {
@@ -44,7 +51,7 @@
     } else if (pointers.size === 1) {
       const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
       moved += Math.abs(dx) + Math.abs(dy);
-      if (moved > TAP_SLOP) { dragged = true; if (scale > 1) { tx += dx; ty += dy; clamp(); } }
+      if (moved > TAP_SLOP) { dragged = true; grab(); if (scale > 1) { tx += dx; ty += dy; clamp(); } }
     }
   }
   function up(e: PointerEvent) {
@@ -61,7 +68,7 @@
 
 <div class="relative overflow-hidden touch-none select-none" bind:this={frame} role="presentation"
   onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={up}
-  onwheel={wheel} onclickcapture={swallowClick} ondblclick={reset}>
+  onlostpointercapture={up} onwheel={wheel} onclickcapture={swallowClick} ondblclick={reset}>
   <div style="transform:translate({tx}px,{ty}px) scale({scale});transform-origin:center;will-change:transform">
     {@render children()}
   </div>
