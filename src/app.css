@@ -1,37 +1,145 @@
 @import "tailwindcss";
-@import "reasonable-colors";
 
-/* Semantic aliases — the only place RC vars are referenced directly.
-   Dark warm UI: grey surfaces, amber accent, rose warn, emerald positive.
-   amber-2 (#ffe0b2) used for accent: dark theme needs a *light* gold against
-   dark surfaces — amber-3 (#b98300) is a dark mustard, unsuitable here. */
+/* self-hosted via @fontsource — see design_handoff README "Fonts are the only new
+   dependency... prefer self-hosting... the app is otherwise offline-capable". */
+@import "@fontsource/source-serif-4/400.css";
+@import "@fontsource/source-serif-4/600.css";
+@import "@fontsource/source-sans-3/400.css";
+@import "@fontsource/source-sans-3/500.css";
+@import "@fontsource/source-sans-3/600.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+
+/* Instrument redesign — light warm parchment ground, dark command bar, teal-green
+   accent. This palette no longer maps onto reasonable-colors (a deliberate deviation
+   from the global default, on the design handoff's own authority — see
+   design_handoff_the_tongue_ui/README.md "Design Tokens"), so hexes are defined
+   directly rather than aliased through RC. */
 :root {
-  --color-surface:    var(--color-gray-6);   /* panels                */
-  --color-surface-2:  var(--color-gray-5);   /* raised / hover states */
-  --color-bg:         var(--color-gray-6);   /* app background        */
-  --color-border:     var(--color-gray-5);
-  --color-muted:      var(--color-gray-3);   /* secondary text        */
-  --color-fg:         var(--color-gray-1);   /* primary text          */
-  --color-accent:     var(--color-amber-2);  /* light gold on dark    */
-  --color-on-accent:  var(--color-gray-6);   /* text on accent bg     */
-  --color-warn:       var(--color-rose-3);       /* collisions / fracture  */
-  --color-positive:   var(--color-emerald-2);
-  --color-barrier:    var(--color-cinnamon-4);   /* impassable terrain edges */
+  --color-bg:                 #faf6ee;
+  --color-surface:             #fffdf8;
+  --color-surface-sunken:      #f7f2e8;
+  --color-surface-raised:      #f2ece0;
+  --color-border:              #e3dccd;
+  --color-border-strong:       #d8d0bf;
+  --color-border-subtle:       #efe9dd;
+  --color-row:                 #f4efe5;
+  --color-row-alt:              #fdfaf4;
+  --color-text:                #211e19;
+  --color-text-muted:          #6b6455;
+  /* #6f6858: darkened off the handoff's #928a78 to clear AA 4.5:1 body text at the
+     10-13px sizes this token is used at (worst case 4.70:1 on --color-surface-raised);
+     no value lighter than this clears 4.5:1 on this parchment ground, which is why
+     text-fainter (formerly a third, lighter tier) now aliases straight to it. */
+  --color-text-faint:          #6f6858;
+  --color-text-fainter:        #6f6858;
+  --color-accent:              #2f6f5e;
+  --color-accent-hover:        #25594b;
+  --color-accent-bg:            #eaf2ee;
+  --color-accent-bg-strong:    #f1f7f4;
+  --color-accent-border:       #cadad3;
+  --color-accent-border-2:     #d6e2dc;
+  --color-accent-rail:         #bcd2c9;
+  --color-warn:                #a63d2b;
+  --color-warn-bg:              #f8ebe7;
+  --color-warn-bg-2:            #fdf6f4;
+  --color-warn-border:         #eccfc8;
+  --color-warn-text-2:         #a06a5e;
+  --color-caution:             #8a6a1f;
+  --color-barrier:             #a1783d;
+  /* barrier itself passes AA 1.4.11 (3:1) for the graphical uses — edges, held-dots —
+     but fails 1.4.3 (4.5:1) as the map legend's text label; this text-only variant
+     keeps those graphical uses at their current colour. */
+  --color-barrier-text:        #8f6a38;
+  --color-rule:                #cfc6b3;
+  --color-region-empty:        #eae3d5;
+  --color-input-border:        #ddd5c6;
+
+  /* dark command bar — the one dark surface, chrome not content */
+  --color-bar:                 #211e19;
+  --color-bar-raised:          #2c2822;
+  --color-bar-border:          #3f3930;
+  --color-bar-border-2:        #4a4339;
+  --color-bar-divider:         #3a352c;
+  --color-bar-track:           #332e26;
+  --color-bar-text:            #f4efe4;
+  --color-bar-muted:           #a49b87;
+  --color-bar-accent:          #3f8d78;
+  --color-bar-accent-hover:    #4fa38c;
+  --color-bar-accent-text:     #0f1a16;
+  --color-bar-accent-bright:   #7fd2b8;
+  --color-bar-chip:            #22322c;
 }
 
 /* Map semantic aliases into utility classes (bg-surface, text-accent, …).
    @theme inline resolves the value at build time so Tailwind's JIT can
-   emit correct CSS — RC :root aliases above must be declared first. */
+   emit correct CSS — :root aliases above must be declared first. */
 @theme inline {
-  --color-surface:   var(--color-surface);
-  --color-surface-2: var(--color-surface-2);
-  --color-bg:        var(--color-bg);
-  --color-border:    var(--color-border);
-  --color-muted:     var(--color-muted);
-  --color-fg:        var(--color-fg);
-  --color-accent:    var(--color-accent);
-  --color-on-accent: var(--color-on-accent);
-  --color-warn:      var(--color-warn);
-  --color-positive:  var(--color-positive);
-  --color-barrier:   var(--color-barrier);
+  --color-bg: var(--color-bg);
+  --color-surface: var(--color-surface);
+  --color-surface-sunken: var(--color-surface-sunken);
+  --color-surface-raised: var(--color-surface-raised);
+  --color-border: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
+  --color-border-subtle: var(--color-border-subtle);
+  --color-row: var(--color-row);
+  --color-row-alt: var(--color-row-alt);
+  --color-text: var(--color-text);
+  --color-text-muted: var(--color-text-muted);
+  --color-text-faint: var(--color-text-faint);
+  --color-text-fainter: var(--color-text-fainter);
+  --color-accent: var(--color-accent);
+  --color-accent-hover: var(--color-accent-hover);
+  --color-accent-bg: var(--color-accent-bg);
+  --color-accent-bg-strong: var(--color-accent-bg-strong);
+  --color-accent-border: var(--color-accent-border);
+  --color-accent-border-2: var(--color-accent-border-2);
+  --color-accent-rail: var(--color-accent-rail);
+  --color-warn: var(--color-warn);
+  --color-warn-bg: var(--color-warn-bg);
+  --color-warn-bg-2: var(--color-warn-bg-2);
+  --color-warn-border: var(--color-warn-border);
+  --color-warn-text-2: var(--color-warn-text-2);
+  --color-caution: var(--color-caution);
+  --color-barrier: var(--color-barrier);
+  --color-barrier-text: var(--color-barrier-text);
+  --color-rule: var(--color-rule);
+  --color-region-empty: var(--color-region-empty);
+  --color-input-border: var(--color-input-border);
+
+  --color-bar: var(--color-bar);
+  --color-bar-raised: var(--color-bar-raised);
+  --color-bar-border: var(--color-bar-border);
+  --color-bar-border-2: var(--color-bar-border-2);
+  --color-bar-divider: var(--color-bar-divider);
+  --color-bar-track: var(--color-bar-track);
+  --color-bar-text: var(--color-bar-text);
+  --color-bar-muted: var(--color-bar-muted);
+  --color-bar-accent: var(--color-bar-accent);
+  --color-bar-accent-hover: var(--color-bar-accent-hover);
+  --color-bar-accent-text: var(--color-bar-accent-text);
+  --color-bar-accent-bright: var(--color-bar-accent-bright);
+  --color-bar-chip: var(--color-bar-chip);
+
+  --font-serif: "Source Serif 4", Georgia, serif;
+  --font-sans: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+body { margin: 0; background: var(--color-bg); }
+a { color: var(--color-accent); text-decoration: none; }
+a:hover { color: var(--color-accent-hover); text-decoration: underline; }
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button { opacity: 0.35; }
+
+input, button, [role="tab"], [role="button"] {
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+input:focus-visible, button:focus-visible, [role="tab"]:focus-visible, [role="button"]:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+.bar :is(input, button):focus-visible {
+  outline-color: var(--color-bar-accent-bright);
 }

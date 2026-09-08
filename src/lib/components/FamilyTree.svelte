@@ -12,7 +12,7 @@
       viewing: { branchId: number; stageIndex: number } | null;
       onselect: (id: number, stageIndex: number) => void } = $props();
 
-  const COL = 120, ROW = 62, NW = 104, NH = 36;
+  const COL = 130, ROW = 66, NW = 110, NH = 40;
   // "Middle Ʒakaʒin (1/6)" overflows any node wide enough to tile — the ordinal is
   // secondary info, so it renders on the small sub-line ("middle 1/6") instead.
   const ORDINAL = / \((\d+\/\d+)\)$/;
@@ -38,10 +38,10 @@
   };
 </script>
 
-<div class="overflow-auto" style="max-height:60vh">
+<div class="overflow-auto max-h-[330px] max-md:max-h-none">
   <svg width={W} height={H} style="min-width:100%">
     {#each eraGraph.edges as e (e.from + "->" + e.to)}
-      <path d={edgePath(e)} fill="none" stroke="var(--color-border)" stroke-width="1.5" />
+      <path d={edgePath(e)} fill="none" stroke="var(--color-border-strong)" stroke-width="1.5" />
     {/each}
     {#each eraGraph.nodes as node (node.key)}
       {@const leaf = isLeaf(branches, node.branchId)}
@@ -56,15 +56,15 @@
         onclick={() => onselect(node.branchId, node.stageIndex)}
         onkeydown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); onselect(node.branchId, node.stageIndex); } }}
         style="cursor:{clickable ? 'pointer' : 'default'}">
-        <rect width={NW} height={NH} rx="6" fill={selected ? "var(--color-surface-2)" : "var(--color-surface)"}
-          stroke={selected ? "var(--color-accent)" : leaf ? "var(--color-muted)" : "var(--color-border)"} stroke-width={selected ? 2 : 1.5} />
-        {#if node.isTerminal && leaf}<rect x="6" y={NH - 7} width={NW - 12} height="3" rx="1.5" fill={branchColor(node.branchId)} />{/if}
-        <text x={NW / 2} y="15" text-anchor="middle" fill={selected ? "var(--color-accent)" : leaf ? "var(--color-fg)" : "var(--color-muted)"} font-size="12" font-weight="600">{titleOf(node.stage.text)}</text>
-        <text x={NW / 2} y="27" text-anchor="middle" fill="var(--color-muted)" font-size="9">{node.isTerminal ? (leaf ? `${changeCount(node.branchId)} chg` : "ancestor") : subOf(node.stage.text, node.stage.bucket)}</text>
+        <rect width={NW} height={NH} rx="7" fill={selected ? "var(--color-accent-bg-strong)" : "var(--color-surface)"}
+          stroke={selected ? "var(--color-accent)" : leaf ? "#c9c0ac" : "var(--color-border)"} stroke-width={selected ? 2 : 1.4} />
+        {#if node.isTerminal && leaf}<rect x="7" y={NH - 8} width={NW - 14} height="3" rx="1.5" fill={branchColor(node.branchId)} />{/if}
+        <text x={NW / 2} y="17" text-anchor="middle" fill={selected ? "var(--color-accent)" : leaf ? "var(--color-text)" : "var(--color-text-faint)"} font-family="var(--font-sans)" font-size="11" font-weight="600">{titleOf(node.stage.text)}</text>
+        <text x={NW / 2} y="28" text-anchor="middle" fill="var(--color-text-faint)" font-family="var(--font-mono)" font-size="9">{node.isTerminal ? (leaf ? `${changeCount(node.branchId)} chg` : "ancestor") : subOf(node.stage.text, node.stage.bucket)}</text>
         <!-- decorations (touched, focal self) are properties of the branch's CURRENT
              turn state, not of a frozen past era — render only on the terminal node. -->
-        {#if node.isTerminal && leaf && touched[node.branchId]}<circle cx={NW - 8} cy="8" r="3.5" fill="var(--color-accent)" />{/if}
-        {#if node.isTerminal && node.branchId === focusId}<circle cx="8" cy="8" r="3.5" fill="var(--color-positive)" />{/if}
+        {#if node.isTerminal && leaf && touched[node.branchId]}<circle cx={NW - 9} cy="9" r="3.5" fill="var(--color-barrier)" />{/if}
+        {#if node.isTerminal && node.branchId === focusId}<circle cx="9" cy="9" r="3.5" fill="var(--color-accent)" />{/if}
       </g>
     {/each}
   </svg>
