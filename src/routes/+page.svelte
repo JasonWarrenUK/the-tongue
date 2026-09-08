@@ -172,8 +172,7 @@
         {#if !game.isFocal}<span class="text-warn" title="cost multiplier for acting outside the self">reach ×{game.reach.toFixed(1)}</span>{/if}
       {/snippet}
       <Changes candidates={game.candidates} preview={game.preview} stepCost={game.stepCost}
-        overheadDue={game.overheadDue} pool={game.st.pool} reach={game.reach} isFocal={game.isFocal}
-        onpreview={(id) => (game.preview = id)} onapply={(id) => game.apply(id)} />
+        pool={game.st.pool} onpreview={(id) => (game.preview = id)} onapply={(id) => game.apply(id)} />
     </Panel>
   {/if}
 {/snippet}

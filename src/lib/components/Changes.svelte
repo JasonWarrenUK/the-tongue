@@ -1,8 +1,7 @@
 <script lang="ts">
   import type { Candidate } from "$lib/engine/types";
-  let { candidates, preview, stepCost, overheadDue, pool, reach, isFocal, onpreview, onapply }:
-    { candidates: Candidate[]; preview: string | null; stepCost: number; overheadDue: number; pool: number;
-      reach: number; isFocal: boolean;
+  let { candidates, preview, stepCost, pool, onpreview, onapply }:
+    { candidates: Candidate[]; preview: string | null; stepCost: number; pool: number;
       onpreview: (id: string | null) => void; onapply: (id: string) => void } = $props();
 </script>
 
