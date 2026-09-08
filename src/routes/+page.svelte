@@ -289,7 +289,7 @@
       onload={() => game.loadWorld(game.seed)} onnew={newWorld}
       onend={() => game.endTurn()} ontogglecfg={() => (game.showCfg = !game.showCfg)} />
     {@render contextBar()}
-    <div class="flex items-start" style="min-height:calc(100vh - 118px)">
+    <div class="flex items-start">
       <div class="flex-1 min-w-0 p-5 grid gap-4 content-start" style="grid-template-columns:repeat(auto-fit,minmax(400px,1fr))">
         {@render treeTile()}
         {@render territoryTile()}
