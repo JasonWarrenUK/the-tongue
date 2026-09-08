@@ -27,8 +27,12 @@
   --color-row-alt:              #fdfaf4;
   --color-text:                #211e19;
   --color-text-muted:          #6b6455;
-  --color-text-faint:          #928a78;
-  --color-text-fainter:        #b3aa96;
+  /* #6f6858: darkened off the handoff's #928a78 to clear AA 4.5:1 body text at the
+     10-13px sizes this token is used at (worst case 4.70:1 on --color-surface-raised);
+     no value lighter than this clears 4.5:1 on this parchment ground, which is why
+     text-fainter (formerly a third, lighter tier) now aliases straight to it. */
+  --color-text-faint:          #6f6858;
+  --color-text-fainter:        #6f6858;
   --color-accent:              #2f6f5e;
   --color-accent-hover:        #25594b;
   --color-accent-bg:            #eaf2ee;
@@ -43,6 +47,10 @@
   --color-warn-text-2:         #a06a5e;
   --color-caution:             #8a6a1f;
   --color-barrier:             #a1783d;
+  /* barrier itself passes AA 1.4.11 (3:1) for the graphical uses — edges, held-dots —
+     but fails 1.4.3 (4.5:1) as the map legend's text label; this text-only variant
+     keeps those graphical uses at their current colour. */
+  --color-barrier-text:        #8f6a38;
   --color-rule:                #cfc6b3;
   --color-region-empty:        #eae3d5;
   --color-input-border:        #ddd5c6;
@@ -94,6 +102,7 @@
   --color-warn-text-2: var(--color-warn-text-2);
   --color-caution: var(--color-caution);
   --color-barrier: var(--color-barrier);
+  --color-barrier-text: var(--color-barrier-text);
   --color-rule: var(--color-rule);
   --color-region-empty: var(--color-region-empty);
   --color-input-border: var(--color-input-border);

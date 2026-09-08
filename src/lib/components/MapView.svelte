@@ -55,7 +55,7 @@
   {#if zoomable}<ZoomPan>{@render map()}</ZoomPan>{:else}{@render map()}{/if}
   <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2.5 text-[11px] text-text-muted">
     <span class="inline-flex items-center gap-1.5"><span class="w-4 border-t border-rule"></span>passable</span>
-    <span class="inline-flex items-center gap-1.5 text-barrier"><span class="w-4 border-t border-dashed border-barrier"></span>barrier</span>
+    <span class="inline-flex items-center gap-1.5 text-barrier-text"><span class="w-4 border-t border-dashed border-barrier"></span>barrier</span>
     <span class="inline-flex items-center gap-1.5"><span class="w-2.75 h-2.75 rounded-full border border-dashed border-accent"></span>expandable · <span class="font-mono">+cost</span></span>
     {#if zoomable}<span class="text-text-faint">pinch to zoom · double-tap to reset</span>{/if}
   </div>
