@@ -193,6 +193,11 @@ class Game {
   // viewed; collision PRESSURE is a live clock with no historical counterpart (see
   // WordTable wiring in +page.svelte) so there is no equivalent viewedSevere/viewedPressure.
   viewedHomo = $derived(this.viewedLex ? homophoneForms(this.viewedLex) : null);
+  // the inventory tile's era-view counterpart: unlike Phrases (no paradigm was ever
+  // frozen) or Changes (the action is impossible on a closed era), an anchor's lex IS
+  // a complete record, so the fix here is showing the era's OWN inventory rather than
+  // hiding the tile — see inventoryOf's "pure function of the lexicon" invariant.
+  viewedInventory = $derived(this.viewedLex ? inventoryOf(this.viewedLex) : null);
 
   loadWorld(s: number) { this.st = freshState(s); this.seed = s; this.preview = null; this.pendingRepairs = []; this.viewing = null; }
 

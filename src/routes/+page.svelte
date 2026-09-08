@@ -126,17 +126,35 @@
 {/snippet}
 
 {#snippet inventoryTile()}
-  <Panel title="{game.displayNames[game.sel.id] ?? game.sel.name} · inventory">
-    {#snippet titlePrefix()}
-      <span class="w-2.75 h-2.75 rounded-sm shrink-0" style="background:{branchColor(game.sel.id)}"></span>
-    {/snippet}
-    {#snippet aside()}<span>the selected branch's live phoneme set, not the genesis record</span>{/snippet}
-    <div class="font-mono text-[13px]" style="line-height:1.7">
-      <div><span class="text-text-faint">syl </span>{game.st.world.tmpl.label}</div>
-      <div><span class="text-text-faint">V &nbsp;&nbsp;</span>{game.liveInventory.vowels.map(graph).join(" ")}</div>
-      <div><span class="text-text-faint">C &nbsp;&nbsp;</span>{game.liveInventory.consonants.map(graph).join(" ")}</div>
-    </div>
-  </Panel>
+  <!-- inventoryOf is a pure function of a lexicon, so under game.viewing this shows the
+       ERA'S OWN inventory (game.viewedInventory) rather than hiding the tile like Phrases
+       does — an anchor's frozen lex is a complete record, unlike a missing paradigm. -->
+  {#if game.viewing && game.viewedInventory}
+    {@const v = game.viewing}
+    <Panel title="{game.viewedStage?.text ?? game.st.branches[v.branchId]?.name} · inventory">
+      {#snippet titlePrefix()}
+        <span class="w-2.75 h-2.75 rounded-sm shrink-0" style="background:{branchColor(v.branchId)}"></span>
+      {/snippet}
+      {#snippet aside()}<span>the phonemes this era actually spoke, from its frozen lexicon</span>{/snippet}
+      <div class="font-mono text-[13px]" style="line-height:1.7">
+        <div><span class="text-text-faint">syl </span>{game.st.world.tmpl.label}</div>
+        <div><span class="text-text-faint">V &nbsp;&nbsp;</span>{game.viewedInventory.vowels.map(graph).join(" ")}</div>
+        <div><span class="text-text-faint">C &nbsp;&nbsp;</span>{game.viewedInventory.consonants.map(graph).join(" ")}</div>
+      </div>
+    </Panel>
+  {:else}
+    <Panel title="{game.displayNames[game.sel.id] ?? game.sel.name} · inventory">
+      {#snippet titlePrefix()}
+        <span class="w-2.75 h-2.75 rounded-sm shrink-0" style="background:{branchColor(game.sel.id)}"></span>
+      {/snippet}
+      {#snippet aside()}<span>the selected branch's live phoneme set, not the genesis record</span>{/snippet}
+      <div class="font-mono text-[13px]" style="line-height:1.7">
+        <div><span class="text-text-faint">syl </span>{game.st.world.tmpl.label}</div>
+        <div><span class="text-text-faint">V &nbsp;&nbsp;</span>{game.liveInventory.vowels.map(graph).join(" ")}</div>
+        <div><span class="text-text-faint">C &nbsp;&nbsp;</span>{game.liveInventory.consonants.map(graph).join(" ")}</div>
+      </div>
+    </Panel>
+  {/if}
 {/snippet}
 
 {#snippet changesTile()}
