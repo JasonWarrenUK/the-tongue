@@ -1,6 +1,7 @@
 # The Tongue
 
-A language-evolution simulator. Generate a proto-language from a seed, steer its sound changes, expand its territory, and watch it fracture into a family of mutually-(un)intelligible daughters as geography divides it.
+A language-evolution simulation game.
+Generate a proto-language from a seed, steer its sound changes, expand its territory, and watch it fracture into a family of mutually-(un)intelligible daughters as geography divides it.
 
 **Live:** https://the-tongue.vercel.app
 
