@@ -277,7 +277,7 @@ describe("distance conditioning / umlaut (1ENG.17 slice 2)", () => {
 // 1ENG.17 slice 3 (1eng-16 spike §7) — metathesis, riding the third Seg variant
 // (consumes:true) on top of 1ENG.12's Seg[] shape.
 describe("metathesis (1ENG.17 slice 3)", () => {
-  test("brid -> bird (stop-liquid pair swaps)", () => {
+  test("brid -> rbid (stop-liquid pair swaps left, not to the attested bird form)", () => {
     expect(applyRuleToWord(["b", "r", "i", "d"], RULE_BY_ID["metath"])).toEqual({ ids: ["r", "b", "i", "d"], changed: true });
   });
   // Regression pin: /l/ and /r/ are featurally identical in this engine's consonant

@@ -81,15 +81,28 @@ const bound = (p: Phone | null) => p === null;
 // w = cross-linguistic naturalness weight, biases autonomous drift
 // category = terrain contact/isolation bias axis (2GEO.2) — see biasedMult below
 export const RULES: Rule[] = [
-  { id:"voice", name:"Intervocalic voicing", note:"voiceless stop → voiced / V _ V", w:3, category:"lenition", match:(p)=>isC(p)&&p.manner==="stop"&&!p.voice, pre:isV, post:isV, xform:()=>({voice:true}) },
-  { id:"spirant", name:"Intervocalic spirantisation", note:"voiceless stop → fricative / V _ V", w:2.5, category:"lenition", match:(p)=>isC(p)&&p.manner==="stop"&&!p.voice, pre:isV, post:isV, xform:()=>({manner:"fric"}) },
-  { id:"devoice", name:"Final devoicing", note:"voiced obstruent → voiceless / _ #", w:3, category:"deletion", match:(p)=>isC(p)&&!!p.obstruent&&!!p.voice, pre:null, post:bound, xform:()=>({voice:false}) },
-  { id:"apoc", name:"Apocope (final vowel loss)", note:"vowel → ∅ / _ #", w:3, category:"deletion", match:isV, pre:null, post:bound, xform:()=>({delete:true}) },
-  { id:"finalC", name:"Final consonant loss", note:"consonant → ∅ / _ #", w:2, category:"deletion", match:isC, pre:null, post:bound, xform:()=>({delete:true}) },
-  { id:"palat", name:"Palatalisation", note:"velar stop → palatal fricative / _ front V", w:2.5, category:"assimilation", match:(p)=>isC(p)&&p.place==="vel"&&p.manner==="stop", pre:null, post:frontV, xform:()=>({place:"pal",manner:"fric"}) },
-  { id:"debucc", name:"Debuccalisation", note:"s → h / _ #", w:1.5, category:"lenition", match:(p)=>isC(p)&&p.place==="alv"&&p.manner==="fric"&&!p.voice, pre:null, post:bound, xform:()=>({place:"glo"}) },
-  { id:"raise", name:"Final vowel raising", note:"mid vowel → high / _ #", w:2.5, category:"vowelShift", match:(p)=>isV(p)&&p.height==="mid", pre:null, post:bound, xform:()=>({height:"high"}) },
-  { id:"nasassim", name:"Nasal place assimilation", note:"nasal → [place of stop] / _ stop", w:3, category:"assimilation", match:(p)=>isC(p)&&p.manner==="nasal", pre:null, post:stopC, xform:(_p,ctx)=>({place:ctx.post!.place}) },
+  // tweaks-1 casualName/example: plain-English display only, additive to name/note
+  // (never substituted into history/log text — see apply() in game.svelte.ts). Each
+  // example is an English spelling of a verified applyRuleToWord() result; the raw
+  // phone output is given in a trailing comment so the provenance survives the spelling.
+  { id:"voice", name:"Intervocalic voicing", note:"voiceless stop → voiced / V _ V", w:3, category:"lenition", match:(p)=>isC(p)&&p.manner==="stop"&&!p.voice, pre:isV, post:isV, xform:()=>({voice:true}),
+    casualName:"Softened Between Vowels", example:"platter → pladder" }, // verified: plater → plader
+  { id:"spirant", name:"Intervocalic spirantisation", note:"voiceless stop → fricative / V _ V", w:2.5, category:"lenition", match:(p)=>isC(p)&&p.manner==="stop"&&!p.voice, pre:isV, post:isV, xform:()=>({manner:"fric"}),
+    casualName:"Worn to a Hiss", example:"water → wasser" }, // verified: water → waser
+  { id:"devoice", name:"Final devoicing", note:"voiced obstruent → voiceless / _ #", w:3, category:"deletion", match:(p)=>isC(p)&&!!p.obstruent&&!!p.voice, pre:null, post:bound, xform:()=>({voice:false}),
+    casualName:"Hardened Word-Finally", example:"bed → bet" }, // verified: bed → bet
+  { id:"apoc", name:"Apocope (final vowel loss)", note:"vowel → ∅ / _ #", w:3, category:"deletion", match:isV, pre:null, post:bound, xform:()=>({delete:true}),
+    casualName:"Final Vowel Loss", example:"polo → pol" }, // verified: polo → pol
+  { id:"finalC", name:"Final consonant loss", note:"consonant → ∅ / _ #", w:2, category:"deletion", match:isC, pre:null, post:bound, xform:()=>({delete:true}),
+    casualName:"Final Consonant Loss", example:"bat → ba" }, // verified: bat → ba
+  { id:"palat", name:"Palatalisation", note:"velar stop → palatal fricative / _ front V", w:2.5, category:"assimilation", match:(p)=>isC(p)&&p.place==="vel"&&p.manner==="stop", pre:null, post:frontV, xform:()=>({place:"pal",manner:"fric"}),
+    casualName:"Softened Before a Front Vowel", example:"keep → sheep" }, // verified: kip → ʃip
+  { id:"debucc", name:"Debuccalisation", note:"s → h / _ #", w:1.5, category:"lenition", match:(p)=>isC(p)&&p.place==="alv"&&p.manner==="fric"&&!p.voice, pre:null, post:bound, xform:()=>({place:"glo"}),
+    casualName:"S Fades to H", example:"bus → buh" }, // verified: bus → buh
+  { id:"raise", name:"Final vowel raising", note:"mid vowel → high / _ #", w:2.5, category:"vowelShift", match:(p)=>isV(p)&&p.height==="mid", pre:null, post:bound, xform:()=>({height:"high"}),
+    casualName:"Final Vowel Raised", example:"solo → soloo" }, // verified: solo → solu
+  { id:"nasassim", name:"Nasal place assimilation", note:"nasal → [place of stop] / _ stop", w:3, category:"assimilation", match:(p)=>isC(p)&&p.manner==="nasal", pre:null, post:stopC, xform:(_p,ctx)=>({place:ctx.post!.place}),
+    casualName:"Nasal Matches the Next Sound", example:"input → imput" }, // verified: input → imput
   // 1ENG.17 (1eng-16 spike §7 slice 2) — Germanic umlaut / i-mutation (fōt/fēt), the
   // slice-2 mechanism's reason to exist: long-distance assimilation, expressible for
   // the first time via `distance`. w=2, category "assimilation" (it IS assimilation,
@@ -105,9 +118,11 @@ export const RULES: Rule[] = [
     w:2, category:"assimilation",
     match:(p)=>isV(p)&&p.back==="back"&&!p.diph, pre:null, post:null,
     distance:{ dir:"post", test:(p)=>isV(p)&&p.back==="front"&&!p.diph },
-    xform:(_p,ctx)=>({ back:ctx.far!.back, round:ctx.far!.round }) },
-  { id:"cluster", name:"Cluster reduction", note:"consonant → ∅ / _ C", w:2, category:"deletion", match:isC, pre:null, post:isC, xform:()=>({delete:true}) },
-  // 1ENG.17 (1eng-16 spike §7 slice 3) — metathesis (brid→bird, parabola→palabra):
+    xform:(_p,ctx)=>({ back:ctx.far!.back, round:ctx.far!.round }),
+    casualName:"Pulled Forward by a Later Vowel", example:"foot → feet" }, // verified: foti → feti
+  { id:"cluster", name:"Cluster reduction", note:"consonant → ∅ / _ C", w:2, category:"deletion", match:isC, pre:null, post:isC, xform:()=>({delete:true}),
+    casualName:"Cluster Simplified", example:"asked → aked" }, // verified: asked → aked
+  // 1ENG.17 (1eng-16 spike §7 slice 3) — metathesis (petrol→pertol, parabola→palabra):
   // real, attested, genuinely sporadic. w=1, the floor of RULES alongside fortify/
   // aphaer, precisely because it is not a regular change. Restricted to stop-liquid
   // pairs (the attested English/Romance cases), not any C-C pair — narrower than real
@@ -118,13 +133,19 @@ export const RULES: Rule[] = [
   //   xform rides the third Seg variant: emit the post neighbour first (consumes:true,
   // so applyRuleToWord's loop skips it on its own turn rather than double-emitting),
   // then self unchanged. Net effect: [C, liquid] → [liquid, C].
-  { id:"metath", name:"Metathesis", note:"C r → r C / _  (brid → bird)",
+  { id:"metath", name:"Metathesis", note:"C r → r C / _  (petrol → pertol)",
     w:1, category:"metathesis",
     match:(p)=>isC(p)&&p.manner!=="liquid", pre:null, post:liquidC,
     xform:()=>[
       { from:"post", patch:{}, consumes:true },
       { from:"self", patch:{} },
-    ] },
+    ],
+    // tweaks-2: the rule moves the liquid LEFT across the stop, so a word-initial
+    // cluster gives a clumsy result (tri → rti) — the ORIGINAL note's "brid → bird"
+    // gloss was backwards for what this xform actually does (verified: brid → rbid,
+    // not bird) and unpronounceable as a card example besides. Corrected to a common,
+    // easily pronounced word with a MEDIAL cluster: petrol → pertol (verified directly).
+    casualName:"Sounds Swap Places", example:"petrol → pertol" }, // verified: petrol → pertol
   // 1ENG.12 renewal + the erosion rules that consume it — see 1eng-11 spike §3.2/§3.3.
   // epenth and break rebuild structure (clusters/hiatus broken, mid V -> diphthong);
   // smooth and shorten are erosion's grip on that new structure, closing the cycle.
@@ -140,13 +161,15 @@ export const RULES: Rule[] = [
     xform:()=>[
       { from:"self", patch:{} },
       { from:"abs", type:"V", patch:{ height:"high", back:"front", round:false } },
-    ] },
+    ],
+    casualName:"Cluster Broken Up", example:"film → filim" }, // verified: film → filim
   { id:"paragoge", name:"Paragoge", note:"∅ → V / C _ #  (unconditioned word-final vowel epenthesis)", w:1.5, category:"epenthesis",
     match:isC, pre:null, post:bound,
     xform:()=>[
       { from:"self", patch:{} },
       { from:"abs", type:"V", patch:{ height:"high", back:"front", round:false } },
-    ] },
+    ],
+    casualName:"Extra Vowel Added at the End", example:"cat → cati" }, // verified: kat → kati
   // Unconditioned breaking (real: cf. the Great Vowel Shift) — any final vowel may
   // diphthongise, not only a pre-existing mid vowel after hiatus. This is the second
   // bootstrap: it fires on the [C]V floor itself, where post:bound is the only
@@ -163,9 +186,11 @@ export const RULES: Rule[] = [
     xform:(p)=>{
       const seg = p.back === "back" ? { nucleus:"u", offglide:"o" } : p.back === "central" ? { nucleus:"a", offglide:"i" } : { nucleus:"i", offglide:"e" };
       return [{ from:"abs", type:"V", patch:{ diph:true, ...seg } }];
-    } },
+    },
+    casualName:"Final Vowel Splits in Two", example:"sea → siea" }, // verified: se → sie
   { id:"smooth", name:"Monophthongisation", note:"diphthong → mid V  (ie→e, uo→o)", w:2.5, category:"lenition",
     match:(p)=>isV(p)&&!!p.diph, pre:null, post:null,
+    casualName:"Two Vowels Merge Into One", example:"beat → bet",
     xform:(p)=>{
       // 1ENG.29: explicit Backness map, not `nucleus==="u"||"o"` reused as a boolean.
       // An a-nucleus diphthong (au, ai) has to land on "front" here so it resolves to
@@ -173,10 +198,11 @@ export const RULES: Rule[] = [
       // monophthongise au/ai to ə instead of the intended /e/.
       const back: Backness = (p.nucleus === "u" || p.nucleus === "o") ? "back" : "front";
       return [{ from:"abs", type:"V", patch:{ height:"mid", back, round: back === "back" } }];
-    } },
+    } }, // verified: biet → bet
   { id:"shorten", name:"Vowel shortening", note:"long V → short / _ #", w:2, category:"deletion",
     match:(p)=>isV(p)&&!!p.long, pre:null, post:bound,
-    xform:()=>({ long:false }) },
+    xform:()=>({ long:false }),
+    casualName:"Long Vowel Shortens", example:"see → si" }, // verified: sī → si
   // 1ENG.13 — compensatory lengthening (shorten's inverse: produces the long vowels
   // shorten consumes). Deferred by the 1eng-11 spike §8 pending long-vowel phones
   // (added by 1ENG.12); split medial/final exactly as epenth/paragoge (§4.2) were,
@@ -185,11 +211,13 @@ export const RULES: Rule[] = [
   { id:"compleng", name:"Compensatory lengthening", note:"C → ∅ / V _ C  (coda absorbed, vowel lengthened)",
     w:2, category:"deletion",
     match:(p)=>isC(p)&&!!p.obstruent, pre:isV, post:isC,
-    xform:()=>({ delete:true }), lengthensPrev:true },
+    xform:()=>({ delete:true }), lengthensPrev:true,
+    casualName:"Lost Consonant Lengthens the Vowel", example:"mask → maask" }, // verified: mask → māk
   { id:"complengFinal", name:"Final compensatory lengthening", note:"C → ∅ / V _ #  (final coda absorbed, vowel lengthened)",
     w:2, category:"deletion",
     match:(p)=>isC(p)&&!!p.obstruent, pre:isV, post:bound,
-    xform:()=>({ delete:true }), lengthensPrev:true },
+    xform:()=>({ delete:true }), lengthensPrev:true,
+    casualName:"Final Consonant Lost, Vowel Lengthens", example:"cat → caat" }, // verified: kat → kā
   // 1ENG.19 (1eng-14 spike §4.3) — the engine's first pre:bound rules. The positional
   // audit found word-initial position wholly inert: eight rules act at word ends,
   // none at the start. Real initial position is the STRONG position (word-initial
@@ -200,11 +228,13 @@ export const RULES: Rule[] = [
   { id:"fortify", name:"Initial fortition", note:"glide → voiced fricative / # _  (j→ʒ, w→v)",
     w:1, category:"fortition",
     match:(p)=>isC(p)&&p.manner==="glide", pre:bound, post:null,
-    xform:()=>({ manner:"fric" }) },
+    xform:()=>({ manner:"fric" }),
+    casualName:"Word-Initial Sound Strengthens", example:"yes → zhes" }, // verified: jes → ʒes
   { id:"aphaer", name:"Apheresis", note:"initial vowel → ∅ / # _ C  (esquire → squire)",
     w:1, category:"deletion",
     match:isV, pre:bound, post:isC,
-    xform:()=>({ delete:true }) },
+    xform:()=>({ delete:true }),
+    casualName:"Initial Vowel Dropped", example:"esquire → squire" }, // verified: eskwajr → skwajr
 
   // 1ENG.31 (1eng-24 spike §6) — unstressed vowel reduction. The first half of the
   // Latin→French engine: unstressed nuclei neutralise toward the engine's neutral
@@ -232,7 +262,8 @@ export const RULES: Rule[] = [
     w:2.5, category:"vowelShift",
     match:isV, pre:null, post:null,
     stressed:(s)=>!s.isStressed && s.role==="nucleus" && s.syllCount>1,
-    xform:()=>[{ from:"abs", type:"V", patch:{ height:"mid", back:"central", round:false } }] },
+    xform:()=>[{ from:"abs", type:"V", patch:{ height:"mid", back:"central", round:false } }],
+    casualName:"Unstressed Vowels Flatten to 'uh'", example:"banana → banuhnuh" }, // verified: banana → banənə (every unstressed vowel at once)
 
   // 1ENG.31 (1eng-24 spike §6) — unstressed syllable loss (syncope). The second half of
   // the Latin→French engine and the change the whole 1ENG.25/27/28/29/30 chain exists to
@@ -260,7 +291,8 @@ export const RULES: Rule[] = [
     w:2, category:"deletion",
     match:isV, pre:null, post:null,
     stressed:(s)=>!s.isStressed && s.role==="nucleus" && s.syllCount>1,
-    xform:()=>({ delete:true }) },
+    xform:()=>({ delete:true }),
+    casualName:"Unstressed Vowels Drop Out", example:"camera → camra" }, // verified: kamera → kamr (every unstressed vowel at once)
 ];
 export const RULE_BY_ID: Record<string, Rule> = Object.fromEntries(RULES.map((r) => [r.id, r]));
 
