@@ -1,13 +1,17 @@
 <script lang="ts">
   import type { HistoryEntry } from "$lib/engine/types";
-  let { history, splitIndex }: { history: HistoryEntry[]; splitIndex: number } = $props();
+  let { history, splitIndex, onhelp }: { history: HistoryEntry[]; splitIndex: number; onhelp?: () => void } = $props();
 </script>
 
 {#if history.length}
   <div>
-    <div class="flex items-baseline justify-between mb-2">
+    <div class="flex items-center justify-between mb-2 gap-3">
       <span class="text-[11px] tracking-[0.1em] uppercase text-text-faint">Chronology</span>
-      <span class="text-[11px] text-text-faint"><span class="text-warn">⤳</span> drift · <span class="text-accent">⇄</span> borrowed</span>
+      <span class="flex items-center gap-3 ml-auto">
+        <span class="text-[11px] text-text-faint"><span class="text-warn">⤳</span> drift · <span class="text-accent">⇄</span> borrowed</span>
+        {#if onhelp}<button onclick={onhelp} aria-label="About Chronology" title="About Chronology"
+          class="shrink-0 w-5.5 h-5.5 flex items-center justify-center rounded-full border border-accent-border bg-accent-bg text-accent text-xs font-bold hover:bg-accent hover:text-[#f7fbf9]">i</button>{/if}
+      </span>
     </div>
     <ol class="flex flex-col overflow-y-auto max-h-[300px] max-md:max-h-none">
       {#each history as h, i}

@@ -1,7 +1,7 @@
 <script lang="ts">
-  let { seed = $bindable(), leafCount, turn, pool, base, willDrift, onload, onnew, onend, ontogglecfg }:
+  let { seed = $bindable(), leafCount, turn, pool, base, willDrift, onload, onnew, onend, ontogglecfg, onhelp }:
     { seed: number; leafCount: number; turn: number; pool: number; base: number; willDrift: number;
-      onload: () => void; onnew: () => void; onend: () => void; ontogglecfg: () => void } = $props();
+      onload: () => void; onnew: () => void; onend: () => void; ontogglecfg: () => void; onhelp: () => void } = $props();
   const pct = $derived(Math.max(0, Math.min(100, (pool / base) * 100)));
 </script>
 
@@ -27,6 +27,7 @@
     <button onclick={onload} class="px-2.5 py-1.5 border border-bar-border-2 rounded-[5px] bg-transparent text-bar-text text-xs">Load</button>
     <button onclick={onnew} class="px-2.5 py-1.5 rounded-[5px] bg-bar-raised border border-bar-border-2 text-bar-text text-xs">New</button>
     <button onclick={ontogglecfg} title="economy settings" class="px-2.5 py-1.5 border border-bar-border-2 rounded-[5px] bg-transparent text-bar-text text-xs">⚙</button>
+    <button onclick={onhelp} title="how to play" aria-label="How to play" class="px-2.5 py-1.5 border border-bar-border-2 rounded-[5px] bg-transparent text-bar-text text-xs">?</button>
     <button onclick={onend} class="ml-auto px-3.5 py-2 rounded-md bg-bar-accent text-bar-accent-text font-semibold text-[13px] whitespace-nowrap">End gen ⟳</button>
   </div>
 </header>

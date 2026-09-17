@@ -10,7 +10,7 @@
 <div class="fixed inset-0 z-20 flex items-center justify-center p-6" style="background:rgba(33,30,25,0.55)">
   <div class="w-full max-w-[436px] bg-surface border border-border-strong rounded-[10px] p-6" style="box-shadow:0 24px 60px rgba(33,30,25,0.28)">
     {#if choice.kind === "fracture"}
-      <h2 class="font-serif text-xl font-semibold m-0">The self has split</h2>
+      <h2 class="font-serif text-xl font-semibold m-0">The Self Has Split</h2>
       <p class="my-2 mb-4.5 text-sm text-text-muted">Which fragment carries the Tongue forward?</p>
       <div class="flex flex-col gap-2">
         <button onclick={() => onfracture(focusId)}
@@ -33,7 +33,7 @@
         {/each}
       </div>
     {:else}
-      <h2 class="font-serif text-xl font-semibold m-0">The Tongue's body has fallen</h2>
+      <h2 class="font-serif text-xl font-semibold m-0">The Tongue's Body Has Fallen</h2>
       <p class="my-2 mb-4.5 text-sm text-text-muted">Who inherits the voice?</p>
       <div class="flex flex-col gap-2">
         {#each choice.heirs as h (h.id)}

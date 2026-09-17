@@ -51,6 +51,11 @@ export type XformResult = Patch | Seg[];
 
 export interface Rule {
   id: string; name: string; note: string; w: number; category: RuleCategory;
+  // tweaks-1: plain-English casual-mode display, additive to name/note (never
+  // substituted into history/log text — see the apply() comment in game.svelte.ts).
+  // Optional so phonology.test.ts's two hand-built Rule literals keep compiling.
+  casualName?: string;
+  example?: string;
   match: (p: Phone) => boolean;
   pre: ((p: Phone | null) => boolean) | null;
   post: ((p: Phone | null) => boolean) | null;

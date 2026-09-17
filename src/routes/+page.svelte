@@ -18,15 +18,24 @@
   import FocusDialog from "$lib/components/FocusDialog.svelte";
   import RepairDialog from "$lib/components/RepairDialog.svelte";
   import SilenceScreen from "$lib/components/SilenceScreen.svelte";
+  import InfoModal from "$lib/components/InfoModal.svelte";
   import { MOURN_TURNS } from "$lib/engine/stakes";
+  import { HELP } from "$lib/help";
 
   // local-only UI state (README "State Management" — activeTab is a purely-local addition)
-  let activeTab = $state<"intel" | "phrases">("intel");
+  let activeTab = $state<"intel" | "phrases">("phrases");
   // mobile shell: one tab pane at a time, below 768px. MediaQuery keeps only one shell
   // in the DOM (no duplicated component instances hidden behind display:none).
   let mobileTab = $state<MobileTab>("langs");
   const mobile = new MediaQuery("(max-width: 767px)", false);
   const graph = (id: string) => BY_ID[id]?.g ?? id;
+
+  // tweaks-1: help topic + intro modal + card familiarity mode. All local UI state
+  // (per +page.svelte's own activeTab precedent), not game.svelte.ts — none of it
+  // bridges the engine. No persistence: the intro shows on every load until a
+  // persistence model exists for the app generally (see plan).
+  let helpTopic = $state<string | null>("intro");
+  let cardMode = $state<"expert" | "casual">("casual");
 
   const hasWarn = $derived(!game.viewing && !!(game.fracturing || game.assimilatingInto || game.rigidifying || game.aligningToward));
   const contactNames = $derived<[string, string] | null>(game.pendingContact
@@ -39,7 +48,7 @@
 <!-- ── tiles, shared by both shells ─────────────────────────────────────────── -->
 
 {#snippet treeTile()}
-  <Panel title="Family tree" span>
+  <Panel title="Family Tree" span helpKey="familyTree" onhelp={(k) => (helpTopic = k)}>
     {#snippet aside()}
       <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-accent"></span>the self</span>
       <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-barrier"></span>held this generation</span>
@@ -52,7 +61,7 @@
 {/snippet}
 
 {#snippet territoryTile()}
-  <Panel title="Territory">
+  <Panel title="Territory" helpKey="territory" onhelp={(k) => (helpTopic = k)}>
     {#snippet aside()}<span>tap your land to select · tap a glowing region to expand</span>{/snippet}
     <MapView world={game.st.world} branches={game.st.branches} selectedId={game.st.selectedId}
       pool={game.st.pool} onselect={(id) => game.selectBranch(id)} onexpand={(r) => game.expandInto(r)}
@@ -61,7 +70,7 @@
 {/snippet}
 
 {#snippet intelTile()}
-  <Panel title="Intelligibility">
+  <Panel title="Intelligibility" helpKey="intelligibility" onhelp={(k) => (helpTopic = k)}>
     <IntelMatrix leaves={game.leaves} displayNames={game.displayNames} openRoutes={game.openRoutes} />
   </Panel>
 {/snippet}
@@ -78,11 +87,14 @@
 
 {#snippet secondaryTile()}
   <section class="bg-surface border border-border rounded-lg overflow-hidden flex flex-col">
-    <div class="flex gap-0.5 px-2.5 pt-1.5 border-b border-border-subtle">
-      <button onclick={() => (activeTab = "intel")}
-        class="px-3.5 py-2 border-0 border-b-2 bg-transparent text-[13px] {activeTab === 'intel' ? 'border-accent font-semibold text-text' : 'border-transparent font-normal text-text-muted'}">Intelligibility</button>
+    <div class="flex items-center gap-0.5 px-2.5 pt-1.5 border-b border-border-subtle">
       <button onclick={() => (activeTab = "phrases")}
         class="px-3.5 py-2 border-0 border-b-2 bg-transparent text-[13px] {activeTab === 'phrases' ? 'border-accent font-semibold text-text' : 'border-transparent font-normal text-text-muted'}">Phrases</button>
+      <button onclick={() => (activeTab = "intel")}
+        class="px-3.5 py-2 border-0 border-b-2 bg-transparent text-[13px] {activeTab === 'intel' ? 'border-accent font-semibold text-text' : 'border-transparent font-normal text-text-muted'}">Intelligibility</button>
+      <button onclick={() => (helpTopic = activeTab === "intel" ? "intelligibility" : "phrases")}
+        aria-label="About {activeTab === 'intel' ? 'Intelligibility' : 'Phrases'}" title="About {activeTab === 'intel' ? 'Intelligibility' : 'Phrases'}"
+        class="ml-auto mr-1.5 shrink-0 w-6 h-6 flex items-center justify-center rounded-full border border-accent-border bg-accent-bg text-accent text-xs font-bold hover:bg-accent hover:text-[#f7fbf9]">i</button>
     </div>
     <div class="p-4">
       {#if activeTab === "intel"}
@@ -98,7 +110,7 @@
   {#if game.viewing}
     {@const v = game.viewing}
     {@const anchor = game.viewedStage?.anchorIndex != null ? game.st.branches[v.branchId]?.anchors[game.viewedStage.anchorIndex] : null}
-    <Panel noPadding grow={fill} title={game.viewedStage?.text ?? ""}>
+    <Panel noPadding grow={fill} title={game.viewedStage?.text ?? ""} helpKey="lexicon" onhelp={(k) => (helpTopic = k)}>
       {#snippet titlePrefix()}
         <span class="w-2.75 h-2.75 rounded-sm shrink-0" style="background:{branchColor(v.branchId)}"></span>
       {/snippet}
@@ -111,7 +123,7 @@
     </Panel>
   {:else}
     <Panel noPadding grow={fill} title={game.selEra[game.selEra.length - 1]?.text ?? game.sel.name}
-      titleHint={game.selEra.map((s) => s.text).join(" → ")}>
+      titleHint={game.selEra.map((s) => s.text).join(" → ")} helpKey="lexicon" onhelp={(k) => (helpTopic = k)}>
       {#snippet titlePrefix()}
         <span class="w-2.75 h-2.75 rounded-sm shrink-0" style="background:{branchColor(game.sel.id)}"></span>
       {/snippet}
@@ -131,7 +143,7 @@
        does — an anchor's frozen lex is a complete record, unlike a missing paradigm. -->
   {#if game.viewing && game.viewedInventory}
     {@const v = game.viewing}
-    <Panel title="{game.viewedStage?.text ?? game.st.branches[v.branchId]?.name} · inventory">
+    <Panel title="{game.viewedStage?.text ?? game.st.branches[v.branchId]?.name} · Inventory" helpKey="inventory" onhelp={(k) => (helpTopic = k)}>
       {#snippet titlePrefix()}
         <span class="w-2.75 h-2.75 rounded-sm shrink-0" style="background:{branchColor(v.branchId)}"></span>
       {/snippet}
@@ -143,7 +155,7 @@
       </div>
     </Panel>
   {:else}
-    <Panel title="{game.displayNames[game.sel.id] ?? game.sel.name} · inventory">
+    <Panel title="{game.displayNames[game.sel.id] ?? game.sel.name} · Inventory" helpKey="inventory" onhelp={(k) => (helpTopic = k)}>
       {#snippet titlePrefix()}
         <span class="w-2.75 h-2.75 rounded-sm shrink-0" style="background:{branchColor(game.sel.id)}"></span>
       {/snippet}
@@ -161,17 +173,23 @@
   {#if game.viewing}
     {@const v = game.viewing}
     <div class="bg-surface-sunken border border-dashed border-input-border rounded-lg p-5 flex flex-col gap-2 justify-center">
-      <h2 class="font-serif text-base font-semibold text-text-muted m-0">Reading a closed era</h2>
+      <h2 class="font-serif text-base font-semibold text-text-muted m-0">Reading a Closed Era</h2>
       <p class="text-[13px] text-text-muted m-0">Changes can only be applied to a living tip.
         <button class="text-accent hover:underline" onclick={() => game.selectBranch(v.branchId)}>Return to {game.displayNames[v.branchId] ?? game.st.branches[v.branchId]?.name}</button> to keep steering.</p>
     </div>
   {:else}
-    <Panel title="Available changes">
+    <Panel title="Available Changes" helpKey="changes" onhelp={(k) => (helpTopic = k)}>
       {#snippet aside()}
         {#if game.overheadDue > 0}<span>first change here <span class="font-mono text-text">+{game.overheadDue}</span> overhead</span>{/if}
         {#if !game.isFocal}<span class="text-warn" title="cost multiplier for acting outside the self">reach ×{game.reach.toFixed(1)}</span>{/if}
+        <span class="flex gap-1 shrink-0">
+          <button onclick={() => (cardMode = "casual")} aria-pressed={cardMode === "casual"}
+            class="px-2 py-0.5 rounded text-[11px] border {cardMode === 'casual' ? 'border-accent text-accent bg-accent-bg' : 'border-border text-text-faint'}">Casual</button>
+          <button onclick={() => (cardMode = "expert")} aria-pressed={cardMode === "expert"}
+            class="px-2 py-0.5 rounded text-[11px] border {cardMode === 'expert' ? 'border-accent text-accent bg-accent-bg' : 'border-border text-text-faint'}">Expert</button>
+        </span>
       {/snippet}
-      <Changes candidates={game.candidates} preview={game.preview} stepCost={game.stepCost}
+      <Changes candidates={game.candidates} preview={game.preview} stepCost={game.stepCost} mode={cardMode}
         pool={game.st.pool} onpreview={(id) => (game.preview = id)} onapply={(id) => game.apply(id)} />
     </Panel>
   {/if}
@@ -220,7 +238,7 @@
 {#snippet chronologyBlock()}
   {#if game.sel.history.length}
     <div class="shrink-0 border-t border-border pt-4 flex flex-col min-h-0">
-      <HistoryList history={game.sel.history} splitIndex={game.sel.splitIndex} />
+      <HistoryList history={game.sel.history} splitIndex={game.sel.splitIndex} onhelp={() => (helpTopic = "chronology")} />
     </div>
   {/if}
 {/snippet}
@@ -245,6 +263,10 @@
 {#if game.ended}
   <SilenceScreen turn={game.st.turn} onnew={newWorld} />
 {/if}
+{#if helpTopic}
+  {@const topic = HELP[helpTopic]}
+  <InfoModal title={topic?.title ?? helpTopic} pages={topic?.body ?? []} onclose={() => (helpTopic = null)} />
+{/if}
 
 <!-- ── shells ───────────────────────────────────────────────────────────────── -->
 
@@ -253,7 +275,7 @@
     <MobileHeader bind:seed={game.seed} leafCount={game.leaves.length} turn={game.st.turn} pool={game.st.pool}
       base={game.st.settings.pool} willDrift={game.willDrift}
       onload={() => game.loadWorld(game.seed)} onnew={newWorld}
-      onend={() => game.endTurn()} ontogglecfg={() => (game.showCfg = !game.showCfg)} />
+      onend={() => game.endTurn()} ontogglecfg={() => (game.showCfg = !game.showCfg)} onhelp={() => (helpTopic = "intro")} />
     {#if game.st.log.length || game.pendingContact || game.showCfg}
       <div class="shrink-0">{@render contextBar()}</div>
     {/if}
@@ -268,7 +290,7 @@
       {:else if mobileTab === "lexicon"}
         {@render lexiconTile(false)}
         {@render inventoryTile()}
-        <Panel title="Phrases">{@render phrasesBody()}</Panel>
+        <Panel title="Phrases" helpKey="phrases" onhelp={(k) => (helpTopic = k)}>{@render phrasesBody()}</Panel>
       {:else if mobileTab === "changes"}
         {@render changesTile()}
       {:else}
@@ -282,23 +304,31 @@
     <MobileTabBar bind:tab={mobileTab} warn={hasWarn} />
   </div>
 {:else}
-  <div class="min-h-screen bg-bg text-text font-sans text-sm">
-    <Header bind:seed={game.seed} leafCount={game.leaves.length} turn={game.st.turn} pool={game.st.pool}
-      base={game.st.settings.pool} willDrift={game.willDrift}
-      onload={() => game.loadWorld(game.seed)} onnew={newWorld}
-      onend={() => game.endTurn()} ontogglecfg={() => (game.showCfg = !game.showCfg)} />
-    {@render contextBar()}
-    <div class="flex items-start">
-      <div class="flex-1 min-w-0 p-5 grid gap-4 content-start" style="grid-template-columns:repeat(auto-fit,minmax(400px,1fr))">
+  <!-- tweaks-1: sticky header. Rather than sticky-positioning the header over a
+       whole-page scroll (the rail below is ALSO sticky-viewport-tall, and Header has
+       flex-wrap so its height isn't a constant to offset against), the shell now
+       matches the mobile one's shape: header+contextBar shrink-0, the row beneath
+       is the scroll container, and the rail is a plain flex child inside it rather
+       than sticky. No pixel math, no bind:clientHeight. -->
+  <div class="h-dvh flex flex-col bg-bg text-text font-sans text-sm overflow-hidden">
+    <div class="shrink-0">
+      <Header bind:seed={game.seed} leafCount={game.leaves.length} turn={game.st.turn} pool={game.st.pool}
+        base={game.st.settings.pool} willDrift={game.willDrift}
+        onload={() => game.loadWorld(game.seed)} onnew={newWorld}
+        onend={() => game.endTurn()} ontogglecfg={() => (game.showCfg = !game.showCfg)} onhelp={() => (helpTopic = "intro")} />
+      {@render contextBar()}
+    </div>
+    <div class="flex-1 min-h-0 flex items-start overflow-hidden">
+      <div class="flex-1 min-w-0 h-full overflow-y-auto p-5 grid gap-4 content-start" style="grid-template-columns:repeat(auto-fit,minmax(400px,1fr))">
         {@render treeTile()}
         {@render territoryTile()}
         {@render secondaryTile()}
         {@render inventoryTile()}
         {@render changesTile()}
       </div>
-      <!-- sticky, viewport-tall, scrolls on its own; the lexicon (the tall element) lives
-           here and takes whatever height languages/warnings/chronology leave over -->
-      <aside class="w-[308px] shrink-0 sticky top-0 h-screen border-l border-border bg-surface-sunken p-5 flex flex-col gap-4.5 overflow-y-auto">
+      <!-- was sticky/viewport-tall; now just a flex child scrolling within the row,
+           since the row itself (not the whole page) is the scroll container -->
+      <aside class="w-[308px] shrink-0 h-full border-l border-border bg-surface-sunken p-5 flex flex-col gap-4.5 overflow-y-auto">
         {@render languagesBlock()}
         {@render warnings()}
         {@render lexiconTile(true)}

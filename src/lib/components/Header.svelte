@@ -1,7 +1,7 @@
 <script lang="ts">
-  let { seed = $bindable(), leafCount, turn, pool, base, willDrift, onload, onnew, onend, ontogglecfg }:
+  let { seed = $bindable(), leafCount, turn, pool, base, willDrift, onload, onnew, onend, ontogglecfg, onhelp }:
     { seed: number; leafCount: number; turn: number; pool: number; base: number; willDrift: number;
-      onload: () => void; onnew: () => void; onend: () => void; ontogglecfg: () => void } = $props();
+      onload: () => void; onnew: () => void; onend: () => void; ontogglecfg: () => void; onhelp: () => void } = $props();
   const pct = $derived(Math.max(0, Math.min(100, (pool / base) * 100)));
 </script>
 
@@ -41,5 +41,7 @@
     <button onclick={onend} class="px-4 py-2.5 border-0 rounded-md bg-bar-accent text-bar-accent-text font-semibold text-[13px] hover:bg-bar-accent-hover whitespace-nowrap">End generation ⟳</button>
     <button onclick={ontogglecfg} title="economy settings"
       class="px-3 py-2.5 border border-bar-border-2 rounded-md bg-transparent text-bar-text text-[13px] hover:bg-bar-raised">⚙</button>
+    <button onclick={onhelp} title="how to play" aria-label="How to play"
+      class="px-3 py-2.5 border border-bar-border-2 rounded-md bg-transparent text-bar-text text-[13px] hover:bg-bar-raised">?</button>
   </span>
 </header>
