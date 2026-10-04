@@ -331,7 +331,8 @@
 						"id": "2GEO.9",
 						"description": "Design spike: map-shape diversification — `genRegions` (geography.ts) generates a fixed rectangular grid; 1ENG.21 grew it 4x3 (12 regions) to 10x8 (80) purely to fix `pairContact`'s `ORDER_CONTACT_CUT` reachability (a branch's single-neighbour border share couldn't clear 0.6 on a map that small), not as a map-generation improvement in its own right. Explore varied shapes and non-rectangular layouts (irregular coastlines, non-uniform region density, procedurally varied grid dimensions per seed) so every world's geography doesn't read as the same rectangle at a different scale — the actual gap this task exists to close, surfaced but out of scope during 1ENG.21's playtest fix",
 						"status": "todo",
-						"dependsOn": []
+						"dependsOn": [],
+						"notes": "A spike: when it finishes it spawns an implementation task. Move the 2GEO.9 gate onto that task for 2STK.4, 2STK.6, 2LEX.3 and 2SIM.1 so each waits for the built map."
 					},
 					{
 						"id": "2GEO.10",
@@ -409,7 +410,8 @@
 						"status": "todo",
 						"dependsOn": [
 							"2STK.5"
-						]
+						],
+						"notes": "A spike: when it finishes it spawns an implementation task. Move the 2STK.7 gate onto that task for 2STK.6, 2LEX.3 and 2SIM.1 so each waits for the built escape."
 					},
 					{
 						"id": "2STK.6",
@@ -476,8 +478,7 @@
 							"2GEO.9",
 							"2STK.7",
 							"2GEO.11"
-						],
-						"notes": "2GEO.9 and 2STK.7 are spikes. When either finishes it spawns an implementation task; move this gate onto that task so the dependency means 'implemented', not 'discussed'."
+						]
 					},
 					{
 						"id": "2LEX.4",
