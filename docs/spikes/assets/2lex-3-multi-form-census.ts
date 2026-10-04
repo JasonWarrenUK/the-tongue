@@ -34,9 +34,9 @@ import type { GameState } from "../../../src/lib/engine/types";
 // WIDE=1 sweeps seeds 1..60 instead of the 2GEO.10 dozen. SPLIT=<turn> forces a
 // family into existence: autonomous fracture is unreachable on the current grid (the
 // 2GEO.10 finding, reconfirmed here at 0/60 seeds), so without it Borrowing can never
-// fire and section 1 measures nothing. At that turn the root's territory is cut in two
-// by region x-coordinate and the eastern half re-homed on a newborn sibling, a crude
-// stand-in for the fracture 2GEO.9's map work is meant to make reachable.
+// fire and section 1 measures nothing. At that turn the largest living branch is cut per
+// SPLIT_AXIS (below) and one part re-homed on a newborn sibling, a crude stand-in for
+// the fracture 2GEO.9's map work is meant to make reachable.
 const SEEDS = process.env.WIDE ? Array.from({ length: 60 }, (_, i) => i + 1) : [1985, 7, 42, 1066, 2024, 31337, 555, 90210, 12, 777, 8081, 60309];
 const TURNS = 150;
 // SPLIT takes a comma list of turns ("30" or "30,60"); each split cuts the LARGEST
@@ -148,8 +148,8 @@ for (const seed of SEEDS) {
           const key = `${seed}:${b.id}:${concept}`;
           if (lastBorrow[key] !== undefined) reborrowGaps.push(t - lastBorrow[key]);
           lastBorrow[key] = t;
-          // faithful = the loan arrived whole: A's new form equals the lender's form
-          // (resolveBorrow copies [...wb]); adapted = stepToward's one-edit hybrid
+          // faithful = the loan arrived whole: A's new form equals the lender's form. This is
+          // string equality, not resolveBorrow's contact-based flag: a one-edit adapted loan (stepToward) also lands here
           const lenderName = / from (.+)$/.exec(h.note)?.[1];
           // names come from the note; exclude the borrower so a name clash can never
           // resolve the lender to the borrower itself
