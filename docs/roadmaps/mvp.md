@@ -68,6 +68,7 @@ A seeded, deterministic language-evolution simulator: sound-change rules drift a
 - [ ] **2GEO.8** — Design spike: rival language family — a second, autonomous seeded language family competing across the map, giving expansion an opponent, assimilation a genuine threat, and borrowing a direction (substrate/superstrate). Design-analysis §6 flags this as the biggest single swing in scope and recommends not attempting it until the stakes layer (ambitions/contact events) has proven out; deliberately not paired with an implementation task yet _(blocked — depends on 2STK.4, 2STK.5)_
 - [ ] **2GEO.9** — Design spike: map-shape diversification — `genRegions` generates a fixed rectangular grid; 1ENG.21 grew it 4×3 (12 regions) to 10×8 (80) purely to fix `pairContact`'s `ORDER_CONTACT_CUT` reachability, not as a map-generation improvement in its own right. Explore varied shapes and non-rectangular layouts (irregular coastlines, non-uniform region density, procedurally varied grid dimensions per seed) so every world's geography doesn't read as the same rectangle at a different scale — the actual gap this task exists to close, surfaced but out of scope during 1ENG.21's playtest fix
 - [x] **2GEO.10** — Investigation spike: family-structure reachability (`docs/spikes/2geo-10-family-structure-reachability.md`) — a 12-seed census (surfaced while planning 2STK.4) found fracture/assimilation death never fire autonomously on the 10×8 grid: genesis connectivity sits far above the bond-percolation threshold. Terrain-probability tuning alone produces a bimodal outcome (0 fractures, or unbounded branch-count runaway once impassable share rises far enough), traced to a spread/fracture feedback loop (the boxed-in-terrain-crossing fallback creates disconnection that fracture immediately resolves into a fresh boxed-in fragment, repeat) rather than a probability to find — a wider 40-seed sample confirmed even a moderate nudge leaves 87.5% of seeds at zero. Genuine reachability needs better map generation, squarely 2GEO.9's territory. Ships two safety fixes regardless, both real bugs independent of reachability: `FRACTURE_COOLDOWN` (`Branch.fractureCooldown`, rate-limits re-fracturing) and `STUCK_TURNS` (a time-based crossing floor so a genesis-walled-in branch escapes eventually instead of freezing for the whole run — an earlier, blunter `territory >= 2` gate was tried and rejected for having no escape valve). Terrain probability ships unchanged from baseline. Census harness `docs/spikes/assets/2geo-10-family-census.ts` committed for 2GEO.9/2SIM.1 to extend
+- [ ] **2GEO.11** — Discussion spike: fracture triggers. What it is: the rules for when one language splits into daughters. Today a branch fractures only when impassable terrain cuts its territory into separate pieces (`passableComponents`, `generation.ts` step 5); 2GEO.10 found this almost never happens on the current grid. Because the pieces are cut apart by impassable terrain, fracture siblings can never border, trade or borrow, which is why autonomous play produces no borrowing at all. Candidate extra triggers to discuss: distance between a language's regions (a widespread branch whose far parts lose contact), the presence and pressure of neighbouring languages, and any others that come up. Work through in order: (a) how real languages split and what causes it; (b) how a split should look in play; (c) which triggers to include, if any; (d) the conditions they need (map shape from 2GEO.9, world events from 2GEO.6, a rival family from 2GEO.8, `FRACTURE_COOLDOWN` and `STUCK_TURNS` from 2GEO.10). Extends the 2GEO.10 spike (`docs/spikes/2geo-10-family-structure-reachability.md`) _(depends on 2GEO.10)_
 - [x] **2LEX.1** — Design spike: homophone-collision resolution — measured collision dynamics in autonomous play (98% of branch-turns carry a live collision; 87% self-heal, median 3 turns; a 13% chronic tail never heals), then specified a severity × persistence mechanic: a six-field semantic grouping of `CONCEPTS` gates severity (same-field = confusable, operationalising Wedel's functional-load finding; cross-field homophones tolerated indefinitely and surfaced as flavour), a per-pair pressure counter (`COLLISION_TURNS` = 6, census-tuned) triggers autonomous repair, and repair compounds the less terrain-salient concept with a clipped field-mate modifier (the catfish pattern) under a per-world `compoundOrder` headedness trait — plus a Gilliéron-style borrowed-replacement arm gated on 2GEO.5 and a player choice-at-apply-time path (repair at `changeCost` or tolerate into the pressure clock). Full build-ready contract for 2LEX.2 (`docs/spikes/2lex-1-homophone-collision-resolution.md`) **Revised in the critique pass:** the six-field grouping was replaced by a class gate (via 1ENG.14's `CONCEPT_CLASS`) plus a graded Numberbatch semantic-distance table (`SEVERITY_CUT` = 0.2, distance-scaled thresholds, nearest-neighbour modifiers; census re-run: 13.2% severe, 30.3 repairs/game)
 - [x] **2STK.1** — Design spike: rule-choice stakes mechanic (resource trade-offs vs directional goals vs prerequisite chains). Design-analysis candidate answer to evaluate: drift momentum (applying a rule tilts that branch's future autonomous drift toward its category, capped and decaying, feeding `biasedMult`/`driftRule`) plus seeded ambitions (three per world, scored at a fixed horizon, computable from existing state incl. the anchor chain) plus intelligibility-as-a-live-resource contact events (seeded per-generation contact between bordering branches, success odds = mutual intelligibility via `hashRand`, the missing convergent incentive) — explicitly recommends skipping prerequisite chains (wrong fantasy: turns phonology into a tech tree)
 - [x] **2STK.2** — Implement focal identity & reach ([2stk-1 spike](../spikes/2stk-1-rule-choice-stakes.md) §2) — `GameState.focusId`, kinship-dominant `blendDistance`/`reachMult` (capped multiplier, never a gate), fracture focus choice, succession dialog (≤3 ranked heirs, per-candidate penalties shown, silence always electable), hoarse-voice mourning multiplier, and the silence ending (the game's single formal ending). New `stakes.ts` (`blendDistance`, `reachMult`, `mourningMult`, `heirCandidates`), `kinshipDistance` (`tree.ts`, LCA over `parentId` chains), breaking `GameState` fields (`focusId`, `mourning`, `pendingFocusChoice`, `ended`), focus-death/fracture-focus detection in `generation.ts` (focus death is the existing assimilation trigger emptying the focal branch's territory, not a new pressure counter), reach-priced `apply`/`expandInto` in `game.svelte.ts`, and the first modal/dialog pattern in the codebase (`FocusDialog.svelte`, `SilenceScreen.svelte`)
@@ -75,22 +76,23 @@ A seeded, deterministic language-evolution simulator: sound-change rules drift a
 - [ ] **2STK.4** — Implement ambitions & lock-in (2stk-1 spike §4) — `World.ambitions` via constrained tension draw, live-condition evaluation each repool, natural deadlines only, lock-in grading and freezing the record, goal-driven → sandbox phase flag, starter roster (self-referencing ambitions need focusId; roster items reading momentum/contact state activate as 2STK.3/2STK.5 land). **Planning found 7 of the original 10-item roster (Babel, Ozymandias, Twins, Last Word, Matriarch, Scatterling, Exile) need fracture or assimilation death, which 2GEO.10 found near-unreachable autonomously** — genuine reachability now depends on 2GEO.9's map-generation work, not just 2GEO.10's safety fixes. Also carry forward 2GEO.10's roster corrections (Proto- needs ≥2 descendants not ≥3; Ozymandias/Long Tongue/Babel/Scatterling condition fixes) and the self-anchoring finding (every ambition should require the focal branch's own participation, not a god's-eye condition) _(blocked — depends on 2STK.1, 2STK.2, 2GEO.10, 2GEO.9)_
 - [x] **2STK.5** — Implement contact events & trade routes (2stk-1 spike §5) — one seeded event per generation between bordering branches, odds = mutual intelligibility, pure roll with pre-resolution preview, typed failure consequences, `CONTACT_YIELD` income, and trade routes gating `resolveBorrow` (⚠️ behaviour change to shipped 2GEO.5: borrowing now requires an open route) _(depends on 2STK.1)_
 - [ ] **2STK.7** — Design spike: contact deadlock escape — intelligibility 0 is an absorbing state for 2STK.5's pure-roll contact odds (`success = roll < odds` can never fire at 0), so a fully-diverged bordering pair can never open a route and can never borrow its way back. Evaluate a second route-opening condition against `shouldOpenRoute` (`contact.ts`): a sustained-border-pressure counter mirroring `assimilationPressure`, a `pairContact` force-open threshold (no new state), or an odds floor _(depends on 2STK.5)_
-- [ ] **2STK.6** — Implement the treasury-and-laboratory economy (2stk-1 spike §6) — steepened size-scaled rule costs (`SIZE_COST` on `overheadFor`), isolation-scaled extra drift rate, stacked cost-multiplier cap (`COST_CAP`), the scarcity-guarantee sweep, and re-verification of the 1ENG.11 ossification sweeps under momentum and rate caps _(depends on 2STK.1, 2STK.2, 2STK.3, 2STK.5)_
+- [ ] **2STK.6** — Implement the treasury-and-laboratory economy (2stk-1 spike §6) — steepened size-scaled rule costs (`SIZE_COST` on `overheadFor`), isolation-scaled extra drift rate, stacked cost-multiplier cap (`COST_CAP`), the scarcity-guarantee sweep, and re-verification of the 1ENG.11 ossification sweeps under momentum and rate caps _(blocked — depends on 2STK.1, 2STK.2, 2STK.3, 2STK.5, 2GEO.9, 2STK.7)_
 - [ ] **2GLY.1** — Design spike: glyph mutation ruleset — shape-drift grammar + phoneme→glyph reassignment rules, referencing real script lineages (e.g. Phoenician → Greek → Etruscan → Latin) _(blocked — depends on 2STK.4, 2STK.6)_
 - [ ] **2GLY.2** — Implement per-generation glyph shape drift (independent stylistic mutation) _(blocked — depends on 2GLY.1)_
 - [ ] **2GLY.3** — Implement phoneme→glyph reassignment logic, tied to phone split/merge/deletion from phonology rules. Consumes 1ENG.26's `PhonemicEvent` stream (merger/split/loss/gain) — the 1ENG.23 spike was commissioned specifically because this task needs phonemic events to exist as nameable objects, and it now has them _(blocked — depends on 1ENG.26, 2GLY.1)_
 - [ ] **2GLY.4** — Build glyph rendering component (branch-level script display) _(blocked — depends on 2GLY.2, 2GLY.3)_
 - [x] **2LEX.2** — Implement the homophone-collision resolution mechanic — new `collision.ts` (`pairScore`, `pairThreshold`, `severePairs`, `yieldingConcept`, `modifierCandidates`, `compoundWord`, `resolveCollision`, `COLLISION_TURNS`, `SEVERITY_CUT`), the Numberbatch distance table copied to `src/lib/engine/semantic-distance.json`, `World.compoundOrder` + `Branch.collisionPressure` (breaking: required fields), turn-loop step 1.5 in `generation.ts` and the apply-time repair prompt in `game.svelte.ts`. Severity = class gate + graded relatedness with distance-scaled thresholds; no new randomness beyond one world-gen draw — contract specified in the revised 2LEX.1 spike; the borrowing arm consumes 2GEO.5's exports. **Revised during implementation:** `CONCEPT_CLASS`/`SUBSTRATE_ORDER` were added to `lexicon.ts` now (covering the full 48-concept substrate) rather than waiting for 1ENG.19, so severity tier 1 is live from this task rather than staying vacuous; the autonomous-repair cap is `MAX_REPAIRS_PER_TURN = 3` ripest pairs per branch per turn, not one — a live-engine census found up to 14 concurrent severe pairs on a single branch-turn (far more than the spike's passive pre-mechanic census implied), so a 1-per-turn cap left a permanent backlog. Verified via a 30-seed/150-turn sweep: zero severe pairs remain stuck past their own threshold at horizon
-- [ ] **2LEX.3** — Design spike: multi-form lexical entries — the refactor deferred four times (2GEO.4 §7 doublets, 2LEX.1 §7 coordinate compounds, 1ENG.14 §9 liaison alternants, 1ENG.15 §7 affix allomorphy): widen `LexEntry` to hold multiple forms, surveying the ripple across intelligibility, collision detection, naming, borrowing and the word-table UI, producing a build-ready contract for 2LEX.4
-- [ ] **2LEX.4** — Implement multi-form lexical entries *(placeholder — depends on 2LEX.3)* _(blocked — depends on 2LEX.3)_
+- [ ] **2LEX.3** — Discussion spike: borrowed doublets. What it is: a word borrowed from a neighbour sits beside the native word for the same concept instead of replacing it (English keeps native *cow* beside borrowed *beef*; today `resolveBorrow` always overwrites). Work through in order: (a) what a doublet is and how real languages treat one; (b) how it should look in play, if at all (a second form in the word table, a chronicle line, nothing visible); (c) whether to include it; (d) the conditions it needs. Known so far: it needs bordering branches that can trade words, which autonomous play never produces (fracture siblings are walled apart by definition), so it waits on the map, contact and fracture work. Whatever this decides about storing a second form per concept also shapes 2LEX.7, 4PHON.3 and 4MOR.1. Evidence: `docs/spikes/assets/2lex-3-multi-form-census.ts` (0 borrowings in 60 autonomous seeds; 33% to 69% of forced-family loans copy the whole word, depending on how the family forms). Outcome is a decision and, if included, a contract for 2LEX.4 _(blocked — depends on 2GEO.9, 2STK.7, 2GEO.11)_
+- [ ] **2LEX.4** — Implement borrowed doublets *(placeholder: only if 2LEX.3 decides to include them)* _(blocked — depends on 2LEX.3)_
 - [ ] **2LEX.5** — Design spike: archive / loss with residue — a dead branch's frozen final lexicon becomes spendable: living branches pay influence to revive a dead relative's word, resolving a homophone collision or purely for flavour (the learned-borrowing/Cornish-revival move). Explicitly waits on 2LEX.2 so collisions give it a mechanical reason to exist, not just flavour (design-analysis §8) _(depends on 2LEX.2)_
 - [ ] **2LEX.6** — Implement archive / loss with residue *(placeholder — depends on 2LEX.5)* _(blocked — depends on 2LEX.5)_
+- [ ] **2LEX.7** — Discussion spike: coordinate compounds. What it is: a word built by joining two near-synonyms with neither as the head (Mandarin 道路, 'way-road'). Today 2LEX.2's collision repair joins a concept to a clipped neighbouring concept instead. Work through in order: (a) what a coordinate compound is; (b) how it should look in play; (c) whether to include it; (d) the conditions it needs. Known so far: it needs a source of synonyms, and borrowing is not one (0.2% of collision repairs land on a concept with a recent loan). Candidate sources to discuss: words revived under 2LEX.5, existing neighbouring concepts, or something else. Depends on 2LEX.3's decision about storing a second form _(blocked — depends on 2LEX.3, 2LEX.6)_
 - [ ] **2UI.1** — UI completeness audit across all components — existing panels plus new biome/stakes/glyph/lexicon data — verify every player-facing decision has a legible data source _(blocked — depends on 2STK.4, 2STK.6, 2GLY.4, 2LEX.2)_
 - [ ] **2UI.2** — Build onboarding — inline explainers, full tutorial mode, and a UI layout rethink, informed by the audit findings _(blocked — depends on 2UI.1)_
 - [ ] **2UI.3** — Retire the economy config panel from the player-facing surface (keep behind a dev flag); replace with difficulty presets once the economy purchases real consequences via the stakes mechanic (design-analysis roadmap edit 3) _(blocked — depends on 2STK.6)_
 - [ ] **2UI.4** — Design spike: dead-phase phrase viewer — PhrasePanel is currently gated behind !game.viewing (+page.svelte), so it never renders when previewing a dead/frozen era, alongside HistoryList. Anchor only snapshots `lex`, not order/weights/paradigm, so naively rendering PhrasePanel against viewedLex with the live branch's current grammar repeats the exact anachronism the 1ENG.20 code comment already flags for Changes. Decide: freeze grammar per-anchor too, degrade to a lex-only view for dead phases, or another resolution — producing a build-ready contract for 2UI.5
 - [ ] **2UI.5** — Implement the 2UI.4 contract *(placeholder — depends on 2UI.4)* _(blocked — depends on 2UI.4)_
-- [ ] **2SIM.1** — Integration pacing census — re-run the census harness with every mechanic active (borrowing, collision repair, syntax gating, paradigms): combined event density per branch-turn, collision dynamics at 48 concepts under the class-gate + distance model, affix lifetime distribution with the explicit acceptance criterion that grammaticalisation cycles observably turn (else the 1ENG.15 backstop question reopens with data in hand), and a tuning pass across the constant family (`COLLISION_TURNS`, `SEVERITY_CUT`, `BORROW_RATE`, `SYNTAX_STRENGTH`, `FRAME_WALK`, `ORDER_*`). **Flagged during 1ENG.21 implementation:** a live playtest sweep found `ORDER_TURNS`/`RENEWAL_TURNS` both at 6 made rigidification structurally unreachable (a same-turn race — renewal always ran first and revived a fully collapsed paradigm before rigidification's own threshold could check it); fixed narrowly by dropping `ORDER_TURNS` to 5, but it raises a broader question this census should take up: should any sustained-N-turns threshold vary stochastically rather than being a fixed integer, and if so how the "N/M turns until X" UI convention would need to adapt _(depends on 2GEO.5, 2LEX.2, 1ENG.20, 1ENG.22)_
+- [ ] **2SIM.1** — Integration pacing census — re-run the census harness with every mechanic active (borrowing, collision repair, syntax gating, paradigms): combined event density per branch-turn, collision dynamics at 48 concepts under the class-gate + distance model, affix lifetime distribution with the explicit acceptance criterion that grammaticalisation cycles observably turn (else the 1ENG.15 backstop question reopens with data in hand), and a tuning pass across the constant family (`COLLISION_TURNS`, `SEVERITY_CUT`, `BORROW_RATE`, `SYNTAX_STRENGTH`, `FRAME_WALK`, `ORDER_*`). **Flagged during 1ENG.21 implementation:** a live playtest sweep found `ORDER_TURNS` and `RENEWAL_TURNS` both at 6 made rigidification structurally unreachable — step 1 (`tickParadigm`) runs before step 3.75 in the same turn, so renewal always revived a fully collapsed paradigm one tick before rigidification's own same-value threshold could check it. Fixed narrowly by dropping `ORDER_TURNS` to 5 (1ENG.21), but it surfaces a broader question this census should take up: should any sustained-N-turns threshold (`ASSIM_TURNS`, `ORDER_TURNS`, `RENEWAL_TURNS`, `FUSE_TURNS`, collision pressure) vary stochastically rather than being a fixed integer, given real language change doesn't run on a metronome — and if so, how the "N/M turns until X" UI convention (`pressureLabel` in `game.svelte.ts`, `PhrasePanel`'s order-pressure label) would need to adapt so it doesn't become misleading. A design question to take up here, not a mechanism to implement speculatively Should extend 2GEO.10's family-census harness (docs/spikes/assets/2geo-10-family-census.ts) rather than rebuilding branch/territory/fracture instrumentation from scratch. _(blocked — depends on 2GEO.5, 2LEX.2, 1ENG.20, 1ENG.22, 2GEO.9, 2STK.6, 2STK.7, 2GEO.11)_
 - [ ] **2NAR.1** — Design spike: the seed text — a fixed proverb composed from six to eight lexicon concepts at world gen, rendered per branch every generation by looking up each concept's current form; pure display over existing state, no new simulation machinery. Shown on branch selection, side by side at fracture events, and proposed as the shareable image for Milestone 3 (design-analysis §1)
 - [ ] **2NAR.2** — Implement the seed text *(placeholder — depends on 2NAR.1)*. Deepens for free once 1ENG.19's word order lands (the text would inherit real syntax), a non-blocking enrichment rather than a prerequisite _(blocked — depends on 2NAR.1)_
 - [ ] **2NAR.3** — Design spike: the chronicle — replace the one-line end-of-turn log with a generated chronicle narrating each resolution in era-named prose (fracture, assimilation, borrowing); doubles as the run's exportable history (design-analysis §7)
@@ -104,7 +106,7 @@ A seeded, deterministic language-evolution simulator: sound-change rules drift a
 
 **Goal:** Survive a page refresh and let players show their results to someone else. Deferred out of Milestone 2 to keep that milestone focused purely on simulation depth and legibility — stubbed here so the intent isn't lost.
 
-- [ ] **3PER.1** — Local persistence — save/load a session via `localStorage`
+- [ ] **3PER.1** — Local persistence — save/load a session via `localStorage` _(blocked — depends on M2)_
   - Note: Placeholder — deferred from Milestone 2
 - [ ] **3SHR.1** — Shareable output — export/share a family tree or result (image, link, or data export) _(blocked — depends on 3PER.1)_
   - Note: Placeholder — deferred from Milestone 2
@@ -116,11 +118,12 @@ A seeded, deterministic language-evolution simulator: sound-change rules drift a
 ```mermaid
 graph LR
 	classDef todo fill:#f6f6f6,stroke:#6f6f6f,color:#6f6f6f
+	classDef inProgress fill:#e8f2ff,stroke:#0071af,color:#0071af
 	classDef blocked fill:#fff8f6,stroke:#e0002b,color:#e0002b,stroke-width:2px
 	classDef paused fill:#fdf4ff,stroke:#b01fe3,color:#b01fe3,stroke-dasharray:4 3
 	classDef deferred fill:#fff8f3,stroke:#ac5c00,color:#ac5c00,stroke-dasharray:2 4,font-style:italic
 	classDef done fill:#e0ffd9,stroke:#008217,color:#008217
-	classDef outOfScope fill:#f6f6f6,stroke:#e2e2e2,color:#e2e2e2,stroke-dasharray:2 2
+	classDef outOfScope fill:#f6f6f6,stroke:#717171,color:#717171,stroke-dasharray:2 2
 	classDef mile fill:#e3f7ff,stroke:#007590,color:#007590,font-weight:bold
 	classDef external fill:#fff9e5,stroke:#7d6f00,color:#7d6f00,stroke-dasharray:4 3,font-style:italic
 	1ENG.1["1ENG.1: Mulberry32 seeded RNG + deterministic h…"]
@@ -157,7 +160,8 @@ graph LR
 	2GEO.6["2GEO.6: Design spike: seeded generational world…"]
 	2GEO.7["2GEO.7: Implement seeded world events *(placeho…"]
 	2GEO.9["2GEO.9: Design spike: map-shape diversification…"]
-	2GEO.10["2GEO.10: Investigation spike: family-structure r…"]
+	2GEO.10["2GEO.10: Investigation spike: family-structure…"]
+	2GEO.11["2GEO.11: Discussion spike: fracture triggers. W…"]
 	2LEX.1["2LEX.1: Design spike: homophone-collision resol…"]
 	2STK.1["2STK.1: Design spike: rule-choice stakes mechan…"]
 	2STK.2["2STK.2: Implement focal identity & reach (2stk-…"]
@@ -182,10 +186,11 @@ graph LR
 	1ENG.30["1ENG.30: Implement 1ENG.24 slice 2: the stress…"]
 	1ENG.31["1ENG.31: Implement 1ENG.24 slice 3: `reduce` (u…"]
 	M1["M1: Core Simulator"]:::mile
-	2LEX.3["2LEX.3: Design spike: multi-form lexical entrie…"]
-	2LEX.4["2LEX.4: Implement multi-form lexical entries *(…"]
+	2LEX.3["2LEX.3: Discussion spike: borrowed doublets. Wh…"]
+	2LEX.4["2LEX.4: Implement borrowed doublets *(placehold…"]
 	2LEX.5["2LEX.5: Design spike: archive / loss with resid…"]
 	2LEX.6["2LEX.6: Implement archive / loss with residue *…"]
+	2LEX.7["2LEX.7: Discussion spike: coordinate compounds.…"]
 	2UI.1["2UI.1: UI completeness audit across all compone…"]
 	2UI.2["2UI.2: Build onboarding — inline explainers, fu…"]
 	2UI.3["2UI.3: Retire the economy config panel from the…"]
@@ -205,6 +210,8 @@ graph LR
 	4PHON.1["4PHON.1: Design spike: tonogenesis — tone arisi…"]
 	4GLY.1["4GLY.1: Writing-system variance beyond phonemic…"]
 	4PHON.2["4PHON.2: Climate/terrain-coded phonology — the…"]
+	4PHON.3["4PHON.3: Discussion spike: liaison alternants.…"]
+	4MOR.1["4MOR.1: Discussion spike: affix allomorphy. Wha…"]
 	M4["M4: Beyond Current Scope"]:::mile
 	1ENG.1 --> M1
 	1ENG.2 --> M1
@@ -247,11 +254,17 @@ graph LR
 	2GEO.5 --> 1ENG.21
 	2GEO.5 --> 2SIM.1
 	2GEO.6 --> 2GEO.7
+	2GEO.6 -.-> 2GEO.11
 	2GEO.7 --> M2
-	2GEO.9 --> M2
+	2GEO.9 -.-> 2GEO.11
 	2GEO.9 --> 2STK.4
-	2GEO.10 --> M2
+	2GEO.9 --> 2STK.6
+	2GEO.9 --> 2LEX.3
+	2GEO.9 --> 2SIM.1
+	2GEO.10 --> 2GEO.11
 	2GEO.10 --> 2STK.4
+	2GEO.11 --> 2LEX.3
+	2GEO.11 --> 2SIM.1
 	2LEX.1 --> 2LEX.2
 	2STK.1 --> 2STK.2
 	2STK.1 --> 2STK.3
@@ -268,10 +281,13 @@ graph LR
 	2STK.5 --> 2STK.7
 	2STK.5 --> 2STK.6
 	2GEO.8 --> M2
-	2STK.7 --> M2
+	2STK.7 --> 2STK.6
+	2STK.7 --> 2LEX.3
+	2STK.7 --> 2SIM.1
 	2STK.6 --> 2GLY.1
 	2STK.6 --> 2UI.1
 	2STK.6 --> 2UI.3
+	2STK.6 --> 2SIM.1
 	2GLY.1 --> 2GLY.2
 	2GLY.1 --> 2GLY.3
 	2GLY.2 --> 2GLY.4
@@ -296,30 +312,39 @@ graph LR
 	1ENG.30 --> 1ENG.31
 	1ENG.31 --> M1
 	2LEX.3 --> 2LEX.4
+	2LEX.3 --> 2LEX.7
+	2LEX.3 --> 4PHON.3
+	2LEX.3 --> 4MOR.1
 	2LEX.4 --> M2
 	2LEX.5 --> 2LEX.6
-	2LEX.6 --> M2
+	2LEX.6 --> 2LEX.7
+	2LEX.7 --> M2
 	2UI.1 --> 2UI.2
 	2UI.2 --> M2
 	2UI.3 --> M2
 	2UI.4 --> 2UI.5
 	2UI.5 --> M2
 	2SIM.1 --> M2
+	2SIM.1 --> 4PHON.3
+	2SIM.1 --> 4MOR.1
 	2NAR.1 --> 2NAR.2
 	2NAR.2 --> M2
 	2NAR.3 --> 2NAR.4
 	2NAR.4 --> M2
 	2MAP.1 --> 2MAP.2
 	2MAP.2 --> M2
+	M2 --> 3PER.1
 	3PER.1 --> 3SHR.1
 	3SHR.1 --> M3
 	4PHON.1 --> M4
 	4GLY.1 --> M4
 	4PHON.2 --> M4
-	class 2GEO.6,2GEO.9,2LEX.3,2LEX.5,2MAP.1,2NAR.1,2NAR.3,2SIM.1,2STK.4,2STK.6,2STK.7,2UI.4,3PER.1,4PHON.1 todo
-	class 2GEO.7,2GEO.8,2GLY.1,2GLY.2,2GLY.3,2GLY.4,2LEX.4,2LEX.6,2MAP.2,2NAR.2,2NAR.4,2UI.1,2UI.2,2UI.3,2UI.5,3SHR.1 blocked
+	4PHON.3 --> M4
+	4MOR.1 --> M4
+	class 2GEO.11,2GEO.6,2GEO.9,2LEX.5,2MAP.1,2NAR.1,2NAR.3,2STK.7,2UI.4,4PHON.1 todo
+	class 2GEO.7,2GEO.8,2GLY.1,2GLY.2,2GLY.3,2GLY.4,2LEX.3,2LEX.4,2LEX.6,2LEX.7,2MAP.2,2NAR.2,2NAR.4,2SIM.1,2STK.4,2STK.6,2UI.1,2UI.2,2UI.3,2UI.5,3PER.1,3SHR.1,4MOR.1,4PHON.3 blocked
 	class 4GLY.1,4PHON.2 deferred
-	class 1ENG.1,1ENG.10,1ENG.11,1ENG.12,1ENG.13,1ENG.14,1ENG.15,1ENG.16,1ENG.17,1ENG.18,1ENG.19,1ENG.2,1ENG.20,1ENG.21,1ENG.22,1ENG.23,1ENG.24,1ENG.25,1ENG.26,1ENG.27,1ENG.28,1ENG.29,1ENG.3,1ENG.30,1ENG.31,1ENG.4,1ENG.5,1ENG.6,1ENG.7,1ENG.8,1ENG.9,1UI.1,1UI.2,1UI.3,1UI.4,2GEO.1,2GEO.2,2GEO.3,2GEO.4,2GEO.5,2LEX.1,2LEX.2,2STK.1,2STK.2,2STK.3,2STK.5 done
+	class 1ENG.1,1ENG.10,1ENG.11,1ENG.12,1ENG.13,1ENG.14,1ENG.15,1ENG.16,1ENG.17,1ENG.18,1ENG.19,1ENG.2,1ENG.20,1ENG.21,1ENG.22,1ENG.23,1ENG.24,1ENG.25,1ENG.26,1ENG.27,1ENG.28,1ENG.29,1ENG.3,1ENG.30,1ENG.31,1ENG.4,1ENG.5,1ENG.6,1ENG.7,1ENG.8,1ENG.9,1UI.1,1UI.2,1UI.3,1UI.4,2GEO.1,2GEO.10,2GEO.2,2GEO.3,2GEO.4,2GEO.5,2LEX.1,2LEX.2,2STK.1,2STK.2,2STK.3,2STK.5 done
 ```
 
 ---
@@ -339,3 +364,5 @@ graph LR
 - [ ] **4PHON.1** — Design spike: tonogenesis — tone arising from lost segmental contrasts (the Sinitic and Vietnamese histories are largely tonogenetic; the LCK names it as a change type worth modelling). **Deliberately deferred beyond the current roadmap, not merely unscheduled:** tone is suprasegmental, so it needs a new axis on `Phone`, a tone-bearing-unit notion (specified by 1ENG.25, implemented by 1ENG.28), a reckoning with all 21 rules, and a decision about how `intelligibility.ts`'s Levenshtein metric should weigh a tone difference against a segment difference — that last one is a genuine design question, since tone differences are perceptually salient in ways a naive edit distance would understate. Recorded so the 1ENG.16 survey's judgement (cost, not merit) stays on the record rather than being rediscovered. Revisit no earlier than 1ENG.24, and only once M1-M3 have shipped. **Updated by the 1ENG.24 spike:** the tone-bearing-unit prerequisite is discharged (1ENG.28's `syllabify`), and 1ENG.24 slice 1 (1ENG.29) does the `Phone`-axis widening this task would otherwise have had to do itself for tone, while 1ENG.24 slice 2 (1ENG.30)'s `Rule.stressed` establishes the per-segment conditioning channel a tone rule will also need. `dependsOn` stays on 1ENG.24 (the spike, now done) rather than 1ENG.31, since this task's own spike is still unscheduled and should read 1ENG.24's contract, not wait on its implementation
 - [ ] **4GLY.1** — Writing-system variance beyond phonemic — logographic, alphabetic and abjad glyph sets coexisting per branch, so a script's *type* can diverge as well as its shapes. Flagged during the 2GLY interview and deliberately scoped down to phonemic-only for Milestone 2; recorded here rather than dropped because the 2GLY spike's shape-drift and reassignment model assumes a phonemic script throughout, so lifting that assumption later is a redesign of 2GLY.1's ruleset, not an extension of it _(deferred)_
 - [ ] **4PHON.2** — Climate/terrain-coded phonology — the claim that physical environment shapes a language's sound inventory (e.g. tone correlating with humidity, sonority with ambient noise). **Contested in real linguistics**, which is why it sits here rather than in the 2GEO line: 2GEO.1 deliberately split terrain's influence into a social contact/isolation axis (sound change) and a physical axis (semantic salience), both defensible, and specifically avoided asserting that terrain shapes phonology directly. If ever pursued, treat as flavour and ledger it as such — the engine's honesty ledgers exist precisely so a mechanic like this can't quietly present itself as attested _(deferred)_
+- [ ] **4PHON.3** — Discussion spike: liaison alternants. What it is: one word with two forms depending on what follows it (French *les* is /le/ before a consonant and /lez/ before a vowel). Today the engine stores one form and only uses `followerVowelShare` to slow final-consonant loss (1ENG.14 §4.2). Work through in order: (a) what liaison is and what the current statistic already captures; (b) how it should look in play; (c) whether to include it; (d) the conditions it needs. Known so far: about 28% of word-turns end in a consonant; in 77% of those the word's class always ends the utterance, so only one form would be heard, and about 8% would hear both. These figures depend on today's word orders and phrase frames, which 2SIM.1 re-tunes. Depends on 2LEX.3's decision about storing a second form _(blocked — depends on 2LEX.3, 2SIM.1)_
+- [ ] **4MOR.1** — Discussion spike: affix allomorphy. What it is: one grammatical ending taking different shapes depending on the word it attaches to (English plural *-s*, *-z*, *-iz*). Today each paradigm cell holds one form (`AffixState.form`), evolved against the majority stem ending (1ENG.15 §7). Work through in order: (a) what allomorphy is; (b) how it should look in play; (c) whether to include it; (d) the conditions it needs. Known so far: nothing measured. It changes `AffixState`, not `LexEntry`, though 1ENG.15 §7 ties it to the same second-form storage question as 2LEX.3. 2SIM.1's acceptance test (paradigm cycles observably turn) is its natural precondition _(blocked — depends on 2LEX.3, 2SIM.1)_
