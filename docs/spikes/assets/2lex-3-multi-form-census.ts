@@ -27,7 +27,7 @@ import { CONCEPT_CLASS } from "../../../src/lib/engine/lexicon";
 import { BY_ID, inventoryOf } from "../../../src/lib/engine/phonology";
 import { genStem } from "../../../src/lib/engine/naming";
 import { routeOpen } from "../../../src/lib/engine/contact";
-import { ownerMap, freeAdjacentFor } from "../../../src/lib/engine/geography";
+import { ownerMap, freeAdjacentFor, FRACTURE_COOLDOWN } from "../../../src/lib/engine/geography";
 import { reachMult, COST_CAP } from "../../../src/lib/engine/stakes";
 import type { GameState } from "../../../src/lib/engine/types";
 
@@ -75,7 +75,7 @@ function forceSplit(s: GameState): GameState {
   return { ...s, nextId: id + 1, branches: { ...s.branches,
     [target.id]: { ...target, territory: keep },
     [id]: { ...target, id, name: genStem(inventoryOf(target.lex), s.world.seed, id), parentId: target.id, depth: target.depth + 1, territory: cut, lex,
-      anchors: [{ lex, turn: s.turn, historyIndex: target.history.length, driftFromPrev: 0 }], fractureCooldown: 8 } } };
+      anchors: [{ lex, turn: s.turn, historyIndex: target.history.length, driftFromPrev: 0 }], fractureCooldown: FRACTURE_COOLDOWN } } };
 }
 
 function botTurn(s: GameState, t: number): GameState {
