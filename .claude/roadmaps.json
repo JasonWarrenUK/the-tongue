@@ -331,7 +331,8 @@
 						"id": "2GEO.9",
 						"description": "Design spike: map-shape diversification — `genRegions` (geography.ts) generates a fixed rectangular grid; 1ENG.21 grew it 4x3 (12 regions) to 10x8 (80) purely to fix `pairContact`'s `ORDER_CONTACT_CUT` reachability (a branch's single-neighbour border share couldn't clear 0.6 on a map that small), not as a map-generation improvement in its own right. Explore varied shapes and non-rectangular layouts (irregular coastlines, non-uniform region density, procedurally varied grid dimensions per seed) so every world's geography doesn't read as the same rectangle at a different scale — the actual gap this task exists to close, surfaced but out of scope during 1ENG.21's playtest fix",
 						"status": "todo",
-						"dependsOn": []
+						"dependsOn": [],
+						"notes": "A spike: when it finishes it spawns an implementation task. Move the 2GEO.9 gate onto that task for 2STK.4, 2STK.6, 2LEX.3 and 2SIM.1 so each waits for the built map."
 					},
 					{
 						"id": "2GEO.10",
@@ -339,6 +340,18 @@
 						"description": "Investigation spike: family-structure reachability (docs/spikes/2geo-10-family-structure-reachability.md) — a 12-seed census found fracture/assimilation death never fire autonomously on the 10x8 grid (genesis connectivity sits far above the bond-percolation threshold). Terrain-probability tuning alone produces a bimodal outcome (0 fractures or unbounded branch-count runaway), traced to a spread/fracture feedback loop, not a number to find — genuine reachability needs better map generation (2GEO.9's territory). Ships two safety fixes regardless: FRACTURE_COOLDOWN (rate-limits re-fracturing, breaking the runaway) and STUCK_TURNS (a time-based escape so a genesis-walled-in branch doesn't freeze forever). Terrain probability ships unchanged from baseline. Census harness (docs/spikes/assets/2geo-10-family-census.ts) committed for 2GEO.9/2SIM.1 to extend.",
 						"notes": "Unblocks 2STK.4's territory/fracture/death-dependent ambitions once 2GEO.9 delivers real reachability; the two safety fixes ship now regardless.",
 						"dependsOn": []
+					},
+					{
+						"id": "2GEO.11",
+						"description": "Discussion spike: fracture triggers. What it is: the rules for when one language splits into daughters. Today a branch fractures only when impassable terrain cuts its territory into separate pieces (`passableComponents`, `generation.ts` step 5); 2GEO.10 found this almost never happens on the current grid. Because the pieces are cut apart by impassable terrain, fracture siblings can never border, trade or borrow, which is why autonomous play produces no borrowing at all. Candidate extra triggers to discuss: distance between a language's regions (a widespread branch whose far parts lose contact), the presence and pressure of neighbouring languages, and any others that come up. Work through in order: (a) how real languages split and what causes it; (b) how a split should look in play; (c) which triggers to include, if any; (d) the conditions they need (map shape from 2GEO.9, world events from 2GEO.6, a rival family from 2GEO.8, `FRACTURE_COOLDOWN` and `STUCK_TURNS` from 2GEO.10). Extends the 2GEO.10 spike (`docs/spikes/2geo-10-family-structure-reachability.md`)",
+						"status": "todo",
+						"dependsOn": [
+							"2GEO.10"
+						],
+						"softDependsOn": [
+							"2GEO.9",
+							"2GEO.6"
+						]
 					},
 					{
 						"id": "2LEX.1",
@@ -397,17 +410,20 @@
 						"status": "todo",
 						"dependsOn": [
 							"2STK.5"
-						]
+						],
+						"notes": "A spike: when it finishes it spawns an implementation task. Move the 2STK.7 gate onto that task for 2STK.6, 2LEX.3 and 2SIM.1 so each waits for the built escape."
 					},
 					{
 						"id": "2STK.6",
 						"description": "Implement the treasury-and-laboratory economy (2stk-1 spike §6) — steepened size-scaled rule costs (`SIZE_COST` on `overheadFor`), isolation-scaled extra drift rate, stacked cost-multiplier cap (`COST_CAP`), the scarcity-guarantee sweep, and re-verification of the 1ENG.11 ossification sweeps under momentum and rate caps",
-						"status": "todo",
+						"status": "blocked",
 						"dependsOn": [
 							"2STK.1",
 							"2STK.2",
 							"2STK.3",
-							"2STK.5"
+							"2STK.5",
+							"2GEO.9",
+							"2STK.7"
 						]
 					},
 					{
@@ -456,13 +472,17 @@
 					},
 					{
 						"id": "2LEX.3",
-						"description": "Design spike: multi-form lexical entries — the refactor deferred four times (2GEO.4 §7 doublets, 2LEX.1 §7 coordinate compounds, 1ENG.14 §9 liaison alternants, 1ENG.15 §7 affix allomorphy): widen `LexEntry` to hold multiple forms, surveying the ripple across intelligibility, collision detection, naming, borrowing and the word-table UI, producing a build-ready contract for 2LEX.4",
-						"status": "todo",
-						"dependsOn": []
+						"description": "Discussion spike: borrowed doublets. What it is: a word borrowed from a neighbour sits beside the native word for the same concept instead of replacing it (English keeps native *cow* beside borrowed *beef*; today `resolveBorrow` always overwrites). Work through in order: (a) what a doublet is and how real languages treat one; (b) how it should look in play, if at all (a second form in the word table, a chronicle line, nothing visible); (c) whether to include it; (d) the conditions it needs. Known so far: it needs bordering branches that can trade words, which autonomous play never produces (fracture siblings are walled apart by definition), so it waits on the map, contact and fracture work. Whatever this decides about storing a second form per concept also shapes 2LEX.7, 4PHON.3 and 4MOR.1. Evidence: `docs/spikes/assets/2lex-3-multi-form-census.ts` (0 borrowings in 60 autonomous seeds; 33% to 69% of forced-family loans copy the whole word, depending on how the family forms). Outcome is a decision and, if included, a contract for 2LEX.4",
+						"status": "blocked",
+						"dependsOn": [
+							"2GEO.9",
+							"2STK.7",
+							"2GEO.11"
+						]
 					},
 					{
 						"id": "2LEX.4",
-						"description": "Implement multi-form lexical entries *(placeholder — depends on 2LEX.3)*",
+						"description": "Implement borrowed doublets *(placeholder: only if 2LEX.3 decides to include them)*",
 						"status": "blocked",
 						"dependsOn": [
 							"2LEX.3"
@@ -482,6 +502,15 @@
 						"status": "blocked",
 						"dependsOn": [
 							"2LEX.5"
+						]
+					},
+					{
+						"id": "2LEX.7",
+						"description": "Discussion spike: coordinate compounds. What it is: a word built by joining two near-synonyms with neither as the head (Mandarin 道路, 'way-road'). Today 2LEX.2's collision repair joins a concept to a clipped neighbouring concept instead. Work through in order: (a) what a coordinate compound is; (b) how it should look in play; (c) whether to include it; (d) the conditions it needs. Known so far: it needs a source of synonyms, and borrowing is not one (0.2% of collision repairs land on a concept with a recent loan). Candidate sources to discuss: words revived under 2LEX.5, existing neighbouring concepts, or something else. Depends on 2LEX.3's decision about storing a second form",
+						"status": "blocked",
+						"dependsOn": [
+							"2LEX.3",
+							"2LEX.6"
 						]
 					},
 					{
@@ -528,12 +557,16 @@
 					{
 						"id": "2SIM.1",
 						"description": "Integration pacing census — re-run the census harness with every mechanic active (borrowing, collision repair, syntax gating, paradigms): combined event density per branch-turn, collision dynamics at 48 concepts under the class-gate + distance model, affix lifetime distribution with the explicit acceptance criterion that grammaticalisation cycles observably turn (else the 1ENG.15 backstop question reopens with data in hand), and a tuning pass across the constant family (`COLLISION_TURNS`, `SEVERITY_CUT`, `BORROW_RATE`, `SYNTAX_STRENGTH`, `FRAME_WALK`, `ORDER_*`). **Flagged during 1ENG.21 implementation:** a live playtest sweep found `ORDER_TURNS` and `RENEWAL_TURNS` both at 6 made rigidification structurally unreachable — step 1 (`tickParadigm`) runs before step 3.75 in the same turn, so renewal always revived a fully collapsed paradigm one tick before rigidification's own same-value threshold could check it. Fixed narrowly by dropping `ORDER_TURNS` to 5 (1ENG.21), but it surfaces a broader question this census should take up: should any sustained-N-turns threshold (`ASSIM_TURNS`, `ORDER_TURNS`, `RENEWAL_TURNS`, `FUSE_TURNS`, collision pressure) vary stochastically rather than being a fixed integer, given real language change doesn't run on a metronome — and if so, how the \"N/M turns until X\" UI convention (`pressureLabel` in `game.svelte.ts`, `PhrasePanel`'s order-pressure label) would need to adapt so it doesn't become misleading. A design question to take up here, not a mechanism to implement speculatively Should extend 2GEO.10's family-census harness (docs/spikes/assets/2geo-10-family-census.ts) rather than rebuilding branch/territory/fracture instrumentation from scratch.",
-						"status": "todo",
+						"status": "blocked",
 						"dependsOn": [
 							"2GEO.5",
 							"2LEX.2",
 							"1ENG.20",
-							"1ENG.22"
+							"1ENG.22",
+							"2GEO.9",
+							"2STK.6",
+							"2STK.7",
+							"2GEO.11"
 						]
 					},
 					{
@@ -591,8 +624,10 @@
 					{
 						"id": "3PER.1",
 						"description": "Local persistence — save/load a session via `localStorage`",
-						"status": "todo",
-						"dependsOn": [],
+						"status": "blocked",
+						"dependsOn": [
+							"M2"
+						],
 						"notes": "Placeholder — deferred from Milestone 2"
 					},
 					{
@@ -630,6 +665,24 @@
 						"description": "Climate/terrain-coded phonology — the claim that physical environment shapes a language's sound inventory (e.g. tone correlating with humidity, sonority with ambient noise). **Contested in real linguistics**, which is why it sits here rather than in the 2GEO line: 2GEO.1 deliberately split terrain's influence into a social contact/isolation axis (sound change) and a physical axis (semantic salience), both defensible, and specifically avoided asserting that terrain shapes phonology directly. If ever pursued, treat as flavour and ledger it as such — the engine's honesty ledgers exist precisely so a mechanic like this can't quietly present itself as attested",
 						"status": "deferred",
 						"dependsOn": []
+					},
+					{
+						"id": "4PHON.3",
+						"description": "Discussion spike: liaison alternants. What it is: one word with two forms depending on what follows it (French *les* is /le/ before a consonant and /lez/ before a vowel). Today the engine stores one form and only uses `followerVowelShare` to slow final-consonant loss (1ENG.14 §4.2). Work through in order: (a) what liaison is and what the current statistic already captures; (b) how it should look in play; (c) whether to include it; (d) the conditions it needs. Known so far: about 28% of word-turns end in a consonant; in 77% of those the word's class always ends the utterance, so only one form would be heard, and about 8% would hear both. These figures depend on today's word orders and phrase frames, which 2SIM.1 re-tunes. Depends on 2LEX.3's decision about storing a second form",
+						"status": "blocked",
+						"dependsOn": [
+							"2LEX.3",
+							"2SIM.1"
+						]
+					},
+					{
+						"id": "4MOR.1",
+						"description": "Discussion spike: affix allomorphy. What it is: one grammatical ending taking different shapes depending on the word it attaches to (English plural *-s*, *-z*, *-iz*). Today each paradigm cell holds one form (`AffixState.form`), evolved against the majority stem ending (1ENG.15 §7). Work through in order: (a) what allomorphy is; (b) how it should look in play; (c) whether to include it; (d) the conditions it needs. Known so far: nothing measured. It changes `AffixState`, not `LexEntry`, though 1ENG.15 §7 ties it to the same second-form storage question as 2LEX.3. 2SIM.1's acceptance test (paradigm cycles observably turn) is its natural precondition",
+						"status": "blocked",
+						"dependsOn": [
+							"2LEX.3",
+							"2SIM.1"
+						]
 					}
 				]
 			}
