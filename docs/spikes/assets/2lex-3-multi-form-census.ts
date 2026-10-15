@@ -148,8 +148,9 @@ for (const seed of SEEDS) {
           const key = `${seed}:${b.id}:${concept}`;
           if (lastBorrow[key] !== undefined) reborrowGaps.push(t - lastBorrow[key]);
           lastBorrow[key] = t;
-          // faithful = the loan arrived whole: A's new form equals the lender's form. This is
-          // string equality, not resolveBorrow's contact-based flag: a one-edit adapted loan (stepToward) also lands here
+          // faithful = the loan arrived whole: A's new form equals the lender's form. String
+          // equality approximates resolveBorrow's contact-based flag; a one-edit adapted loan
+          // (stepToward) also lands here
           const lenderName = / from (.+)$/.exec(h.note)?.[1];
           // names come from the note; exclude the borrower so a name clash can never
           // resolve the lender to the borrower itself
