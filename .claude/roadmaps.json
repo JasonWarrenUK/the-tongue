@@ -4,7 +4,21 @@
 		"path": "docs/roadmaps/mvp.md",
 		"min_plugin": "2.7.0",
 		"archived": false,
-		"externalGates": [],
+		"externalGates": [
+			{
+				"id": "GSECONDARY",
+				"name": "Secondary tier release",
+				"status": "external",
+				"imposes": "deferred",
+				"blocks": [
+					"4PHON.1",
+					"4PHON.2",
+					"4PHON.3",
+					"4MOR.1",
+					"4GLY.1"
+				]
+			}
+		],
 		"milestones": [
 			{
 				"id": "M1",
@@ -691,45 +705,64 @@
 			},
 			{
 				"id": "M4",
-				"name": "Beyond Current Scope",
-				"goal": "A holding area, not a milestone that ships: work deliberately deferred beyond the current roadmap after a spike judged it too costly for its value *now*, rather than unscheduled by omission. Nothing here is committed to, and nothing here gates M1-M3. The point is that the reasoning survives — each entry records why it was set aside and what would have to exist first — so a future decision to pick it up starts from the analysis instead of rediscovering it.",
+				"name": "Phonology & Morphology (Secondary)",
+				"goal": "Extend the engine past one form per cell: tone, liaison alternants, affix allomorphy and environment-coded inventories (flagged as flavour). Gated on Persistence & Sharing and held until the Core tier is done.",
 				"tasks": [
 					{
 						"id": "4PHON.1",
-						"description": "Design spike: tonogenesis — tone arising from lost segmental contrasts (the Sinitic and Vietnamese histories are largely tonogenetic; the LCK names it as a change type worth modelling). **Deliberately deferred beyond the current roadmap, not merely unscheduled:** tone is suprasegmental, so it needs a new axis on `Phone`, a tone-bearing-unit notion (specified by 1ENG.25, implemented by 1ENG.28), a reckoning with all 21 rules, and a decision about how `intelligibility.ts`'s Levenshtein metric should weigh a tone difference against a segment difference — that last one is a genuine design question, since tone differences are perceptually salient in ways a naive edit distance would understate. Recorded so the 1ENG.16 survey's judgement (cost, not merit) stays on the record rather than being rediscovered. Revisit no earlier than 1ENG.24, and only once M1-M3 have shipped. **Updated by the 1ENG.24 spike:** the tone-bearing-unit prerequisite is discharged (1ENG.28's `syllabify`), and 1ENG.24 slice 1 (1ENG.29) does the `Phone`-axis widening this task would otherwise have had to do itself for tone, while 1ENG.24 slice 2 (1ENG.30)'s `Rule.stressed` establishes the per-segment conditioning channel a tone rule will also need. `dependsOn` stays on 1ENG.24 (the spike, now done) rather than 1ENG.31, since this task's own spike is still unscheduled and should read 1ENG.24's contract, not wait on its implementation.",
-						"status": "todo",
-						"dependsOn": [
-							"1ENG.24"
-						]
-					},
-					{
-						"id": "4GLY.1",
-						"description": "Writing-system variance beyond phonemic — logographic, alphabetic and abjad glyph sets coexisting per branch, so a script's *type* can diverge as well as its shapes. Flagged during the 2GLY interview and deliberately scoped down to phonemic-only for Milestone 2; recorded here rather than dropped because the 2GLY spike's shape-drift and reassignment model assumes a phonemic script throughout, so lifting that assumption later is a redesign of 2GLY.1's ruleset, not an extension of it",
+						"description": "Design spike: tonogenesis — tone arising from lost segmental contrasts (the Sinitic and Vietnamese histories are largely tonogenetic; the LCK names it as a change type worth modelling). **Deliberately deferred to the Secondary tier, not merely unscheduled:** tone is suprasegmental, so it needs a new axis on `Phone`, a tone-bearing-unit notion (specified by 1ENG.25, implemented by 1ENG.28), a reckoning with all 21 rules, and a decision about how `intelligibility.ts`'s Levenshtein metric should weigh a tone difference against a segment difference — that last one is a genuine design question, since tone differences are perceptually salient in ways a naive edit distance would understate. Recorded so the 1ENG.16 survey's judgement (cost, not merit) stays on the record rather than being rediscovered. Revisit no earlier than 1ENG.24, and only once M1-M3 have shipped. **Updated by the 1ENG.24 spike:** the tone-bearing-unit prerequisite is discharged (1ENG.28's `syllabify`), and 1ENG.24 slice 1 (1ENG.29) does the `Phone`-axis widening this task would otherwise have had to do itself for tone, while 1ENG.24 slice 2 (1ENG.30)'s `Rule.stressed` establishes the per-segment conditioning channel a tone rule will also need. `dependsOn` stays on 1ENG.24 (the spike, now done) rather than 1ENG.31, since this task's own spike is still unscheduled and should read 1ENG.24's contract, not wait on its implementation.",
 						"status": "deferred",
-						"dependsOn": []
+						"dependsOn": [
+							"1ENG.24",
+							"M3",
+							"GSECONDARY"
+						]
 					},
 					{
 						"id": "4PHON.2",
 						"description": "Climate/terrain-coded phonology — the claim that physical environment shapes a language's sound inventory (e.g. tone correlating with humidity, sonority with ambient noise). **Contested in real linguistics**, which is why it sits here rather than in the 2GEO line: 2GEO.1 deliberately split terrain's influence into a social contact/isolation axis (sound change) and a physical axis (semantic salience), both defensible, and specifically avoided asserting that terrain shapes phonology directly. If ever pursued, treat as flavour and ledger it as such — the engine's honesty ledgers exist precisely so a mechanic like this can't quietly present itself as attested",
 						"status": "deferred",
-						"dependsOn": []
+						"dependsOn": [
+							"M3",
+							"GSECONDARY"
+						]
 					},
 					{
 						"id": "4PHON.3",
 						"description": "Discussion spike: liaison alternants. What it is: one word with two forms depending on what follows it (French *les* is /le/ before a consonant and /lez/ before a vowel). Today the engine stores one form and only uses `followerVowelShare` to slow final-consonant loss (1ENG.14 §4.2). Work through in order: (a) what liaison is and what the current statistic already captures; (b) how it should look in play; (c) whether to include it; (d) the conditions it needs. Known so far: about 28% of word-turns end in a consonant; in 77% of those the word's class always ends the utterance, so only one form would be heard, and about 8% would hear both. These figures depend on today's word orders and phrase frames, which 2SIM.1 re-tunes. Depends on 2LEX.3's decision about storing a second form",
-						"status": "blocked",
+						"status": "deferred",
 						"dependsOn": [
 							"2LEX.3",
-							"2SIM.1"
+							"2SIM.1",
+							"M3",
+							"GSECONDARY"
 						]
 					},
 					{
 						"id": "4MOR.1",
 						"description": "Discussion spike: affix allomorphy. What it is: one grammatical ending taking different shapes depending on the word it attaches to (English plural *-s*, *-z*, *-iz*). Today each paradigm cell holds one form (`AffixState.form`), evolved against the majority stem ending (1ENG.15 §7). Work through in order: (a) what allomorphy is; (b) how it should look in play; (c) whether to include it; (d) the conditions it needs. Known so far: nothing measured. It changes `AffixState`, not `LexEntry`, though 1ENG.15 §7 ties it to the same second-form storage question as 2LEX.3. 2SIM.1's acceptance test (paradigm cycles observably turn) is its natural precondition",
-						"status": "blocked",
+						"status": "deferred",
 						"dependsOn": [
 							"2LEX.3",
-							"2SIM.1"
+							"2SIM.1",
+							"M3",
+							"GSECONDARY"
+						]
+					}
+				]
+			},
+			{
+				"id": "M5",
+				"name": "Script Typology (Secondary)",
+				"goal": "Let a branch's script diverge in type (logographic, alphabetic or abjad) as well as shape, which means redesigning the phonemic-only 2GLY ruleset. Gated on Persistence & Sharing and held until the Core tier is done.",
+				"tasks": [
+					{
+						"id": "4GLY.1",
+						"description": "Writing-system variance beyond phonemic — logographic, alphabetic and abjad glyph sets coexisting per branch, so a script's *type* can diverge as well as its shapes. Flagged during the 2GLY interview and deliberately scoped down to phonemic-only for Milestone 2; recorded here rather than dropped because the 2GLY spike's shape-drift and reassignment model assumes a phonemic script throughout, so lifting that assumption later is a redesign of 2GLY.1's ruleset, not an extension of it",
+						"status": "deferred",
+						"dependsOn": [
+							"M3",
+							"GSECONDARY"
 						]
 					}
 				]

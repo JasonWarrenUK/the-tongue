@@ -4,7 +4,7 @@ description: The Tongue — seeded language-evolution simulator, from core engin
 
 # The Tongue: MVP Roadmap
 
-A seeded, deterministic language-evolution simulator: sound-change rules drift a lexicon across autonomously drifting, spreading and fracturing branches, tracked through a mutual-intelligibility matrix. Milestone 1 (Core Simulator) is complete; Milestone 2 (Depth & Legibility) is queued behind a chain of design spikes; Milestone 3 (Persistence & Sharing) is a deliberately deferred stub. Milestone 4 (Beyond Current Scope) ships nothing: it holds work a spike judged too costly for its value now, kept so the reasoning survives.
+A seeded, deterministic language-evolution simulator: sound-change rules drift a lexicon across autonomously drifting, spreading and fracturing branches, tracked through a mutual-intelligibility matrix. Milestone 1 (Core Simulator) is complete; Milestone 2 (Depth & Legibility) is queued behind a chain of design spikes; Milestone 3 (Persistence & Sharing) is a deliberately deferred stub. Milestones 4 and 5 form a Secondary tier (Phonology & Morphology; Script Typology) gated on Milestone 3 through the `GSECONDARY` release gate: work a spike judged too costly for its value now, kept so the reasoning survives.
 
 **Critical path:** `2GEO.5 → 2STK.1 → 2STK.2 → 2STK.6 → 2GLY.1 → {2GLY.2, 2GLY.3} → 2GLY.4 → 2UI.1 → 2UI.2` — the longest unblocked chain through Milestone 2, gating the onboarding pass on stakes, glyphs and the homophone-resolution mechanic. (The stakes implementation is split across `2STK.2`–`2STK.6` per the [2stk-1 spike](../spikes/2stk-1-rule-choice-stakes.md); `2STK.6` is the chain's sink because the economy sweeps need identity, momentum and contact landed first.)
 
@@ -12,7 +12,7 @@ A seeded, deterministic language-evolution simulator: sound-change rules drift a
 
 ---
 
-## Milestone 1 — Core Simulator
+## Milestone 1: Core Simulator
 
 **Goal:** A playable, deterministic language-evolution simulator — seeded world generation, sound-change rules, territory expansion, autonomous drift/spread/fracture, and a mutual intelligibility matrix.
 
@@ -54,7 +54,7 @@ A seeded, deterministic language-evolution simulator: sound-change rules drift a
 
 ---
 
-## Milestone 2 — Depth & Legibility
+## Milestone 2: Depth & Legibility
 
 **Goal:** Make geography causally shape language change, give sound-change choices real stakes, add a diegetic evolving-glyph writing system, and make every player-facing decision legible — starting with an onboarding pass informed by all of the above.
 
@@ -102,7 +102,7 @@ A seeded, deterministic language-evolution simulator: sound-change rules drift a
 
 ---
 
-## Milestone 3 — Persistence & Sharing
+## Milestone 3: Persistence & Sharing
 
 **Goal:** Survive a page refresh and let players show their results to someone else. Deferred out of Milestone 2 to keep that milestone focused purely on simulation depth and legibility — stubbed here so the intent isn't lost.
 
@@ -110,6 +110,25 @@ A seeded, deterministic language-evolution simulator: sound-change rules drift a
   - Note: Placeholder — deferred from Milestone 2
 - [ ] **3SHR.1** — Shareable output — export/share a family tree or result (image, link, or data export) _(blocked — depends on 3PER.1)_
   - Note: Placeholder — deferred from Milestone 2
+
+---
+
+## Milestone 4: Phonology & Morphology (Secondary)
+
+**Goal:** Extend the engine past one form per cell: tone, liaison alternants, affix allomorphy and environment-coded inventories (flagged as flavour). Gated on Persistence & Sharing and held until the Core tier is done.
+
+- [ ] **4PHON.1** — Design spike: tonogenesis — tone arising from lost segmental contrasts (the Sinitic and Vietnamese histories are largely tonogenetic; the LCK names it as a change type worth modelling). **Deliberately deferred to the Secondary tier, not merely unscheduled:** tone is suprasegmental, so it needs a new axis on `Phone`, a tone-bearing-unit notion (specified by 1ENG.25, implemented by 1ENG.28), a reckoning with all 21 rules, and a decision about how `intelligibility.ts`'s Levenshtein metric should weigh a tone difference against a segment difference — that last one is a genuine design question, since tone differences are perceptually salient in ways a naive edit distance would understate. Recorded so the 1ENG.16 survey's judgement (cost, not merit) stays on the record rather than being rediscovered. Revisit no earlier than 1ENG.24, and only once M1-M3 have shipped. **Updated by the 1ENG.24 spike:** the tone-bearing-unit prerequisite is discharged (1ENG.28's `syllabify`), and 1ENG.24 slice 1 (1ENG.29) does the `Phone`-axis widening this task would otherwise have had to do itself for tone, while 1ENG.24 slice 2 (1ENG.30)'s `Rule.stressed` establishes the per-segment conditioning channel a tone rule will also need. `dependsOn` stays on 1ENG.24 (the spike, now done) rather than 1ENG.31, since this task's own spike is still unscheduled and should read 1ENG.24's contract, not wait on its implementation _(deferred: GSECONDARY, and every Core milestone)_
+- [ ] **4PHON.2** — Climate/terrain-coded phonology — the claim that physical environment shapes a language's sound inventory (e.g. tone correlating with humidity, sonority with ambient noise). **Contested in real linguistics**, which is why it sits here rather than in the 2GEO line: 2GEO.1 deliberately split terrain's influence into a social contact/isolation axis (sound change) and a physical axis (semantic salience), both defensible, and specifically avoided asserting that terrain shapes phonology directly. If ever pursued, treat as flavour and ledger it as such — the engine's honesty ledgers exist precisely so a mechanic like this can't quietly present itself as attested _(deferred: GSECONDARY, and every Core milestone)_
+- [ ] **4PHON.3** — Discussion spike: liaison alternants. What it is: one word with two forms depending on what follows it (French *les* is /le/ before a consonant and /lez/ before a vowel). Today the engine stores one form and only uses `followerVowelShare` to slow final-consonant loss (1ENG.14 §4.2). Work through in order: (a) what liaison is and what the current statistic already captures; (b) how it should look in play; (c) whether to include it; (d) the conditions it needs. Known so far: about 28% of word-turns end in a consonant; in 77% of those the word's class always ends the utterance, so only one form would be heard, and about 8% would hear both. These figures depend on today's word orders and phrase frames, which 2SIM.1 re-tunes. Depends on 2LEX.3's decision about storing a second form _(deferred: GSECONDARY, and every Core milestone; also depends on 2LEX.3, 2SIM.1)_
+- [ ] **4MOR.1** — Discussion spike: affix allomorphy. What it is: one grammatical ending taking different shapes depending on the word it attaches to (English plural *-s*, *-z*, *-iz*). Today each paradigm cell holds one form (`AffixState.form`), evolved against the majority stem ending (1ENG.15 §7). Work through in order: (a) what allomorphy is; (b) how it should look in play; (c) whether to include it; (d) the conditions it needs. Known so far: nothing measured. It changes `AffixState`, not `LexEntry`, though 1ENG.15 §7 ties it to the same second-form storage question as 2LEX.3. 2SIM.1's acceptance test (paradigm cycles observably turn) is its natural precondition _(deferred: GSECONDARY, and every Core milestone; also depends on 2LEX.3, 2SIM.1)_
+
+---
+
+## Milestone 5: Script Typology (Secondary)
+
+**Goal:** Let a branch's script diverge in type (logographic, alphabetic or abjad) as well as shape, which means redesigning the phonemic-only 2GLY ruleset. Gated on Persistence & Sharing and held until the Core tier is done.
+
+- [ ] **4GLY.1** — Writing-system variance beyond phonemic — logographic, alphabetic and abjad glyph sets coexisting per branch, so a script's *type* can diverge as well as its shapes. Flagged during the 2GLY interview and deliberately scoped down to phonemic-only for Milestone 2; recorded here rather than dropped because the 2GLY spike's shape-drift and reassignment model assumes a phonemic script throughout, so lifting that assumption later is a redesign of 2GLY.1's ruleset, not an extension of it _(deferred: GSECONDARY, and every Core milestone)_
 
 ---
 
@@ -126,93 +145,106 @@ graph LR
 	classDef outOfScope fill:#f6f6f6,stroke:#717171,color:#717171,stroke-dasharray:2 2
 	classDef mile fill:#e3f7ff,stroke:#007590,color:#007590,font-weight:bold
 	classDef external fill:#fff9e5,stroke:#7d6f00,color:#7d6f00,stroke-dasharray:4 3,font-style:italic
-	1ENG.1["1ENG.1: Mulberry32 seeded RNG + deterministic h…"]
-	1ENG.2["1ENG.2: Phoneme inventory, syllable template, a…"]
-	1ENG.3["1ENG.3: Phone table, 10 sound-change rules, col…"]
-	1ENG.4["1ENG.4: Mutual intelligibility matrix via norma…"]
-	1ENG.5["1ENG.5: Branch family tree layout and per-branc…"]
-	1ENG.6["1ENG.6: Terrain map, adjacency, and passable-co…"]
-	1ENG.7["1ENG.7: World/state initialisation (`world.ts`)"]
-	1ENG.8["1ENG.8: Generation resolution: drift → spread →…"]
-	1ENG.11["1ENG.11: Research spike: rule-set erosion/renew…"]
-	1ENG.12["1ENG.12: Erosion/renewal mechanism — widened th…"]
-	1ENG.9["1ENG.9: Fracture: children now diverge from the…"]
-	1ENG.10["1ENG.10: Fracture reworked to continue the pare…"]
-	1ENG.18["1ENG.18: Language-shift/assimilation death — a…"]
-	1UI.1["1UI.1: Reactive game state singleton (Svelte 5…"]
-	1UI.2["1UI.2: Map, family tree, intelligibility matrix…"]
-	1UI.3["1UI.3: Economy config panel for tuning pool/gro…"]
-	1UI.4["1UI.4: Main route wiring all components togethe…"]
-	1ENG.13["1ENG.13: Compensatory lengthening — split into…"]
-	1ENG.14["1ENG.14: Design spike: syntax-conditioned sound…"]
-	1ENG.15["1ENG.15: Design spike: morphological renewal (a…"]
-	1ENG.16["1ENG.16: Research spike: survey Mark Rosenfelde…"]
-	1ENG.17["1ENG.17: Implement the three adoptions from the…"]
-	1ENG.22["1ENG.22: Fix unbounded per-turn family-tree/era…"]
-	1ENG.23["1ENG.23: Design spike: per-branch phoneme inven…"]
-	1ENG.25["1ENG.25: Design spike: runtime syllabification…"]
-	1ENG.26["1ENG.26: Implement the 1ENG.23 contract — move…"]
-	2GEO.1["2GEO.1: Design spike: terrain→sound-change bias…"]
-	2GEO.2["2GEO.2: Implement terrain-biased rule weighting…"]
-	2GEO.3["2GEO.3: Implement biome-driven vocabulary resis…"]
-	2GEO.4["2GEO.4: Design spike: neighbour contact/borrowi…"]
-	2GEO.5["2GEO.5: Implement the neighbour-borrowing mecha…"]
-	2GEO.6["2GEO.6: Design spike: seeded generational world…"]
-	2GEO.7["2GEO.7: Implement seeded world events *(placeho…"]
-	2GEO.9["2GEO.9: Design spike: map-shape diversification…"]
-	2GEO.10["2GEO.10: Investigation spike: family-structure…"]
-	2GEO.11["2GEO.11: Discussion spike: fracture triggers. W…"]
-	2LEX.1["2LEX.1: Design spike: homophone-collision resol…"]
-	2STK.1["2STK.1: Design spike: rule-choice stakes mechan…"]
-	2STK.2["2STK.2: Implement focal identity & reach (2stk-…"]
-	2STK.3["2STK.3: Implement drift momentum (2stk-1 spike…"]
-	2STK.4["2STK.4: Implement ambitions & lock-in (2stk-1 s…"]
-	2STK.5["2STK.5: Implement contact events & trade routes…"]
-	2GEO.8["2GEO.8: Design spike: rival language family — a…"]
-	2STK.7["2STK.7: Design spike: contact deadlock escape —…"]
-	2STK.6["2STK.6: Implement the treasury-and-laboratory e…"]
-	2GLY.1["2GLY.1: Design spike: glyph mutation ruleset —…"]
-	2GLY.2["2GLY.2: Implement per-generation glyph shape dr…"]
-	2GLY.3["2GLY.3: Implement phoneme→glyph reassignment lo…"]
-	2GLY.4["2GLY.4: Build glyph rendering component (branch…"]
-	2LEX.2["2LEX.2: Implement the homophone-collision resol…"]
-	1ENG.19["1ENG.19: Implement the 1ENG.14 substrate and co…"]
-	1ENG.20["1ENG.20: Implement the 1ENG.15 paradigm model —…"]
-	1ENG.21["1ENG.21: Implement 1ENG.14 stage B: word-order…"]
-	1ENG.27["1ENG.27: Implement 1ENG.25 slice 1: phrase-leve…"]
-	1ENG.28["1ENG.28: Implement 1ENG.25 slice 2: runtime syl…"]
-	1ENG.24["1ENG.24: Design spike: stress, and the sound ch…"]
-	1ENG.29["1ENG.29: Implement 1ENG.24 slice 1: a real schw…"]
-	1ENG.30["1ENG.30: Implement 1ENG.24 slice 2: the stress…"]
-	1ENG.31["1ENG.31: Implement 1ENG.24 slice 3: `reduce` (u…"]
-	M1["M1: Core Simulator"]:::mile
-	2LEX.3["2LEX.3: Discussion spike: borrowed doublets. Wh…"]
-	2LEX.4["2LEX.4: Implement borrowed doublets *(placehold…"]
-	2LEX.5["2LEX.5: Design spike: archive / loss with resid…"]
-	2LEX.6["2LEX.6: Implement archive / loss with residue *…"]
-	2LEX.7["2LEX.7: Discussion spike: coordinate compounds.…"]
-	2UI.1["2UI.1: UI completeness audit across all compone…"]
-	2UI.2["2UI.2: Build onboarding — inline explainers, fu…"]
-	2UI.3["2UI.3: Retire the economy config panel from the…"]
-	2UI.4["2UI.4: Design spike: dead-phase phrase viewer —…"]
-	2UI.5["2UI.5: Implement the 2UI.4 contract *(placehold…"]
-	2SIM.1["2SIM.1: Integration pacing census — re-run the…"]
-	2NAR.1["2NAR.1: Design spike: the seed text — a fixed p…"]
-	2NAR.2["2NAR.2: Implement the seed text *(placeholder —…"]
-	2NAR.3["2NAR.3: Design spike: the chronicle — replace t…"]
-	2NAR.4["2NAR.4: Implement the chronicle *(placeholder —…"]
-	2MAP.1["2MAP.1: Design spike: living toponymy — regions…"]
-	2MAP.2["2MAP.2: Implement living toponymy *(placeholder…"]
-	M2["M2: Depth & Legibility"]:::mile
-	3PER.1["3PER.1: Local persistence — save/load a session…"]
-	3SHR.1["3SHR.1: Shareable output — export/share a famil…"]
-	M3["M3: Persistence & Sharing"]:::mile
-	4PHON.1["4PHON.1: Design spike: tonogenesis — tone arisi…"]
-	4GLY.1["4GLY.1: Writing-system variance beyond phonemic…"]
-	4PHON.2["4PHON.2: Climate/terrain-coded phonology — the…"]
-	4PHON.3["4PHON.3: Discussion spike: liaison alternants.…"]
-	4MOR.1["4MOR.1: Discussion spike: affix allomorphy. Wha…"]
-	M4["M4: Beyond Current Scope"]:::mile
+	classDef tierUnderway fill:#c3cede,stroke:#2f3b4c,color:#2f3b4c
+	classDef tierDeferred fill:#dccbb9,stroke:#4a3826,color:#4a3826,stroke-dasharray:6 4
+	subgraph tier0["Core · underway"]
+		1ENG.1["1ENG.1: Mulberry32 seeded RNG + deterministic h…"]
+		1ENG.2["1ENG.2: Phoneme inventory, syllable template, a…"]
+		1ENG.3["1ENG.3: Phone table, 10 sound-change rules, col…"]
+		1ENG.4["1ENG.4: Mutual intelligibility matrix via norma…"]
+		1ENG.5["1ENG.5: Branch family tree layout and per-branc…"]
+		1ENG.6["1ENG.6: Terrain map, adjacency, and passable-co…"]
+		1ENG.7["1ENG.7: World/state initialisation (`world.ts`)"]
+		1ENG.8["1ENG.8: Generation resolution: drift → spread →…"]
+		1ENG.11["1ENG.11: Research spike: rule-set erosion/renew…"]
+		1ENG.12["1ENG.12: Erosion/renewal mechanism — widened th…"]
+		1ENG.9["1ENG.9: Fracture: children now diverge from the…"]
+		1ENG.10["1ENG.10: Fracture reworked to continue the pare…"]
+		1ENG.18["1ENG.18: Language-shift/assimilation death — a…"]
+		1UI.1["1UI.1: Reactive game state singleton (Svelte 5…"]
+		1UI.2["1UI.2: Map, family tree, intelligibility matrix…"]
+		1UI.3["1UI.3: Economy config panel for tuning pool/gro…"]
+		1UI.4["1UI.4: Main route wiring all components togethe…"]
+		1ENG.13["1ENG.13: Compensatory lengthening — split into…"]
+		1ENG.14["1ENG.14: Design spike: syntax-conditioned sound…"]
+		1ENG.15["1ENG.15: Design spike: morphological renewal (a…"]
+		1ENG.16["1ENG.16: Research spike: survey Mark Rosenfelde…"]
+		1ENG.17["1ENG.17: Implement the three adoptions from the…"]
+		1ENG.22["1ENG.22: Fix unbounded per-turn family-tree/era…"]
+		1ENG.23["1ENG.23: Design spike: per-branch phoneme inven…"]
+		1ENG.25["1ENG.25: Design spike: runtime syllabification…"]
+		1ENG.26["1ENG.26: Implement the 1ENG.23 contract — move…"]
+		2GEO.1["2GEO.1: Design spike: terrain→sound-change bias…"]
+		2GEO.2["2GEO.2: Implement terrain-biased rule weighting…"]
+		2GEO.3["2GEO.3: Implement biome-driven vocabulary resis…"]
+		2GEO.4["2GEO.4: Design spike: neighbour contact/borrowi…"]
+		2GEO.5["2GEO.5: Implement the neighbour-borrowing mecha…"]
+		2GEO.6["2GEO.6: Design spike: seeded generational world…"]
+		2GEO.7["2GEO.7: Implement seeded world events *(placeho…"]
+		2GEO.9["2GEO.9: Design spike: map-shape diversification…"]
+		2GEO.10["2GEO.10: Investigation spike: family-structure…"]
+		2GEO.11["2GEO.11: Discussion spike: fracture triggers. W…"]
+		2LEX.1["2LEX.1: Design spike: homophone-collision resol…"]
+		2STK.1["2STK.1: Design spike: rule-choice stakes mechan…"]
+		2STK.2["2STK.2: Implement focal identity & reach (2stk-…"]
+		2STK.3["2STK.3: Implement drift momentum (2stk-1 spike…"]
+		2STK.4["2STK.4: Implement ambitions & lock-in (2stk-1 s…"]
+		2STK.5["2STK.5: Implement contact events & trade routes…"]
+		2GEO.8["2GEO.8: Design spike: rival language family — a…"]
+		2STK.7["2STK.7: Design spike: contact deadlock escape —…"]
+		2STK.6["2STK.6: Implement the treasury-and-laboratory e…"]
+		2GLY.1["2GLY.1: Design spike: glyph mutation ruleset —…"]
+		2GLY.2["2GLY.2: Implement per-generation glyph shape dr…"]
+		2GLY.3["2GLY.3: Implement phoneme→glyph reassignment lo…"]
+		2GLY.4["2GLY.4: Build glyph rendering component (branch…"]
+		2LEX.2["2LEX.2: Implement the homophone-collision resol…"]
+		1ENG.19["1ENG.19: Implement the 1ENG.14 substrate and co…"]
+		1ENG.20["1ENG.20: Implement the 1ENG.15 paradigm model —…"]
+		1ENG.21["1ENG.21: Implement 1ENG.14 stage B: word-order…"]
+		1ENG.27["1ENG.27: Implement 1ENG.25 slice 1: phrase-leve…"]
+		1ENG.28["1ENG.28: Implement 1ENG.25 slice 2: runtime syl…"]
+		1ENG.24["1ENG.24: Design spike: stress, and the sound ch…"]
+		1ENG.29["1ENG.29: Implement 1ENG.24 slice 1: a real schw…"]
+		1ENG.30["1ENG.30: Implement 1ENG.24 slice 2: the stress…"]
+		1ENG.31["1ENG.31: Implement 1ENG.24 slice 3: `reduce` (u…"]
+		M1["M1: Core Simulator"]:::mile
+		2LEX.3["2LEX.3: Discussion spike: borrowed doublets. Wh…"]
+		2LEX.4["2LEX.4: Implement borrowed doublets *(placehold…"]
+		2LEX.5["2LEX.5: Design spike: archive / loss with resid…"]
+		2LEX.6["2LEX.6: Implement archive / loss with residue *…"]
+		2LEX.7["2LEX.7: Discussion spike: coordinate compounds.…"]
+		2UI.1["2UI.1: UI completeness audit across all compone…"]
+		2UI.2["2UI.2: Build onboarding — inline explainers, fu…"]
+		2UI.3["2UI.3: Retire the economy config panel from the…"]
+		2UI.4["2UI.4: Design spike: dead-phase phrase viewer —…"]
+		2UI.5["2UI.5: Implement the 2UI.4 contract *(placehold…"]
+		2SIM.1["2SIM.1: Integration pacing census — re-run the…"]
+		2NAR.1["2NAR.1: Design spike: the seed text — a fixed p…"]
+		2NAR.2["2NAR.2: Implement the seed text *(placeholder —…"]
+		2NAR.3["2NAR.3: Design spike: the chronicle — replace t…"]
+		2NAR.4["2NAR.4: Implement the chronicle *(placeholder —…"]
+		2MAP.1["2MAP.1: Design spike: living toponymy — regions…"]
+		2MAP.2["2MAP.2: Implement living toponymy *(placeholder…"]
+		M2["M2: Depth & Legibility"]:::mile
+		3PER.1["3PER.1: Local persistence — save/load a session…"]
+		3SHR.1["3SHR.1: Shareable output — export/share a famil…"]
+		M3["M3: Persistence & Sharing"]:::mile
+	end
+	subgraph tier1["Secondary · deferred"]
+		GSECONDARY["GSECONDARY: Secondary tier release"]:::external
+		4PHON.1["4PHON.1: Design spike: tonogenesis — tone arisi…"]
+		4PHON.2["4PHON.2: Climate/terrain-coded phonology — the…"]
+		4PHON.3["4PHON.3: Discussion spike: liaison alternants.…"]
+		4MOR.1["4MOR.1: Discussion spike: affix allomorphy. Wha…"]
+		M4["M4: Phonology & Morphology (Secondary)"]:::mile
+		4GLY.1["4GLY.1: Writing-system variance beyond phonemic…"]
+		M5["M5: Script Typology (Secondary)"]:::mile
+	end
+	GSECONDARY --> 4PHON.1
+	GSECONDARY --> 4PHON.2
+	GSECONDARY --> 4PHON.3
+	GSECONDARY --> 4MOR.1
+	GSECONDARY --> 4GLY.1
 	1ENG.1 --> M1
 	1ENG.2 --> M1
 	1ENG.3 --> M1
@@ -336,15 +368,22 @@ graph LR
 	M2 --> 3PER.1
 	3PER.1 --> 3SHR.1
 	3SHR.1 --> M3
+	M3 --> 4PHON.1
+	M3 --> 4PHON.2
+	M3 --> 4PHON.3
+	M3 --> 4MOR.1
+	M3 --> 4GLY.1
 	4PHON.1 --> M4
-	4GLY.1 --> M4
 	4PHON.2 --> M4
 	4PHON.3 --> M4
 	4MOR.1 --> M4
-	class 2GEO.11,2GEO.6,2GEO.9,2LEX.5,2MAP.1,2NAR.1,2NAR.3,2STK.7,2UI.4,4PHON.1 todo
-	class 2GEO.7,2GEO.8,2GLY.1,2GLY.2,2GLY.3,2GLY.4,2LEX.3,2LEX.4,2LEX.6,2LEX.7,2MAP.2,2NAR.2,2NAR.4,2SIM.1,2STK.4,2STK.6,2UI.1,2UI.2,2UI.3,2UI.5,3PER.1,3SHR.1,4MOR.1,4PHON.3 blocked
-	class 4GLY.1,4PHON.2 deferred
+	4GLY.1 --> M5
+	class 2GEO.11,2GEO.6,2GEO.9,2LEX.5,2MAP.1,2NAR.1,2NAR.3,2STK.7,2UI.4 todo
+	class 2GEO.7,2GEO.8,2GLY.1,2GLY.2,2GLY.3,2GLY.4,2LEX.3,2LEX.4,2LEX.6,2LEX.7,2MAP.2,2NAR.2,2NAR.4,2SIM.1,2STK.4,2STK.6,2UI.1,2UI.2,2UI.3,2UI.5,3PER.1,3SHR.1 blocked
+	class 4GLY.1,4MOR.1,4PHON.1,4PHON.2,4PHON.3 deferred
 	class 1ENG.1,1ENG.10,1ENG.11,1ENG.12,1ENG.13,1ENG.14,1ENG.15,1ENG.16,1ENG.17,1ENG.18,1ENG.19,1ENG.2,1ENG.20,1ENG.21,1ENG.22,1ENG.23,1ENG.24,1ENG.25,1ENG.26,1ENG.27,1ENG.28,1ENG.29,1ENG.3,1ENG.30,1ENG.31,1ENG.4,1ENG.5,1ENG.6,1ENG.7,1ENG.8,1ENG.9,1UI.1,1UI.2,1UI.3,1UI.4,2GEO.1,2GEO.10,2GEO.2,2GEO.3,2GEO.4,2GEO.5,2LEX.1,2LEX.2,2STK.1,2STK.2,2STK.3,2STK.5 done
+	class tier0 tierUnderway
+	class tier1 tierDeferred
 ```
 
 ---
@@ -354,15 +393,3 @@ graph LR
 - [README](../../README.md)
 - [Engine source](../../src/lib/engine/)
 - Live: https://the-tongue.vercel.app
-
----
-
-## Milestone 4 — Beyond Current Scope
-
-**Goal:** A holding area, not a milestone that ships: work deliberately deferred beyond the current roadmap after a spike judged it too costly for its value *now*, rather than unscheduled by omission. Nothing here is committed to, and nothing here gates M1–M3. The point is that the reasoning survives — each entry records why it was set aside and what would have to exist first — so a future decision to pick it up starts from the analysis instead of rediscovering it.
-
-- [ ] **4PHON.1** — Design spike: tonogenesis — tone arising from lost segmental contrasts (the Sinitic and Vietnamese histories are largely tonogenetic; the LCK names it as a change type worth modelling). **Deliberately deferred beyond the current roadmap, not merely unscheduled:** tone is suprasegmental, so it needs a new axis on `Phone`, a tone-bearing-unit notion (specified by 1ENG.25, implemented by 1ENG.28), a reckoning with all 21 rules, and a decision about how `intelligibility.ts`'s Levenshtein metric should weigh a tone difference against a segment difference — that last one is a genuine design question, since tone differences are perceptually salient in ways a naive edit distance would understate. Recorded so the 1ENG.16 survey's judgement (cost, not merit) stays on the record rather than being rediscovered. Revisit no earlier than 1ENG.24, and only once M1-M3 have shipped. **Updated by the 1ENG.24 spike:** the tone-bearing-unit prerequisite is discharged (1ENG.28's `syllabify`), and 1ENG.24 slice 1 (1ENG.29) does the `Phone`-axis widening this task would otherwise have had to do itself for tone, while 1ENG.24 slice 2 (1ENG.30)'s `Rule.stressed` establishes the per-segment conditioning channel a tone rule will also need. `dependsOn` stays on 1ENG.24 (the spike, now done) rather than 1ENG.31, since this task's own spike is still unscheduled and should read 1ENG.24's contract, not wait on its implementation
-- [ ] **4GLY.1** — Writing-system variance beyond phonemic — logographic, alphabetic and abjad glyph sets coexisting per branch, so a script's *type* can diverge as well as its shapes. Flagged during the 2GLY interview and deliberately scoped down to phonemic-only for Milestone 2; recorded here rather than dropped because the 2GLY spike's shape-drift and reassignment model assumes a phonemic script throughout, so lifting that assumption later is a redesign of 2GLY.1's ruleset, not an extension of it _(deferred)_
-- [ ] **4PHON.2** — Climate/terrain-coded phonology — the claim that physical environment shapes a language's sound inventory (e.g. tone correlating with humidity, sonority with ambient noise). **Contested in real linguistics**, which is why it sits here rather than in the 2GEO line: 2GEO.1 deliberately split terrain's influence into a social contact/isolation axis (sound change) and a physical axis (semantic salience), both defensible, and specifically avoided asserting that terrain shapes phonology directly. If ever pursued, treat as flavour and ledger it as such — the engine's honesty ledgers exist precisely so a mechanic like this can't quietly present itself as attested _(deferred)_
-- [ ] **4PHON.3** — Discussion spike: liaison alternants. What it is: one word with two forms depending on what follows it (French *les* is /le/ before a consonant and /lez/ before a vowel). Today the engine stores one form and only uses `followerVowelShare` to slow final-consonant loss (1ENG.14 §4.2). Work through in order: (a) what liaison is and what the current statistic already captures; (b) how it should look in play; (c) whether to include it; (d) the conditions it needs. Known so far: about 28% of word-turns end in a consonant; in 77% of those the word's class always ends the utterance, so only one form would be heard, and about 8% would hear both. These figures depend on today's word orders and phrase frames, which 2SIM.1 re-tunes. Depends on 2LEX.3's decision about storing a second form _(blocked — depends on 2LEX.3, 2SIM.1)_
-- [ ] **4MOR.1** — Discussion spike: affix allomorphy. What it is: one grammatical ending taking different shapes depending on the word it attaches to (English plural *-s*, *-z*, *-iz*). Today each paradigm cell holds one form (`AffixState.form`), evolved against the majority stem ending (1ENG.15 §7). Work through in order: (a) what allomorphy is; (b) how it should look in play; (c) whether to include it; (d) the conditions it needs. Known so far: nothing measured. It changes `AffixState`, not `LexEntry`, though 1ENG.15 §7 ties it to the same second-form storage question as 2LEX.3. 2SIM.1's acceptance test (paradigm cycles observably turn) is its natural precondition _(blocked — depends on 2LEX.3, 2SIM.1)_
