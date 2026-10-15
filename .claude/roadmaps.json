@@ -2,6 +2,7 @@
 	{
 		"name": "MVP",
 		"path": "docs/roadmaps/mvp.md",
+		"min_plugin": "2.7.0",
 		"archived": false,
 		"externalGates": [],
 		"milestones": [
@@ -14,55 +15,64 @@
 						"id": "1ENG.1",
 						"description": "Mulberry32 seeded RNG + deterministic hash for autonomous replay (`rng.ts`)",
 						"status": "done",
-						"dependsOn": []
+						"dependsOn": [],
+						"ended": "2026-07-16"
 					},
 					{
 						"id": "1ENG.2",
 						"description": "Phoneme inventory, syllable template, and 32-concept lexicon generation (`lexicon.ts`)",
 						"status": "done",
-						"dependsOn": []
+						"dependsOn": [],
+						"ended": "2026-07-16"
 					},
 					{
 						"id": "1ENG.3",
 						"description": "Phone table, 10 sound-change rules, collision/homophone detection (`phonology.ts`)",
 						"status": "done",
-						"dependsOn": []
+						"dependsOn": [],
+						"ended": "2026-07-16"
 					},
 					{
 						"id": "1ENG.4",
 						"description": "Mutual intelligibility matrix via normalised edit distance (`intelligibility.ts`)",
 						"status": "done",
-						"dependsOn": []
+						"dependsOn": [],
+						"ended": "2026-07-16"
 					},
 					{
 						"id": "1ENG.5",
 						"description": "Branch family tree layout and per-branch colour generation (`tree.ts`)",
 						"status": "done",
-						"dependsOn": []
+						"dependsOn": [],
+						"ended": "2026-07-16"
 					},
 					{
 						"id": "1ENG.6",
 						"description": "Terrain map, adjacency, and passable-component detection (`geography.ts`)",
 						"status": "done",
-						"dependsOn": []
+						"dependsOn": [],
+						"ended": "2026-07-16"
 					},
 					{
 						"id": "1ENG.7",
 						"description": "World/state initialisation (`world.ts`)",
 						"status": "done",
-						"dependsOn": []
+						"dependsOn": [],
+						"ended": "2026-07-16"
 					},
 					{
 						"id": "1ENG.8",
 						"description": "Generation resolution: drift → spread → fracture → repool (`generation.ts`)",
 						"status": "done",
-						"dependsOn": []
+						"dependsOn": [],
+						"ended": "2026-07-16"
 					},
 					{
 						"id": "1ENG.11",
 						"description": "Research spike: rule-set erosion/renewal balance — diagnosed why the purely-reductive `RULES` ossify a branch after a few generations, surveyed real diachronic renewal mechanisms (epenthesis, vowel breaking/diphthongisation, monophthongisation, vowel shortening), and produced a build-ready contract for 1ENG.12 (`docs/spikes/1eng-11-erosion-renewal.md`)",
 						"status": "done",
-						"dependsOn": []
+						"dependsOn": [],
+						"ended": "2026-07-16"
 					},
 					{
 						"id": "1ENG.12",
@@ -70,13 +80,15 @@
 						"status": "done",
 						"dependsOn": [
 							"1ENG.11"
-						]
+						],
+						"ended": "2026-07-16"
 					},
 					{
 						"id": "1ENG.9",
 						"description": "Fracture: children now diverge from the parent at the moment of fracture via a seeded birth drift step against the post-split owner map, instead of starting as exact lexicon copies (`generation.ts`)",
 						"status": "done",
-						"dependsOn": []
+						"dependsOn": [],
+						"ended": "2026-07-16"
 					},
 					{
 						"id": "1ENG.10",
@@ -84,7 +96,8 @@
 						"status": "done",
 						"dependsOn": [
 							"1ENG.9"
-						]
+						],
+						"ended": "2026-07-16"
 					},
 					{
 						"id": "1ENG.18",
@@ -92,49 +105,57 @@
 						"status": "done",
 						"dependsOn": [
 							"1ENG.10"
-						]
+						],
+						"ended": "2026-07-16"
 					},
 					{
 						"id": "1UI.1",
 						"description": "Reactive game state singleton (Svelte 5 runes) (`game.svelte.ts`)",
 						"status": "done",
-						"dependsOn": []
+						"dependsOn": [],
+						"ended": "2026-07-16"
 					},
 					{
 						"id": "1UI.2",
 						"description": "Map, family tree, intelligibility matrix, word table, change list, history panels",
 						"status": "done",
-						"dependsOn": []
+						"dependsOn": [],
+						"ended": "2026-07-16"
 					},
 					{
 						"id": "1UI.3",
 						"description": "Economy config panel for tuning pool/growth/overhead/cost settings",
 						"status": "done",
-						"dependsOn": []
+						"dependsOn": [],
+						"ended": "2026-07-16"
 					},
 					{
 						"id": "1UI.4",
 						"description": "Main route wiring all components together (`+page.svelte`)",
 						"status": "done",
-						"dependsOn": []
+						"dependsOn": [],
+						"ended": "2026-07-16"
 					},
 					{
 						"id": "1ENG.13",
 						"description": "Compensatory lengthening — split into `compleng` (medial coda in a cluster, `V _ C`, e.g. kast→kaːt) and `complengFinal` (word-final coda, `V _ #`, e.g. tas→taː), mirroring the epenth/paragoge medial/final split; both fire on the coda and use a new `Rule.lengthensPrev` flag so `applyRuleToWord` reaches back and lengthens the vowel it already emitted — the 1ENG.11 spike §8 claim that `Seg[]` already supported this was inaccurate (corrected in the spike doc)",
 						"status": "done",
-						"dependsOn": []
+						"dependsOn": [],
+						"ended": "2026-07-17"
 					},
 					{
 						"id": "1ENG.14",
 						"description": "Design spike: syntax-conditioned sound change — defined the grammar substrate: `CONCEPTS` grows 32→47 (appended: 8 verbs, 3 pronouns, 4 adjectives) with a `CONCEPT_CLASS` table and class-pure `SEMANTIC_FIELDS` extension, four phrase frames ordered by per-branch `WordOrder` parameters (basic SOV/SVO/VSO + AdjN/NAdj; genitive derived per Greenberg), deterministic per-class position profiles, position-scaled boundary rules (`SYNTAX_STRENGTH` multiplier via the salience-gate pattern) and a liaison-protection statistic (final consonants resist deletion before typically vowel-initial followers). Per-branch word-order drift via two verified drivers: morphological-collapse rigidification to SVO (causal direction confirmed by a 2025 entropy study) and intense-contact alignment (the Ethio-Semitic pattern). Staged contract: 1ENG.19 (substrate + conditioning), 1ENG.21 (order drift, gated on 2GEO.5 and 1ENG.20) (`docs/spikes/1eng-14-syntax-conditioned-sound-change.md`) **Revised in the critique pass:** substrate grew to 48 concepts (`finish`), the fields extension was dropped for the distance table, frame-usage weights and agreement-licensed pro-drop were added, `fortify`/`aphaer` gave the initial position its first rules, and a fracture-birth reanalysis flip (stage A) counterweights the two convergent order drivers",
 						"status": "done",
-						"dependsOn": []
+						"dependsOn": [],
+						"ended": "2026-07-19"
 					},
 					{
 						"id": "1ENG.15",
 						"description": "Design spike: morphological renewal (agreement/tense) — specified a per-branch inflectional paradigm running the twice-attested synthetic/analytical cycle (Latin cantabo → cantare habeo → chanterai → aller + infinitive): past tense (source: `finish`, amending the substrate to 48 concepts) and 1sg/2/1pl agreement (sources: the pronouns), affixes born as clips of the source words' current per-branch forms (sibling branches mint cognate but distinct inflections), placed per word order + the suffixing preference, eroding on a seeded segment-shedding clock scaled by 1ENG.14's position heat (~30-turn full cycle at SOV verb heat) and renewing periphrastically on death. Exports the collapsed-agreement state 1ENG.14's rigidification driver reads. Build-ready contract for 1ENG.20 (`docs/spikes/1eng-15-morphological-renewal.md`) **Revised in the critique pass:** the shedding clock was replaced by pure rule-based affix drift (`applyRuleToAffix`, edge-injected context, vowel floor lifted, no backstop); lifetimes are emergent and 2SIM.1 carries the cycle-turning acceptance criterion",
 						"status": "done",
-						"dependsOn": []
+						"dependsOn": [],
+						"ended": "2026-07-19"
 					},
 					{
 						"id": "1ENG.16",
@@ -144,7 +165,8 @@
 							"1ENG.13",
 							"1ENG.14",
 							"1ENG.15"
-						]
+						],
+						"ended": "2026-07-31"
 					},
 					{
 						"id": "1ENG.17",
@@ -152,7 +174,8 @@
 						"status": "done",
 						"dependsOn": [
 							"1ENG.16"
-						]
+						],
+						"ended": "2026-08-07"
 					},
 					{
 						"id": "1ENG.19",
@@ -161,7 +184,8 @@
 						"dependsOn": [
 							"1ENG.14",
 							"2LEX.2"
-						]
+						],
+						"ended": "2026-07-29"
 					},
 					{
 						"id": "1ENG.20",
@@ -170,7 +194,8 @@
 						"dependsOn": [
 							"1ENG.15",
 							"1ENG.19"
-						]
+						],
+						"ended": "2026-07-31"
 					},
 					{
 						"id": "1ENG.21",
@@ -180,26 +205,30 @@
 							"1ENG.19",
 							"1ENG.20",
 							"2GEO.5"
-						]
+						],
+						"ended": "2026-08-07"
 					},
 					{
 						"id": "1ENG.22",
 						"description": "Fix unbounded per-turn family-tree/era-collapse render cost, and add an era viewer. Re-measured during implementation, correcting this task's own opening numbers: the originally-reported ~340MB heap does not reproduce against a direct engine walk — a 400-turn, 5-branch run retains ~3.6MB total (anchors ~3.3MB of that). The real cost was `displayNames`/`eraGraph`/`selEra` (`game.svelte.ts`) each independently re-deriving whole-tree alive/protoBlend context every render; hoisting that into one shared pass (`naming.ts` `eraContexts`) measured ~1.15x on a synthetic 511-branch stress case, short of an earlier in-flight ~2x estimate — recorded so that number isn't mistaken for a committed result. The roadmap's own candidate fix (\"prune anchors past what the display collapse can ever surface\") was evaluated and rejected: `eventDensityPolicy`'s boundary set is provably non-monotonic (an anchor can drop out of the displayed boundary set and later re-enter), so no anchor's frozen lexicon can ever be ruled permanently unreachable — verified by hand and by a 2000-chain randomised sweep. Implemented instead: the collapse now reads only two scalars per anchor (`AnchorMark`, never `Anchor.lex`), and `EraStage.anchorIndex` carries the true index back into `branch.anchors` for any caller that wants the frozen lexicon — which made a second ask cheap to ship alongside: clicking an earlier era node in the family tree now opens a read-only view of that era's actual frozen lexicon (previously the tree only showed that an earlier phase existed with no way to see how it differed).",
 						"status": "done",
 						"dependsOn": [],
-						"assignee": "Jason Warren"
+						"assignee": "Jason Warren",
+						"ended": "2026-07-31"
 					},
 					{
 						"id": "1ENG.23",
 						"description": "Design spike: per-branch phoneme inventories — resolved to a DERIVED inventory (no new `Branch` field) plus a phonemic-event detector, on measured grounds. Census (40 seeds x 120 turns): 100% of surviving branches have lost >=1 genesis phoneme, mean 6.25 lost / 2.97 gained against a ~16-phoneme genesis inventory. The roadmap's framing that mergers and splits are 'not expressible' understated the finding: they already occur in 100% (merger) and 95% (split) of branches — 18 of 19 rules are context-conditioned, and a conditioned rule applied lexicon-wide IS a conditioned split — so the work is representation and detection, not mechanism. The stored-inventory option was rejected on evidence: complementary-distribution detection (the only allophone/phoneme criterion) fires at just 3% over 803 pairs and is dominated by sparsity artefacts at 48 concepts, so a stored inventory does not buy the allophony it is priced for — and nothing in the engine creates an allophone as a distinct object, since a split is already a completed phonemicisation when the rule fires. Also identified a live display bug: `Header.svelte` renders `World.inv` (the GENESIS inventory) as the standing description of every branch, wrong by ~9 phonemes by turn 120. Contract in `docs/spikes/1eng-23-per-branch-phoneme-inventories.md`",
 						"status": "done",
-						"dependsOn": []
+						"dependsOn": [],
+						"ended": "2026-08-04"
 					},
 					{
 						"id": "1ENG.25",
 						"description": "Design spike: runtime syllabification — found the stated fork (sonority onset-maximisation vs. template-driven parse) to be EMPIRICALLY EMPTY: both algorithms were implemented and agreed on 2016/2016 words (100.0%), because the corpus contains zero intervocalic CC clusters, the only configuration that distinguishes them. Investigating why exposed the real blocker, which is not syllabification: the engine erodes to 1.05 syllables per word (from 1.51 at genesis) and stays there, with 1733 of ~2100 words literally CV by turn 40, so there is no syllable structure to parse, no stress position to assign (1ENG.24) and no tone-bearing unit to contrast (4PHON.1). Deeper symptom: homophonic collapse — 61 colliding concept-pairs per branch across a 48-concept lexicon by turn 150 and still climbing, while 2LEX.2's repair has fired 1468 times without arresting it (compoundWord CLIPS both stems, so only 2/48 concepts end up longer than genesis). Four candidate fixes were measured and rejected (syncope; disabling epenth — which yields 1 cluster rather than 0, so cluster loss is overdetermined; weight tuning, capping at 1.35 syll/word even when every final-erosion rule is halved; reduplication, which restores length but produces 0 clusters). Structural cause located: `paragoge`, the engine's only genuinely lengthening rule, requires a C-final word but the corpus becomes 97% V-final, and `break` (99% eligible) is segment-neutral and keeps words V-final, locking it out permanently. Root diagnosis: the 1ENG.19 phrase substrate has 8 consumers and every one consumes it as a SCALAR — no code path uses frame adjacency to combine words — so erosion is phrase-aware while renewal is not. Contract in `docs/spikes/1eng-25-runtime-syllabification.md`",
 						"status": "done",
-						"dependsOn": []
+						"dependsOn": [],
+						"ended": "2026-08-04"
 					},
 					{
 						"id": "1ENG.26",
@@ -207,7 +236,8 @@
 						"status": "done",
 						"dependsOn": [
 							"1ENG.23"
-						]
+						],
+						"ended": "2026-08-04"
 					},
 					{
 						"id": "1ENG.27",
@@ -216,7 +246,8 @@
 						"dependsOn": [
 							"1ENG.25",
 							"1ENG.19"
-						]
+						],
+						"ended": "2026-08-04"
 					},
 					{
 						"id": "1ENG.28",
@@ -224,7 +255,8 @@
 						"status": "done",
 						"dependsOn": [
 							"1ENG.27"
-						]
+						],
+						"ended": "2026-08-05"
 					},
 					{
 						"id": "1ENG.24",
@@ -232,7 +264,8 @@
 						"status": "done",
 						"dependsOn": [
 							"1ENG.28"
-						]
+						],
+						"ended": "2026-08-05"
 					},
 					{
 						"id": "1ENG.29",
@@ -240,7 +273,8 @@
 						"status": "done",
 						"dependsOn": [
 							"1ENG.24"
-						]
+						],
+						"ended": "2026-08-06"
 					},
 					{
 						"id": "1ENG.30",
@@ -248,7 +282,8 @@
 						"status": "done",
 						"dependsOn": [
 							"1ENG.29"
-						]
+						],
+						"ended": "2026-08-06"
 					},
 					{
 						"id": "1ENG.31",
@@ -256,7 +291,8 @@
 						"status": "done",
 						"dependsOn": [
 							"1ENG.30"
-						]
+						],
+						"ended": "2026-08-06"
 					}
 				]
 			},
@@ -269,7 +305,8 @@
 						"id": "2GEO.1",
 						"description": "Design spike: terrain→sound-change bias ruleset — split into a social-geography contact/isolation axis (sound change) and a physical-geography terrain axis (semantic salience), with a full implementation contract for 2GEO.2 and 2GEO.3 (`docs/spikes/2geo-1-terrain-sound-change.md`)",
 						"status": "done",
-						"dependsOn": []
+						"dependsOn": [],
+						"ended": "2026-07-16"
 					},
 					{
 						"id": "2GEO.2",
@@ -277,7 +314,8 @@
 						"status": "done",
 						"dependsOn": [
 							"2GEO.1"
-						]
+						],
+						"ended": "2026-07-16"
 					},
 					{
 						"id": "2GEO.3",
@@ -285,7 +323,8 @@
 						"status": "done",
 						"dependsOn": [
 							"2GEO.1"
-						]
+						],
+						"ended": "2026-07-16"
 					},
 					{
 						"id": "2GEO.4",
@@ -294,7 +333,8 @@
 						"dependsOn": [
 							"2GEO.2",
 							"2GEO.3"
-						]
+						],
+						"ended": "2026-07-19"
 					},
 					{
 						"id": "2GEO.5",
@@ -302,7 +342,8 @@
 						"status": "done",
 						"dependsOn": [
 							"2GEO.4"
-						]
+						],
+						"ended": "2026-07-24"
 					},
 					{
 						"id": "2GEO.6",
@@ -339,7 +380,8 @@
 						"status": "done",
 						"description": "Investigation spike: family-structure reachability (docs/spikes/2geo-10-family-structure-reachability.md) — a 12-seed census found fracture/assimilation death never fire autonomously on the 10x8 grid (genesis connectivity sits far above the bond-percolation threshold). Terrain-probability tuning alone produces a bimodal outcome (0 fractures or unbounded branch-count runaway), traced to a spread/fracture feedback loop, not a number to find — genuine reachability needs better map generation (2GEO.9's territory). Ships two safety fixes regardless: FRACTURE_COOLDOWN (rate-limits re-fracturing, breaking the runaway) and STUCK_TURNS (a time-based escape so a genesis-walled-in branch doesn't freeze forever). Terrain probability ships unchanged from baseline. Census harness (docs/spikes/assets/2geo-10-family-census.ts) committed for 2GEO.9/2SIM.1 to extend.",
 						"notes": "Unblocks 2STK.4's territory/fracture/death-dependent ambitions once 2GEO.9 delivers real reachability; the two safety fixes ship now regardless.",
-						"dependsOn": []
+						"dependsOn": [],
+						"ended": "2026-08-07"
 					},
 					{
 						"id": "2GEO.11",
@@ -357,7 +399,8 @@
 						"id": "2LEX.1",
 						"description": "Design spike: homophone-collision resolution — measured collision dynamics in autonomous play (98% of branch-turns carry a live collision; 87% self-heal, median 3 turns; a 13% chronic tail never heals), then specified a severity × persistence mechanic: a six-field semantic grouping of `CONCEPTS` gates severity (same-field = confusable, operationalising Wedel's functional-load finding; cross-field homophones tolerated indefinitely and surfaced as flavour), a per-pair pressure counter (`COLLISION_TURNS` = 6, census-tuned) triggers autonomous repair, and repair compounds the less terrain-salient concept with a clipped field-mate modifier (the catfish pattern) under a per-world `compoundOrder` headedness trait — plus a Gilliéron-style borrowed-replacement arm gated on 2GEO.5 and a player choice-at-apply-time path (repair at `changeCost` or tolerate into the pressure clock). Full build-ready contract for 2LEX.2 (`docs/spikes/2lex-1-homophone-collision-resolution.md`) **Revised in the critique pass:** the six-field grouping was replaced by a class gate (via 1ENG.14's `CONCEPT_CLASS`) plus a graded Numberbatch semantic-distance table (`SEVERITY_CUT` = 0.2, distance-scaled thresholds, nearest-neighbour modifiers; census re-run: 13.2% severe, 30.3 repairs/game)",
 						"status": "done",
-						"dependsOn": []
+						"dependsOn": [],
+						"ended": "2026-07-19"
 					},
 					{
 						"id": "2STK.1",
@@ -366,7 +409,8 @@
 						"dependsOn": [
 							"2GEO.2",
 							"2GEO.5"
-						]
+						],
+						"ended": "2026-07-25"
 					},
 					{
 						"id": "2STK.2",
@@ -374,7 +418,8 @@
 						"status": "done",
 						"dependsOn": [
 							"2STK.1"
-						]
+						],
+						"ended": "2026-07-27"
 					},
 					{
 						"id": "2STK.3",
@@ -382,7 +427,8 @@
 						"status": "done",
 						"dependsOn": [
 							"2STK.1"
-						]
+						],
+						"ended": "2026-07-29"
 					},
 					{
 						"id": "2STK.4",
@@ -402,7 +448,8 @@
 						"status": "done",
 						"dependsOn": [
 							"2STK.1"
-						]
+						],
+						"ended": "2026-07-28"
 					},
 					{
 						"id": "2STK.7",
@@ -468,7 +515,8 @@
 						"dependsOn": [
 							"2LEX.1",
 							"2GEO.5"
-						]
+						],
+						"ended": "2026-07-28"
 					},
 					{
 						"id": "2LEX.3",
