@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<!--
+	roadmap-artefact.html: template consumed by `roadmap.py render`.
+	Two placeholders, each substituted exactly once below: the phase-name
+	title (in the head; the h1 is overwritten by JS from project/phase, since
+	the two placeholders cannot diverge) and the JSON data blob
+	(project, phase, generated, stats, overview, tasks, ready, mermaid,
+	graphDirection, validation, devColours, depKinds), which lands in the
+	roadmap-data script element near the foot of the document. `overview` is
+	roadmap.py's own sort/tier-group computation for the Overview and
+	Milestones sections (see overview_layout() and roadmap-conventions.md);
+	the template renders it as given and never re-sorts or re-groups
+	milestones itself. Render does a global string replace, so the data-blob token
+	must appear verbatim exactly once in this file (the render step asserts
+	this); a second copy here would inject the blob into this comment and the
+	mermaid edge arrows would close the comment early and spill the JSON onto
+	the page. For the same reason this comment must not contain a raw
+	comment-close sequence.
+	Everything else is static so regenerated artefacts diff cleanly.
+	Palette: the canonical status/milestone-state/dev-chip colour table from
+	references/roadmap-conventions.md (STATUS_STYLE in roadmap.py).
+-->
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roadmap — MVP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+	/* Palette: the roadmap system's own fixed status table (see roadmap.py
+	   STATUS_STYLE); literal hexes so the artefact is self-contained.
+	   Milestone — sky (structural, steel-blue half of the terminal gradient) */
+	--color-milestone:       #007590;
+	--color-milestone-bg:    #e3f7ff;
+	--color-milestone-text:  #001f28;
+	/* Primary accent — pink (warm half of the gradient; never a status) */
+	--color-primary:         #d2008f;
+	--color-primary-bg:      #fff7fb;
+	--color-primary-text:    #4b0030;
+	/* Status semantics: green finished, gray blank, red stop, purple parked,
+	   cinnamon shelved, dotted gray struck, yellow external */
+	--color-done:            #008217;
+	--color-done-bg:         #e0ffd9;
+	--color-todo:            #6f6f6f;
+	--color-todo-bg:         #f6f6f6;
+	--color-blocked:         #e0002b;
+	--color-blocked-bg:      #fff8f6;
+	--color-paused:          #b01fe3;
+	--color-paused-bg:       #fdf4ff;
+	--color-deferred:        #ac5c00;
+	--color-deferred-bg:     #fff8f3;
+	--color-out-of-scope:    #717171;
+	--color-out-of-scope-bg: #f6f6f6;
+	--color-gate:            #7d6f00;
+	--color-gate-bg:         #fff9e5;
+	/* Tier backgrounds (see roadmap.py TIER_STYLE): the fill behind a
+	   tier's subgraph in the dependency graph, slate while the tier is
+	   underway, taupe while it is deferred. Muted mid-tones, never a node
+	   colour: every node stroke clears 3:1 against them. */
+	--color-tier-underway:    #2f3b4c;
+	--color-tier-underway-bg: #c3cede;
+	--color-tier-deferred:    #4a3826;
+	--color-tier-deferred-bg: #dccbb9;
+	/* In progress (see roadmap-conventions.md): azure marks a claimed task
+	   still in play and the milestone state it drives, the way milestone
+	   states share their task-status hues. Distinct from sky (structural),
+	   though close enough that diagram labels also carry a marker. */
+	--color-in-progress:     #0071af;
+	--color-in-progress-bg:  #e8f2ff;
+	/* Dev-chip palette: assignee is free-text with no roster (never
+	   inferred), so chips are coloured by a stable hash, never a hardcoded
+	   name map. Disjoint from every status/milestone/gate hue above. */
+	--color-dev-teal:        #007c6e;
+	--color-dev-teal-bg:     #d7fff7;
+	--color-dev-lime:        #677600;
+	--color-dev-lime-bg:     #f7ffac;
+	--color-dev-magenta:     #ca00b6;
+	--color-dev-magenta-bg:  #fff3fc;
+	--color-dev-indigo:      #0061fc;
+	--color-dev-indigo-bg:   #f3f3ff;
+	--color-dev-amber:       #926700;
+	--color-dev-amber-bg:    #fff8ef;
+	--color-dev-rose:        #db0072;
+	--color-dev-rose-bg:     #fff7f9;
+
+	--bg: #f6f6f6;
+	--surface: #ffffff;
+	--text: #222222;
+	--muted: #6f6f6f;
+	--line: #e2e2e2;
+	--grid-line: rgba(0, 117, 144, 0.06);
+	/* Mermaid chrome (edge stroke, arrowhead, edge-label backing) that the
+	   diagram's own classDefs don't cover — see the render script below for
+	   why this can't just be mermaid's base-theme default. */
+	--diagram-line: #6f6f6f;
+	--diagram-edge-label-bg: #ffffff;
+	--diagram-text: var(--text);
+}
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) {
+		--color-milestone:       #aee9ff;
+		--color-milestone-bg:    #001f28;
+		--color-milestone-text:  #e3f7ff;
+		--color-primary:         #ffdcec;
+		--color-primary-bg:      #4b0030;
+		--color-primary-text:    #fff7fb;
+		--color-done:            #72ff6c;
+		--color-done-bg:         #062800;
+		--color-todo:            #8b8b8b;
+		--color-todo-bg:         #222222;
+		--color-blocked:         #ffddd8;
+		--color-blocked-bg:      #530003;
+		--color-paused:          #f7d9ff;
+		--color-paused-bg:       #3a004f;
+		--color-deferred:        #ffdfc6;
+		--color-deferred-bg:     #371d00;
+		--color-out-of-scope:    #898989;
+		--color-out-of-scope-bg: #222222;
+		--color-gate:            #ffe53e;
+		--color-gate-bg:         #292300;
+		--color-tier-underway:    #d5deea;
+		--color-tier-underway-bg: #343e4f;
+		--color-tier-deferred:    #ecdccb;
+		--color-tier-deferred-bg: #4a3c2f;
+		--color-in-progress:     #c6e0ff;
+		--color-in-progress-bg:  #001c30;
+		--color-dev-teal:        #00ffe4;
+		--color-dev-teal-bg:     #002722;
+		--color-dev-lime:        #d5f200;
+		--color-dev-lime-bg:     #222600;
+		--color-dev-magenta:     #ffd7f6;
+		--color-dev-magenta-bg:  #44003c;
+		--color-dev-indigo:      #deddff;
+		--color-dev-indigo-bg:   #001649;
+		--color-dev-amber:       #ffe0b2;
+		--color-dev-amber-bg:    #302100;
+		--color-dev-rose:        #ffdce5;
+		--color-dev-rose-bg:     #4c0023;
+
+		--bg: #121216;
+		--surface: #1b1b21;
+		--text: #f6f6f6;
+		--muted: #8b8b8b;
+		--line: #3e3e3e;
+		--grid-line: rgba(174, 233, 255, 0.05);
+		--diagram-line: #8b8b8b;
+		--diagram-edge-label-bg: var(--surface);
+		--diagram-text: var(--text);
+	}
+}
+/* Third theming state: an explicit toggle wins in both directions, even
+   against a light OS preference. The masthead ships the light/system/dark
+   control from the artefact conventions; this block is
+   what it writes to when a reader picks light or dark explicitly. */
+:root[data-theme="dark"] {
+	--color-milestone:       #aee9ff;
+	--color-milestone-bg:    #001f28;
+	--color-milestone-text:  #e3f7ff;
+	--color-primary:         #ffdcec;
+	--color-primary-bg:      #4b0030;
+	--color-primary-text:    #fff7fb;
+	--color-done:            #72ff6c;
+	--color-done-bg:         #062800;
+	--color-todo:            #8b8b8b;
+	--color-todo-bg:         #222222;
+	--color-blocked:         #ffddd8;
+	--color-blocked-bg:      #530003;
+	--color-paused:          #f7d9ff;
+	--color-paused-bg:       #3a004f;
+	--color-deferred:        #ffdfc6;
+	--color-deferred-bg:     #371d00;
+	--color-out-of-scope:    #898989;
+	--color-out-of-scope-bg: #222222;
+	--color-gate:            #ffe53e;
+	--color-gate-bg:         #292300;
+	--color-tier-underway:    #d5deea;
+	--color-tier-underway-bg: #343e4f;
+	--color-tier-deferred:    #ecdccb;
+	--color-tier-deferred-bg: #4a3c2f;
+	--color-in-progress:     #c6e0ff;
+	--color-in-progress-bg:  #001c30;
+	--color-dev-teal:        #00ffe4;
+	--color-dev-teal-bg:     #002722;
+	--color-dev-lime:        #d5f200;
+	--color-dev-lime-bg:     #222600;
+	--color-dev-magenta:     #ffd7f6;
+	--color-dev-magenta-bg:  #44003c;
+	--color-dev-indigo:      #deddff;
+	--color-dev-indigo-bg:   #001649;
+	--color-dev-amber:       #ffe0b2;
+	--color-dev-amber-bg:    #302100;
+	--color-dev-rose:        #ffdce5;
+	--color-dev-rose-bg:     #4c0023;
+
+	--bg: #121216;
+	--surface: #1b1b21;
+	--text: #f6f6f6;
+	--muted: #8b8b8b;
+	--line: #3e3e3e;
+	--grid-line: rgba(174, 233, 255, 0.05);
+	--diagram-line: #8b8b8b;
+	--diagram-edge-label-bg: var(--surface);
+	--diagram-text: var(--text);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+	font-family: "IBM Plex Sans", system-ui, sans-serif;
+	background:
+		linear-gradient(var(--grid-line) 1px, transparent 1px),
+		linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
+		var(--bg);
+	background-size: 32px 32px, 32px 32px, auto;
+	color: var(--text);
+	line-height: 1.55;
+}
+.layout { display: flex; max-width: 1200px; margin: 0 auto; gap: 2rem; padding: 0 1.25rem; }
+nav {
+	position: sticky; top: 0; align-self: flex-start;
+	width: 180px; flex-shrink: 0; padding: 2rem 0;
+	font-family: "IBM Plex Mono", monospace; font-size: 0.8rem;
+}
+nav a { display: block; padding: 0.35rem 0.6rem; color: var(--muted); text-decoration: none; border-left: 2px solid var(--line); }
+nav a:hover, nav a.active { color: var(--color-milestone); border-left-color: var(--color-milestone); }
+main { flex: 1; min-width: 0; padding: 2rem 0 4rem; }
+
+header.page { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+header.page h1 { font-size: 1.6rem; font-weight: 600; margin: 0 0 0.2rem; }
+header.page .meta { font-family: "IBM Plex Mono", monospace; font-size: 0.75rem; color: var(--muted); }
+
+.theme-toggle { display: flex; gap: 0.15rem; margin-left: auto; flex: none; }
+.theme-toggle button {
+	font: 600 0.8rem "IBM Plex Mono", monospace; line-height: 1;
+	color: var(--muted); background: var(--surface); border: 1px solid var(--line);
+	border-radius: 3px; padding: 0.3rem 0.55rem; cursor: pointer;
+}
+.theme-toggle button:hover { color: var(--text); border-color: var(--color-milestone); }
+.theme-toggle button:focus-visible { outline: 2px solid var(--color-milestone); outline-offset: 2px; }
+.theme-toggle button[aria-pressed="true"] { color: var(--color-milestone-text); background: var(--color-milestone-bg); border-color: var(--color-milestone); }
+@media print { .theme-toggle { display: none; } }
+
+section { margin-top: 2.5rem; }
+h2 {
+	font-family: "IBM Plex Mono", monospace; font-size: 0.85rem; font-weight: 500;
+	text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted);
+	display: flex; align-items: center; gap: 0.5rem; margin: 0 0 1rem;
+}
+h2 .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--color-milestone); flex-shrink: 0; }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 1.1rem 1.3rem; min-width: 0; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.9rem; margin-top: 0.9rem; }
+.grid > * { min-width: 0; }
+.mini { border-color: var(--m-colour, var(--line)); }
+.mini h3 { margin: 0 0 0.3rem; font-size: 0.9rem; font-weight: 600; overflow-wrap: break-word; }
+.mini .count { font-family: "IBM Plex Mono", monospace; font-size: 0.75rem; color: var(--muted); }
+.progress-bar { height: 6px; background: var(--line); border-radius: 3px; margin-top: 0.55rem; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 3px; }
+
+/* Overview is itself a <details>, shipped open: the progress-card grid
+   follows the summary in the body. Closed by the reader, it shows only the
+   section name and headline bar (both live in the summary). Reuses
+   details.milestone's shape rather than a second pattern. */
+details.overview { border: none; background: none; margin-bottom: 0; }
+details.overview > summary {
+	cursor: pointer; list-style: none; display: flex; align-items: center;
+	flex-wrap: wrap; gap: 0.5rem 1rem; padding: 0;
+}
+details.overview > summary::-webkit-details-marker { display: none; }
+details.overview > summary h2 { margin: 0; }
+details.overview .headline {
+	font-family: "IBM Plex Mono", monospace; font-size: 0.8rem; color: var(--muted);
+}
+details.overview .body { margin-top: 1rem; }
+
+/* A tier group: its own <details>, expanded per overview.tiers[].expanded.
+   Unwrapped (no tier markup at all) when the phase has no tiered
+   milestones; see the JS below. */
+details.tier { margin-bottom: 1.1rem; }
+details.tier > summary {
+	cursor: pointer; list-style: none; display: flex; align-items: baseline;
+	gap: 0.6rem; margin-bottom: 0.7rem;
+}
+details.tier > summary::-webkit-details-marker { display: none; }
+details.tier > summary h3 {
+	margin: 0; font-family: "IBM Plex Mono", monospace; font-size: 0.78rem;
+	font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);
+}
+details.tier > summary .readout {
+	font-family: "IBM Plex Mono", monospace; font-size: 0.75rem; color: var(--muted);
+}
+details.tier > summary .arrow { font-size: 0.7rem; color: var(--muted); transition: transform 0.15s; }
+details.tier[open] > summary .arrow { transform: rotate(90deg); }
+
+details.milestone {
+	background: var(--surface); border: 1px solid var(--m-colour, var(--line));
+	border-radius: 8px; margin-bottom: 0.8rem;
+}
+details.milestone > summary {
+	cursor: pointer; padding: 0.85rem 1.2rem; font-weight: 600;
+	display: flex; align-items: center; gap: 0.7rem; list-style: none; min-width: 0;
+}
+details.milestone > summary::-webkit-details-marker { display: none; }
+details.milestone > summary .mid {
+	font-family: "IBM Plex Mono", monospace; font-size: 0.72rem;
+	background: var(--color-milestone-bg); color: var(--color-milestone-text);
+	border: 1px solid var(--color-milestone); border-radius: 4px; padding: 0.1rem 0.4rem;
+}
+details.milestone > summary .devs { display: inline-flex; flex-wrap: wrap; gap: 0.3rem; margin-left: auto; }
+/* The count sits at the far right of every milestone summary. With dev
+   chips present they take the auto margin and the count follows them;
+   without, the count takes it itself. */
+details.milestone > summary .count { font-family: "IBM Plex Mono", monospace; font-size: 0.75rem; color: var(--muted); white-space: nowrap; margin-left: auto; }
+details.milestone > summary .devs + .count { margin-left: 0; }
+details.milestone .body { padding: 0 1.2rem 1rem; }
+.group h4 { font-family: "IBM Plex Mono", monospace; font-size: 0.72rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; margin: 0.9rem 0 0.35rem; }
+.group ul { list-style: none; margin: 0; padding: 0; }
+/* A status group that folds away (blocked, done, out of scope): closed by default, the
+   summary is its heading plus a task count. Same arrow as details.tier. */
+details.statusgroup > summary {
+	cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: 0.45rem;
+}
+details.statusgroup > summary::-webkit-details-marker { display: none; }
+details.statusgroup > summary .arrow { font-size: 0.7rem; color: var(--muted); transition: transform 0.15s; }
+details.statusgroup[open] > summary .arrow { transform: rotate(90deg); }
+.group li { padding: 0.28rem 0; overflow-wrap: break-word; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.4rem; }
+.tid {
+	font-family: "IBM Plex Mono", monospace; font-size: 0.72rem;
+	background: var(--color-primary-bg); color: var(--color-primary-text);
+	border: 1px solid var(--color-primary); border-radius: 4px; padding: 0.05rem 0.35rem;
+}
+/* Generic coloured chip: dev-assignee and dependency chips share this shape,
+   coloured per-instance via the --chip-fg/--chip-bg custom properties so one
+   rule serves every status/milestone/gate/dev colour without a class per
+   colour. */
+.chip {
+	font-family: "IBM Plex Mono", monospace; font-size: 0.7rem;
+	background: var(--chip-bg, var(--line)); color: var(--chip-fg, var(--muted));
+	border: 1px solid var(--chip-fg, var(--line)); border-radius: 4px; padding: 0.05rem 0.4rem;
+	white-space: nowrap;
+}
+.deps { display: inline-flex; flex-wrap: wrap; gap: 0.3rem; margin-left: auto; }
+.tasktext { flex: 1 1 auto; }
+.depnote { color: var(--muted); font-size: 0.82rem; }
+li.oos { text-decoration: line-through; color: var(--muted); }
+
+.diagram-shell { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; position: relative; overflow: hidden; }
+.diagram-toolbar { position: absolute; top: 0.5rem; right: 0.5rem; z-index: 2; display: flex; gap: 0.25rem; }
+.diagram-toolbar button {
+	font-family: "IBM Plex Mono", monospace; font-size: 0.8rem; line-height: 1;
+	background: var(--bg); color: var(--text); border: 1px solid var(--line);
+	border-radius: 4px; padding: 0.3rem 0.5rem; cursor: pointer;
+}
+.diagram-toolbar button:hover { border-color: var(--color-milestone); color: var(--color-milestone); }
+.mermaid-wrap { overflow: hidden; cursor: grab; min-height: 320px; }
+.mermaid-wrap:active { cursor: grabbing; }
+.mermaid-wrap svg { display: block; transform-origin: 0 0; max-width: none !important; }
+.diagram-shell.expanded { position: fixed; inset: 1.5rem; z-index: 10; box-shadow: 0 4px 40px rgba(0,0,0,0.35); }
+.diagram-shell.expanded .mermaid-wrap { height: calc(100% - 0px); }
+
+.legend {
+	display: flex; flex-wrap: wrap; gap: 0.35rem 1.1rem; align-items: center;
+	margin-top: 0.6rem; font-size: 0.78rem; color: var(--muted);
+	font-family: "IBM Plex Mono", monospace;
+}
+.legend .key { display: inline-flex; align-items: center; gap: 0.4rem; }
+.legend .sw { width: 0.9rem; height: 0.9rem; border-radius: 3px; border: 1.5px solid; box-sizing: border-box; }
+.legend .key--mile { font-weight: 600; }
+.legend .key--gate { font-style: italic; }
+.legend .keynote { flex-basis: 100%; }
+/* The two tier swatches: shown only for a tiered phase (see the JS below),
+   laid out as two more keys in the same row. */
+#tier-keys:not([hidden]) { display: contents; }
+
+/* Every task is the same three rows: pills, description, leverage counts. */
+.nextup li:not(.nextup-devgroup) { display: flex; flex-direction: column; align-items: stretch; gap: 0.35rem; padding: 0.55rem 0; }
+.nextup .pills { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.4rem; }
+.nextup .leverage { display: flex; justify-content: space-between; gap: 1rem; }
+.nextup .pills .signal, .nextup .leverage .signal { margin-left: 0; }
+.nextup-legend { margin: 0 0 0.8rem; }
+/* li.nextup-devgroup, not .nextup-devgroup: .group li (display:flex) would
+   otherwise outrank it and lay a heading out beside its own list */
+.nextup li.nextup-devgroup { display: block; padding: 0; margin-top: 1rem; }
+.nextup li.nextup-devgroup:first-child { margin-top: 0; }
+.nextup li.nextup-devgroup + li.nextup-devgroup { border-top: 1px solid color-mix(in srgb, var(--line) 60%, transparent); padding-top: 1rem; }
+.nextup-devgroup h4 { margin: 0 0 0.4rem; font-size: 0.72rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.signal { color: var(--muted); font-size: 0.78rem; font-family: "IBM Plex Mono", monospace; margin-left: auto; }
+
+.validation { border-left: 3px solid var(--color-blocked); background: var(--color-blocked-bg); color: var(--text); padding: 0.7rem 1rem; border-radius: 0 6px 6px 0; margin-top: 1rem; font-size: 0.85rem; }
+.validation ul { margin: 0.3rem 0 0; padding-left: 1.1rem; }
+
+@media (max-width: 760px) {
+	.layout { flex-direction: column; gap: 0; }
+	nav { position: sticky; top: 0; width: auto; display: flex; overflow-x: auto; gap: 0.25rem; padding: 0.6rem 0; background: var(--bg); z-index: 5; }
+	nav a { border-left: none; border-bottom: 2px solid var(--line); white-space: nowrap; }
+	nav a:hover, nav a.active { border-bottom-color: var(--color-milestone); }
+}
+</style>
+</head>
+<body>
+<script>
+(function () {
+	var KEY = 'theme';
+	var root = document.documentElement;
+	function read() {
+		try { return localStorage.getItem(KEY) || 'system'; }
+		catch (e) { return 'system'; }
+	}
+	function write(mode) {
+		try { localStorage.setItem(KEY, mode); }
+		catch (e) { /* private window, blocked storage, preview capture: ignore */ }
+	}
+	function apply(mode) {
+		if (mode === 'system') root.removeAttribute('data-theme');
+		else root.setAttribute('data-theme', mode);
+		document.querySelectorAll('[data-set-theme]').forEach(function (b) {
+			b.setAttribute('aria-pressed', String(b.dataset.setTheme === mode));
+		});
+	}
+	apply(read());
+	document.addEventListener('DOMContentLoaded', function () {
+		apply(read());
+		document.querySelectorAll('[data-set-theme]').forEach(function (b) {
+			b.addEventListener('click', function () {
+				write(b.dataset.setTheme);
+				apply(b.dataset.setTheme);
+			});
+		});
+	});
+})();
+</script>
+<div class="layout">
+	<nav>
+		<a href="#overview">Overview</a>
+		<a href="#milestones">Milestones</a>
+		<a href="#graph">Dependency Graph</a>
+		<a href="#nextup">Next Up</a>
+	</nav>
+	<main>
+		<header class="page">
+			<div>
+				<h1 id="pageTitle">MVP</h1>
+				<div class="meta" id="meta"></div>
+			</div>
+			<div class="theme-toggle" role="group" aria-label="Colour theme">
+				<button type="button" data-set-theme="light"  aria-pressed="false">☀</button>
+				<button type="button" data-set-theme="system" aria-pressed="true">◐</button>
+				<button type="button" data-set-theme="dark"   aria-pressed="false">☾</button>
+			</div>
+		</header>
+		<div id="validation"></div>
+
+		<section id="overview">
+			<details class="overview" open>
+				<summary>
+					<h2><span class="dot"></span>Overview</h2>
+					<span class="headline" id="headline"></span>
+				</summary>
+				<div class="body">
+					<div id="milestone-cards"></div>
+				</div>
+			</details>
+		</section>
+
+		<section id="milestones">
+			<h2><span class="dot"></span>Milestones</h2>
+			<div id="milestone-details"></div>
+		</section>
+
+		<section id="graph">
+			<h2><span class="dot"></span>Dependency Graph</h2>
+			<div class="diagram-shell" id="shell">
+				<div class="diagram-toolbar">
+					<button data-act="in" title="Zoom in">+</button>
+					<button data-act="out" title="Zoom out">−</button>
+					<button data-act="reset" title="Reset">⌂</button>
+					<button data-act="expand" title="Expand">⤢</button>
+				</div>
+				<div class="mermaid-wrap" id="wrap"><div id="diagram"></div></div>
+			</div>
+			<div class="legend">
+				<span class="key"><i class="sw" style="background:var(--color-todo-bg);border-color:var(--color-todo)"></i>todo</span>
+				<span class="key"><i class="sw" style="background:var(--color-in-progress-bg);border-color:var(--color-in-progress)"></i>in progress ▸</span>
+				<span class="key"><i class="sw" style="background:var(--color-blocked-bg);border-color:var(--color-blocked);border-width:2px"></i>blocked</span>
+				<span class="key"><i class="sw" style="background:var(--color-paused-bg);border-color:var(--color-paused);border-style:dashed"></i>paused</span>
+				<span class="key"><i class="sw" style="background:var(--color-deferred-bg);border-color:var(--color-deferred);border-style:dashed"></i>deferred</span>
+				<span class="key"><i class="sw" style="background:var(--color-out-of-scope-bg);border-color:var(--color-out-of-scope);border-style:dotted"></i>out of scope</span>
+				<span class="key key--mile"><i class="sw" style="background:var(--color-milestone-bg);border-color:var(--color-milestone)"></i>milestone</span>
+				<span class="key key--gate"><i class="sw" style="background:var(--color-gate-bg);border-color:var(--color-gate);border-style:dashed"></i>external gate</span>
+				<span id="tier-keys" hidden>
+					<span class="key"><i class="sw" style="background:var(--color-tier-underway-bg);border-color:var(--color-tier-underway)"></i>tier underway</span>
+					<span class="key"><i class="sw" style="background:var(--color-tier-deferred-bg);border-color:var(--color-tier-deferred);border-style:dashed"></i>tier deferred</span>
+				</span>
+				<span class="keynote">tasks flow into the milestone node that they complete; done tasks and fully-done milestones are hidden</span>
+			</div>
+		</section>
+
+		<section id="nextup">
+			<h2><span class="dot"></span>Next Up</h2>
+			<div class="card">
+				<p class="legend nextup-legend"><span title="Tasks that become ready the moment this one is done">▶ ready when done</span><span title="Tasks that depend on this one but also wait on other prerequisites">◐ also waits on others</span><span title="Tasks further downstream, not counted in the other two">↓ further downstream</span></p>
+				<ul class="nextup group" id="ready" style="list-style:none;margin:0;padding:0"></ul>
+			</div>
+		</section>
+	</main>
+</div>
+
+<script id="roadmap-data" type="application/json">{"project": "the-tongue", "phase": "MVP", "generated": "2026-10-15T19:10:15", "pluginVersion": "2.7.0", "stats": {"phase": "MVP", "total": 83, "inScope": 83, "byStatus": {"done": 47, "todo": 9, "blocked": 22, "paused": 0, "deferred": 5, "out_of_scope": 0}, "inProgress": 0, "invalid": [], "donePct": 57, "milestonesTotal": 5, "milestonesDone": 1, "milestones": [{"id": "M1", "name": "Core Simulator", "total": 35, "inScope": 35, "done": 35, "byStatus": {"done": 35, "todo": 0, "blocked": 0, "paused": 0, "deferred": 0, "out_of_scope": 0}, "inProgress": 0, "donePct": 100, "tier": 0, "state": "done"}, {"id": "M2", "name": "Depth & Legibility", "total": 41, "inScope": 41, "done": 12, "byStatus": {"done": 12, "todo": 9, "blocked": 20, "paused": 0, "deferred": 0, "out_of_scope": 0}, "inProgress": 0, "donePct": 29, "tier": 0, "state": "inProgress"}, {"id": "M3", "name": "Persistence & Sharing", "total": 2, "inScope": 2, "done": 0, "byStatus": {"done": 0, "todo": 0, "blocked": 2, "paused": 0, "deferred": 0, "out_of_scope": 0}, "inProgress": 0, "donePct": 0, "tier": 0, "state": "blocked"}, {"id": "M4", "name": "Phonology & Morphology (Secondary)", "total": 4, "inScope": 4, "done": 0, "byStatus": {"done": 0, "todo": 0, "blocked": 0, "paused": 0, "deferred": 4, "out_of_scope": 0}, "inProgress": 0, "donePct": 0, "tier": 1, "state": "deferred"}, {"id": "M5", "name": "Script Typology (Secondary)", "total": 1, "inScope": 1, "done": 0, "byStatus": {"done": 0, "todo": 0, "blocked": 0, "paused": 0, "deferred": 1, "out_of_scope": 0}, "inProgress": 0, "donePct": 0, "tier": 1, "state": "deferred"}]}, "overview": {"tiers": [{"tier": 0, "tierLabel": "Core", "expanded": true, "milestoneIds": ["M2", "M3", "M1"], "stats": {"done": 47, "inScope": 78, "donePct": 60, "milestonesDone": 1, "milestonesTotal": 3}}, {"tier": 1, "tierLabel": "Secondary", "expanded": false, "milestoneIds": ["M4", "M5"], "stats": {"done": 0, "inScope": 5, "donePct": 0, "milestonesDone": 0, "milestonesTotal": 2}}], "milestones": [{"id": "M2", "name": "Depth & Legibility", "total": 41, "inScope": 41, "done": 12, "byStatus": {"done": 12, "todo": 9, "blocked": 20, "paused": 0, "deferred": 0, "out_of_scope": 0}, "inProgress": 0, "donePct": 29, "tier": 0, "state": "inProgress", "tierLabel": "Core", "devs": []}, {"id": "M4", "name": "Phonology & Morphology (Secondary)", "total": 4, "inScope": 4, "done": 0, "byStatus": {"done": 0, "todo": 0, "blocked": 0, "paused": 0, "deferred": 4, "out_of_scope": 0}, "inProgress": 0, "donePct": 0, "tier": 1, "state": "deferred", "tierLabel": "Secondary", "devs": []}, {"id": "M5", "name": "Script Typology (Secondary)", "total": 1, "inScope": 1, "done": 0, "byStatus": {"done": 0, "todo": 0, "blocked": 0, "paused": 0, "deferred": 1, "out_of_scope": 0}, "inProgress": 0, "donePct": 0, "tier": 1, "state": "deferred", "tierLabel": "Secondary", "devs": []}, {"id": "M3", "name": "Persistence & Sharing", "total": 2, "inScope": 2, "done": 0, "byStatus": {"done": 0, "todo": 0, "blocked": 2, "paused": 0, "deferred": 0, "out_of_scope": 0}, "inProgress": 0, "donePct": 0, "tier": 0, "state": "blocked", "tierLabel": "Core", "devs": []}, {"id": "M1", "name": "Core Simulator", "total": 35, "inScope": 35, "done": 35, "byStatus": {"done": 35, "todo": 0, "blocked": 0, "paused": 0, "deferred": 0, "out_of_scope": 0}, "inProgress": 0, "donePct": 100, "tier": 0, "state": "done", "tierLabel": "Core", "devs": ["Jason Warren"]}]}, "tasks": [{"id": "1ENG.1", "description": "Mulberry32 seeded RNG + deterministic hash for autonomous replay (`rng.ts`)", "status": "done", "display": "done", "dependsOn": [], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1ENG.2", "description": "Phoneme inventory, syllable template, and 32-concept lexicon generation (`lexicon.ts`)", "status": "done", "display": "done", "dependsOn": [], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1ENG.3", "description": "Phone table, 10 sound-change rules, collision/homophone detection (`phonology.ts`)", "status": "done", "display": "done", "dependsOn": [], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1ENG.4", "description": "Mutual intelligibility matrix via normalised edit distance (`intelligibility.ts`)", "status": "done", "display": "done", "dependsOn": [], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1ENG.5", "description": "Branch family tree layout and per-branch colour generation (`tree.ts`)", "status": "done", "display": "done", "dependsOn": [], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1ENG.6", "description": "Terrain map, adjacency, and passable-component detection (`geography.ts`)", "status": "done", "display": "done", "dependsOn": [], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1ENG.7", "description": "World/state initialisation (`world.ts`)", "status": "done", "display": "done", "dependsOn": [], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1ENG.8", "description": "Generation resolution: drift → spread → fracture → repool (`generation.ts`)", "status": "done", "display": "done", "dependsOn": [], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1ENG.11", "description": "Research spike: rule-set erosion/renewal balance — diagnosed why the purely-reductive `RULES` ossify a branch after a few generations, surveyed real diachronic renewal mechanisms (epenthesis, vowel breaking/diphthongisation, monophthongisation, vowel shortening), and produced a build-ready contract for 1ENG.12 (`docs/spikes/1eng-11-erosion-renewal.md`)", "status": "done", "display": "done", "dependsOn": [], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1ENG.12", "description": "Erosion/renewal mechanism — widened the phonology transducer to a 1→N segment model, added real diphthong/long-vowel phones (seeded into starting inventories too), and added `epenth`/`break`/`paragoge` (renewal) plus `smooth`/`shorten` (erosion of the new structure) rules. Testing during implementation found the spike's original mid-vowel-conditioned `break` couldn't bootstrap from a fully-eroded lexicon (~97% of turns still ossified); corrected to an unconditioned `break` + new `paragoge` rule, which together guarantee every word has a live renewal move — verified at 0 ossified turns across 150-turn/multi-seed end-to-end sweeps (`docs/spikes/1eng-11-erosion-renewal.md`, `phonology.ts`)", "status": "done", "display": "done", "dependsOn": ["1ENG.11"], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1ENG.9", "description": "Fracture: children now diverge from the parent at the moment of fracture via a seeded birth drift step against the post-split owner map, instead of starting as exact lexicon copies (`generation.ts`)", "status": "done", "display": "done", "dependsOn": [], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1ENG.10", "description": "Fracture reworked to continue the parent lineage on its largest surviving component (ties broken by lowest region id) instead of retiring the parent and minting a fresh branch per component; only the other component(s) spin off as new siblings. Added a divergence-threshold rename mechanic: every branch accrues a flat chain of drift anchors (`Anchor`), and a new `naming.ts` module renders them at display time via an event-density-aware perspective-collapse into Old/Middle/Late era names and `Proto-\u003cblend\u003e` names for shared ancestors of genuinely diverged descendants — bare stems for living tips. Branch names are now generated phonotactically from each branch's own inventory (`naming.ts` `genStem`) instead of drawn from a static pool. Surfaced and fixed a latent bug in `isLeaf`/`leavesOf` (previously \"childless\", which silently broke once a still-territory-owning branch could also have children) and a `root.name` placeholder (\"Proto\") colliding with the new Proto- naming vocabulary (`generation.ts`, `naming.ts`, `tree.ts`, `world.ts`)", "status": "done", "display": "done", "dependsOn": ["1ENG.9"], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1ENG.18", "description": "Language-shift/assimilation death — a much smaller branch bordering (via a passable edge) a near-identical, much larger neighbour (intelligibility above a cutoff, size ratio below a threshold) sustained over several turns has its territory absorbed into that neighbour and becomes a dead ancestor. Closes a gap surfaced after 1ENG.10 shipped: nothing in the engine previously emptied a branch's territory, so the Old/Middle/Late/Proto- era-naming payoff was unreachable in play — this makes it reachable via a real historical death pattern (Cornish, Manx) rather than territory conquest, keeping clear of 2GEO.4's planned neighbour-contact/borrowing scope. New `geography.ts` `neighborsOf`/`dominantAssimilator` helpers, a new turn-loop step in `generation.ts` (after spread, before fracture), and a UI warning mirroring the existing fracture warning (`game.svelte.ts`, `+page.svelte`)", "status": "done", "display": "done", "dependsOn": ["1ENG.10"], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1UI.1", "description": "Reactive game state singleton (Svelte 5 runes) (`game.svelte.ts`)", "status": "done", "display": "done", "dependsOn": [], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1UI.2", "description": "Map, family tree, intelligibility matrix, word table, change list, history panels", "status": "done", "display": "done", "dependsOn": [], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1UI.3", "description": "Economy config panel for tuning pool/growth/overhead/cost settings", "status": "done", "display": "done", "dependsOn": [], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1UI.4", "description": "Main route wiring all components together (`+page.svelte`)", "status": "done", "display": "done", "dependsOn": [], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1ENG.13", "description": "Compensatory lengthening — split into `compleng` (medial coda in a cluster, `V _ C`, e.g. kast→kaːt) and `complengFinal` (word-final coda, `V _ #`, e.g. tas→taː), mirroring the epenth/paragoge medial/final split; both fire on the coda and use a new `Rule.lengthensPrev` flag so `applyRuleToWord` reaches back and lengthens the vowel it already emitted — the 1ENG.11 spike §8 claim that `Seg[]` already supported this was inaccurate (corrected in the spike doc)", "status": "done", "display": "done", "dependsOn": [], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1ENG.14", "description": "Design spike: syntax-conditioned sound change — defined the grammar substrate: `CONCEPTS` grows 32→47 (appended: 8 verbs, 3 pronouns, 4 adjectives) with a `CONCEPT_CLASS` table and class-pure `SEMANTIC_FIELDS` extension, four phrase frames ordered by per-branch `WordOrder` parameters (basic SOV/SVO/VSO + AdjN/NAdj; genitive derived per Greenberg), deterministic per-class position profiles, position-scaled boundary rules (`SYNTAX_STRENGTH` multiplier via the salience-gate pattern) and a liaison-protection statistic (final consonants resist deletion before typically vowel-initial followers). Per-branch word-order drift via two verified drivers: morphological-collapse rigidification to SVO (causal direction confirmed by a 2025 entropy study) and intense-contact alignment (the Ethio-Semitic pattern). Staged contract: 1ENG.19 (substrate + conditioning), 1ENG.21 (order drift, gated on 2GEO.5 and 1ENG.20) (`docs/spikes/1eng-14-syntax-conditioned-sound-change.md`) **Revised in the critique pass:** substrate grew to 48 concepts (`finish`), the fields extension was dropped for the distance table, frame-usage weights and agreement-licensed pro-drop were added, `fortify`/`aphaer` gave the initial position its first rules, and a fracture-birth reanalysis flip (stage A) counterweights the two convergent order drivers", "status": "done", "display": "done", "dependsOn": [], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1ENG.15", "description": "Design spike: morphological renewal (agreement/tense) — specified a per-branch inflectional paradigm running the twice-attested synthetic/analytical cycle (Latin cantabo → cantare habeo → chanterai → aller + infinitive): past tense (source: `finish`, amending the substrate to 48 concepts) and 1sg/2/1pl agreement (sources: the pronouns), affixes born as clips of the source words' current per-branch forms (sibling branches mint cognate but distinct inflections), placed per word order + the suffixing preference, eroding on a seeded segment-shedding clock scaled by 1ENG.14's position heat (~30-turn full cycle at SOV verb heat) and renewing periphrastically on death. Exports the collapsed-agreement state 1ENG.14's rigidification driver reads. Build-ready contract for 1ENG.20 (`docs/spikes/1eng-15-morphological-renewal.md`) **Revised in the critique pass:** the shedding clock was replaced by pure rule-based affix drift (`applyRuleToAffix`, edge-injected context, vowel floor lifted, no backstop); lifetimes are emergent and 2SIM.1 carries the cycle-turning acceptance criterion", "status": "done", "display": "done", "dependsOn": [], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1ENG.16", "description": "Research spike: survey Mark Rosenfelder's Zompist conlang artefacts for mechanisms applicable to our engine — sound-change rule notation and batch application ([SCA²](https://www.zompist.com/sca2.html)), procedural word generation ([gen](https://www.zompist.com/gen.html)), inventory presentation ([Phono](https://www.zompist.com/phono.html)), the three syntax gadgets ([GGG](https://www.zompist.com/ggg.html), [GTG](https://www.zompist.com/gtg.html), [MG](https://www.zompist.com/mg.html)), and the diachronic methodology of the [Language Construction Kit](https://www.zompist.com/kit.html) — producing a build-ready contract for 1ENG.17 identifying which findings are worth adopting. **Corrected during the survey:** the original task description mis-described three of its six URLs — GGG/GTG/MG are syntax demonstrators (generative grammar, tree derivation, Minimalist grammar), not conlanging methodology, and Phono is an inventory-table formatter, not a description convention; the methodology text is the LCK, which the original description omitted. Outcome: three adoptions (frequency-ranked phoneme selection, distance conditioning, metathesis), six documented rejections — notably SCA²'s category correspondence, which our feature-based `xform` already generalises — and the finding that SCA² has no probabilistic rule application at all, where our salience/syntax gates model lexical diffusion (`docs/spikes/1eng-16-zompist-tools-survey.md`)", "status": "done", "display": "done", "dependsOn": ["1ENG.13", "1ENG.14", "1ENG.15"], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1ENG.17", "description": "Implement the three adoptions from the Zompist survey (1eng-16 spike §7), three independent slices: (1) frequency-ranked phoneme selection — gen's geometric dropoff as `pickRanked` in `rng.ts` (single-draw inverse-CDF, so inventory size can't shift downstream world-gen draws), replacing `pick` at `genSyllable`'s four call sites; (2) distance conditioning — an optional `Rule.distance` predicate scanning to the word edge (SCA²'s `…`) with `xform`'s ctx widened to carry the found segment, plus a new `umlaut` rule, making long-distance assimilation expressible for the first time; (3) metathesis — a neighbour-consuming `Seg` variant riding 1ENG.12's existing `Seg[]` output shape, plus a `metath` rule. Breaking: slice 1 changes what every seed generates (`feat(engine)!:`); slices 2 and 3 are additive (no test asserts a rule count, verified at survey time) though drift-replay goldens shift as `driftRule`'s weighted total changes. **Flagged by the 1ENG.24 spike:** its slice 2 here and 1ENG.24 slice 2 (1ENG.30) both propose widening `Rule.xform`'s ctx object — this task with a distance-found segment, 1ENG.24 with a `stress?: StressCtx` field. Independent optional fields, so compatible, but whichever lands second must extend the object rather than replace it. **Done — three deviations from the spike text, all ledgered:** (1) `genInventory`'s consonant list was PUSH-order, not a stable rank (index 7+ was whichever optional gate happened to pass first per seed) — rebuilt against a fixed `CONSONANT_RANK` filtered by the same gates, same draw count, so `pickRanked`'s dropoff means what it claims; (2) `umlaut`'s specified `xform:()=\u003e({back:false,round:false})` doesn't compile (`back` is `Backness`, not boolean) and would have silently deleted most vowel types via the self-seg-patch trap `reduce`'s own comment documents — shipped instead as a feature-copy off the found trigger (`nasassim`'s shape), probed against every match×trigger combination first; (3) `metath` shipped `category:\"metathesis\"` (new value, affinity 0.0) rather than the spike's `\"assimilation\"` — metathesis is reordering, not feature-spreading, so assimilation's 0.4 contact affinity would be an invented tilt; mirrors 1ENG.19's `fortition` treatment exactly. A real bug found and fixed in the same pass: `resolveSeg`'s neighbour-diff path re-resolved a moved consonant from its own features via `PHONES.find`, which returns the FIRST match — `/l/` and `/r/` are featurally identical in this engine's model (`{alv,liquid,voiced}`), so a moved `/r/` silently became `/l/`; fixed by special-casing an empty patch to the neighbour's own id.", "status": "done", "display": "done", "dependsOn": ["1ENG.16"], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1ENG.19", "description": "Implement the 1ENG.14 substrate and conditioning (stage A) — `CONCEPTS` 32→48 (9 verbs incl. `finish`, 3 pronouns, 4 adjectives), new `syntax.ts` (`FRAMES`, `frameOrder`, `positionProfile`, `walkFrameWeights`, `followerVowelShare`, `syntaxMult`, `SYNTAX_STRENGTH`, `FRAME_WALK`, `ORDER_INNOVATE_RATE`), `Branch.wordOrder`/`frameWeights`/`proDrop` seeded and inherited, the fracture-birth reanalysis flip, the `applyRuleToLex` syntax gate at both drift call sites, the new `fortify`/`aphaer` initial-position rules and `PhrasePanel.svelte`. Breaking: three required Branch fields, `CONCEPTS` growth and two new `RULES` entries shift goldens — contract specified in the amended 1ENG.14 spike. **Note:** `CONCEPT_CLASS`/`SUBSTRATE_ORDER` already landed in `lexicon.ts` via 2LEX.2 (covering the full 48-concept substrate ahead of `CONCEPTS` growing into it), so this task only needs to grow `CONCEPTS` — the class gate activates for the new concepts automatically, no new class table to write. **Done** — two deliberate deviations from the spike's literal wording, both ledgered: the player-preview path shows a `Candidate.syntax` multiplier rather than live-gating (the gate's block roll isn't keyed on the rule, so gating all 19 candidates' previews at once would freeze the same word index regardless of which rule is picked); `fortify` got a new `fortition` category at `CATEGORY_AFFINITY` 0.0 (deliberately neutral — no evidence either direction on the contact axis) rather than reusing `lenition` (its opposite) or `epenthesis` (mislabels the mechanism)", "status": "done", "display": "done", "dependsOn": ["1ENG.14", "2LEX.2"], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1ENG.20", "description": "Implement the 1ENG.15 paradigm model — new `morphology.ts` (`seedParadigm`, `affixContext`, `tickParadigm`, `inflect`, `PATHWAY`, `RENEWAL_TURNS`/`FUSE_TURNS`), `applyRuleToAffix` in `phonology.ts` (edge-injected transducer variant, vowel floor lifted), `Branch.paradigm` (breaking: required field), the rule-driven paradigm tick inside drift (step 1), genesis seeding in `world.ts`, fracture deep-copy inheritance, pro-drop licensing and the PhrasePanel/paradigm-chip rendering. Affix erosion is emergent (no backstop; 2SIM.1 carries the acceptance criterion) — contract specified in the amended 1ENG.15 spike", "status": "done", "display": "done", "dependsOn": ["1ENG.15", "1ENG.19"], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1ENG.21", "description": "Implement 1ENG.14 stage B: word-order pressure drivers — new turn-loop step 3.75 with the morphological-collapse rigidification driver (reads 1ENG.20's paradigm state, revokes pro-drop; `ORDER_TURNS` clock) and the intense-contact alignment driver (reads 2GEO.5's `pairContact`; `ORDER_CONTACT_CUT`), `Branch.orderPressure`/`orderContactPressure` and UI warnings mirroring fracture/assimilation. The divergent fracture-birth reanalysis flip ships earlier in stage A — contract specified in the amended 1ENG.14 spike. **Done — deviations from the spike, all ledgered:** \"revokes pro-drop\" needed no new write — `licensesProDrop` already recomputes false at two dead cells, strictly before `agreementCollapsed`'s three-dead trigger, so `proDrop` is already false by the time rigidification could fire (pinned as an ordering test, not duplicated as a write); \"one step toward the neighbour's order\" is swap distance on the S/O/V permutohedron (Ferrer-i-Cancho et al., arXiv 2604.26726 — the established metric), computed over all six logical orders via BFS even though `WordOrder.basic` only admits three, so `SOV↔VSO` takes two events via `SVO`; fracture birth inherits `orderPressure` (the paradigm state driving it is itself inherited via the lexicon) but resets `orderContactPressure` (keyed by neighbour id, which a newborn's border differs on). **Two reachability bugs found and fixed via live multi-seed playtesting**, since both mechanisms passed every synthetic/unit test yet never fired in real autonomous play: (1) `pairContact` never exceeded 0.5 across thousands of real pair-checks on the pre-existing 4×3 (12-region) map, below `ORDER_CONTACT_CUT` (0.6) — `genRegions` grown to 10×8 (80 regions; filed 2GEO.9 for map-shape diversification beyond just a bigger grid, since that wasn't this task's contract); (2) `ORDER_TURNS` and `RENEWAL_TURNS` were both 6, and step 1 (`tickParadigm`) runs before step 3.75 in the same turn — on the 6th consecutive collapsed turn, renewal always revived the paradigm one tick before rigidification's own same-value threshold could check it, making rigidification structurally unreachable; fixed by dropping `ORDER_TURNS` to 5. Whether turn-clock thresholds should vary stochastically rather than being fixed integers is flagged on 2SIM.1 as a design question for that census, not resolved here.", "status": "done", "display": "done", "dependsOn": ["1ENG.19", "1ENG.20", "2GEO.5"], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1ENG.22", "description": "Fix unbounded per-turn family-tree/era-collapse render cost, and add an era viewer. Re-measured during implementation, correcting this task's own opening numbers: the originally-reported ~340MB heap does not reproduce against a direct engine walk — a 400-turn, 5-branch run retains ~3.6MB total (anchors ~3.3MB of that). The real cost was `displayNames`/`eraGraph`/`selEra` (`game.svelte.ts`) each independently re-deriving whole-tree alive/protoBlend context every render; hoisting that into one shared pass (`naming.ts` `eraContexts`) measured ~1.15x on a synthetic 511-branch stress case, short of an earlier in-flight ~2x estimate — recorded so that number isn't mistaken for a committed result. The roadmap's own candidate fix (\"prune anchors past what the display collapse can ever surface\") was evaluated and rejected: `eventDensityPolicy`'s boundary set is provably non-monotonic (an anchor can drop out of the displayed boundary set and later re-enter), so no anchor's frozen lexicon can ever be ruled permanently unreachable — verified by hand and by a 2000-chain randomised sweep. Implemented instead: the collapse now reads only two scalars per anchor (`AnchorMark`, never `Anchor.lex`), and `EraStage.anchorIndex` carries the true index back into `branch.anchors` for any caller that wants the frozen lexicon — which made a second ask cheap to ship alongside: clicking an earlier era node in the family tree now opens a read-only view of that era's actual frozen lexicon (previously the tree only showed that an earlier phase existed with no way to see how it differed).", "status": "done", "display": "done", "dependsOn": [], "milestone": "M1", "notes": "", "assignee": "Jason Warren", "started": ""}, {"id": "1ENG.23", "description": "Design spike: per-branch phoneme inventories — resolved to a DERIVED inventory (no new `Branch` field) plus a phonemic-event detector, on measured grounds. Census (40 seeds x 120 turns): 100% of surviving branches have lost \u003e=1 genesis phoneme, mean 6.25 lost / 2.97 gained against a ~16-phoneme genesis inventory. The roadmap's framing that mergers and splits are 'not expressible' understated the finding: they already occur in 100% (merger) and 95% (split) of branches — 18 of 19 rules are context-conditioned, and a conditioned rule applied lexicon-wide IS a conditioned split — so the work is representation and detection, not mechanism. The stored-inventory option was rejected on evidence: complementary-distribution detection (the only allophone/phoneme criterion) fires at just 3% over 803 pairs and is dominated by sparsity artefacts at 48 concepts, so a stored inventory does not buy the allophony it is priced for — and nothing in the engine creates an allophone as a distinct object, since a split is already a completed phonemicisation when the rule fires. Also identified a live display bug: `Header.svelte` renders `World.inv` (the GENESIS inventory) as the standing description of every branch, wrong by ~9 phonemes by turn 120. Contract in `docs/spikes/1eng-23-per-branch-phoneme-inventories.md`", "status": "done", "display": "done", "dependsOn": [], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1ENG.25", "description": "Design spike: runtime syllabification — found the stated fork (sonority onset-maximisation vs. template-driven parse) to be EMPIRICALLY EMPTY: both algorithms were implemented and agreed on 2016/2016 words (100.0%), because the corpus contains zero intervocalic CC clusters, the only configuration that distinguishes them. Investigating why exposed the real blocker, which is not syllabification: the engine erodes to 1.05 syllables per word (from 1.51 at genesis) and stays there, with 1733 of ~2100 words literally CV by turn 40, so there is no syllable structure to parse, no stress position to assign (1ENG.24) and no tone-bearing unit to contrast (4PHON.1). Deeper symptom: homophonic collapse — 61 colliding concept-pairs per branch across a 48-concept lexicon by turn 150 and still climbing, while 2LEX.2's repair has fired 1468 times without arresting it (compoundWord CLIPS both stems, so only 2/48 concepts end up longer than genesis). Four candidate fixes were measured and rejected (syncope; disabling epenth — which yields 1 cluster rather than 0, so cluster loss is overdetermined; weight tuning, capping at 1.35 syll/word even when every final-erosion rule is halved; reduplication, which restores length but produces 0 clusters). Structural cause located: `paragoge`, the engine's only genuinely lengthening rule, requires a C-final word but the corpus becomes 97% V-final, and `break` (99% eligible) is segment-neutral and keeps words V-final, locking it out permanently. Root diagnosis: the 1ENG.19 phrase substrate has 8 consumers and every one consumes it as a SCALAR — no code path uses frame adjacency to combine words — so erosion is phrase-aware while renewal is not. Contract in `docs/spikes/1eng-25-runtime-syllabification.md`", "status": "done", "display": "done", "dependsOn": [], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1ENG.26", "description": "Implement the 1ENG.23 contract — move `inventoryOf` from `naming.ts` to `phonology.ts` as the canonical branch-inventory accessor, add `phonemicDiff`/`describeEvent` and the `PhonemicEvent` union (merger/split/loss/gain) using positional per-concept alignment with length-mismatched words skipped, record events as `HistoryEntry` in generation.ts step 1 and at `divergeAtBirth` (no `drift` flag, per the 2GEO.4/2LEX.1 ruling), and fix `Header.svelte` to render the selected branch's LIVE inventory instead of `World.inv`. Additive: no new `Branch` field, no new RNG salt, no turn-loop reordering — `feat(engine):`, not a breaking change", "status": "done", "display": "done", "dependsOn": ["1ENG.23"], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1ENG.27", "description": "Implement 1ENG.25 slice 1: phrase-level univerbation — new `univerbation.ts` (`resolveUniverbation`, `precedersOf`, `UNIVERB_RATE`, `UNIVERB_MAX_SEGMENTS`) and a new turn-loop step 1.75 (after collision resolution, before the rename check). The engine's first consumer of frame ADJACENCY rather than a phrase scalar: a word under contrast pressure (\u003c=2 segments, or currently homophonous) fuses with a modifier drawn from the classes its branch's linearised frames place before it, keeping BOTH stems whole (no clipping — that is what neuters 2LEX.2's repair). Measured at UNIVERB_RATE=0.06: syllables/word settles in 1.59-2.00 across 300 turns and collision pairs stabilise near 20 instead of climbing past 61. New hashRand salt seed+43. Behaviour change (every seed's lexicon evolves differently from turn ~1, so drift-replay goldens move) but no type break. **Revised during implementation:** the salt scheme separates the three draws (fire/class/modifier) on the SECOND coordinate (seed+43, turn*283+71+2k, branchId*769+i), not the prototype script's stacked third-coordinate offsets — those were safe only via an unstated coupling to CONCEPTS.length (1000 mod 433 = 134 happens to exceed the current 48-concept max index). `precedersOf` takes no `proDrop` parameter, a deliberate reading of spike §4.1's `frameOrder(f, order, false)`. generation.test.ts's 1ENG.19 VSO erosion-asymmetry test needed a new instrument, not a loosened bound: word length stopped being a valid proxy for erosion once renewal acted on the same observable (under VSO, pronoun's sole preceder class is `verb`, so univerbation inflated the measured gap, vsoGap 0.44 -\u003e 0.82, inverting the assertion). Now measures length net of fused-in material (36/36 (seeds, turns) configurations pass, margins 0.19-0.64, no seed discarded, and the SOV arm measures identically to pre-1ENG.27 at every horizon, since SOV is structurally fusion-immune). Reproduced through the shipped code at 25 seeds x 80 turns: 1.82 syll/word, 15.6 collision pairs (spike §4.2 measured 1.77/16.0).", "status": "done", "display": "done", "dependsOn": ["1ENG.25", "1ENG.19"], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1ENG.28", "description": "Implement 1ENG.25 slice 2: runtime syllabification — new `syllable.ts` (`syllabify`, `syllableCount`, `SONORITY`, the `Syllable` interface) doing sonority-constrained onset maximisation over a live word. Derive-on-read, never cached: 29% of word-changing rule applications alter syllable count (apoc/paragoge/epenth/aphaer resyllabify), so a cache would be stale a third of the time it is read. Ships as a pure library with no engine call site — its consumers are 1ENG.24 and 4PHON.1 — and must land after 1ENG.27, which is what makes multisyllabic words exist to parse. Additive, no goldens move. **Revised during implementation:** `Syllable.nucleus` widened from the spike's `string` (§5.1) to `string | null`. The spec's own vowelless-syllable edge case is reachable — `applyRuleToAffix` lifts the vowel floor `applyRuleToWord` enforces (phonology.ts:226) — and has no representable value in a bare `string`; `\"\"` would let a stress/tone consumer key off it silently rather than being forced to handle the case. `syllabify([])` returns one empty onset-only syllable, a case the spike did not specify, pinned at syllable.test.ts:50-52. Shipped in b2822ac (PR #23): 13 tests pass, and the integration arm goes beyond the spec by round-tripping `[...onset, nucleus, ...coda]` back to the input across 1000 real engine words, catching boundary bugs a nucleus-count check alone would miss.", "status": "done", "display": "done", "dependsOn": ["1ENG.27"], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1ENG.24", "description": "Design spike: stress, and the sound changes that need it — found that 1eng-25 §5.3's pre-specified whole-word stress gate (mirroring the salience/syntax gates in applyRuleToLex) CANNOT WORK: every high-volume rule targets the word's final syllable (post:bound), and whether the final syllable is stressed is a property of the branch's stress mode alone, not the word, so the gate degenerates to a per-branch constant (measured: final-syllable-stressed at 0%/100%/0%/0% across the four modes). Worse, a whole-word gate is all-or-nothing and cannot express either of the roadmap's named targets (\"delete the unstressed vowel, keep the stressed one\" is inherently sub-word). Amends 1eng-25 §5.3: departs from item 1 (the per-word gate), keeps item 4 verbatim (a per-branch seeded+inherited parameter reading syllabify() live), and dissolves the item-2/item-3 roll-composition contradiction rather than adjudicating it — stress now conditions the transducer per-segment via a widened xform ctx and a fail-closed Rule.stressed predicate, so syntaxMult's existing roll is untouched. Blast radius smaller than expected: zero of the 17 existing RULES change (TypeScript structural typing makes the widened ctx free for every consumer that ignores it). Re-measured the corpus post-1ENG.27: 1.82 syll/word, 52.2% polysyllabic, 20.1% \u003e=3 syllables at turn 80 — the 95%-monosyllabic floor 1eng-25 §3 measured is gone. Also specifies a real schwa (tri-valued Phone.back: \"front\"|\"central\"|\"back\", not a central? boolean, which would silently corrupt to /e/ via applyXform) and the honest syllable-weight test (coda OR long vowel OR diphthong, not coda-only — moves heavy-penult rate from 1.7% to 13.6%, narrowly below the 15% \"live lever\" threshold, ledgered as flavour). Contract in `docs/spikes/1eng-24-stress.md`", "status": "done", "display": "done", "dependsOn": ["1ENG.28"], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1ENG.29", "description": "Implement 1ENG.24 slice 1: a real schwa — widen `Phone.back`/`Patch.back` from `boolean` to `\"front\"|\"central\"|\"back\"`, add a schwa phone, and fix `frontV` (phonology.ts:52) to an explicit `=== \"front\"` test. Schwa is excluded from genesis inventories for free (`genInventory` builds vowels from hardcoded literals, never from `PHONES`) — it only enters a branch's live inventory once a reduction rule produces it, which is the attested pattern. `feat(engine)!:` (a public type widens) but no drift-replay goldens move (no new vowel enters any genesis inventory).", "status": "done", "display": "done", "dependsOn": ["1ENG.24"], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1ENG.30", "description": "Implement 1ENG.24 slice 2: the stress substrate — `StressRule`/`StressCtx` types, `Rule.stressed` (fail-closed positional gate), `stressPosition`/`stressMap` in `syllable.ts`, `applyRuleToWord`'s widened ctx and optional `StressRule` parameter, `World.stressRule`/`Branch.stressRule` with genesis draw (tail-appended after `adj`) and fracture-birth inheritance. No new `hashRand` salt needed (`seed+47` stays free — every draw is a genesis `rng()` tail-append or fully pure). `feat(engine)!:` (required `Branch` field, ~40 test call sites) but no goldens move (no rule yet declares `stressed`).", "status": "done", "display": "done", "dependsOn": ["1ENG.29"], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "1ENG.31", "description": "Implement 1ENG.24 slice 3: `reduce` (unstressed vowel reduction to the new schwa, w=2.5) and `syncope` (unstressed syllable loss, w=2, the Latin→French engine) added to `RULES`, both gated by `Rule.stressed`. The vowel floor (phonology.ts:189) is structurally unreachable from `syncope` by construction (stressPosition always exempts one nucleus) — pinned as an invariant test, not a second guard. `feat(engine)!:`, goldens move (two new rules change `driftRule`'s weighted total, every seed diverges from turn ~1).", "status": "done", "display": "done", "dependsOn": ["1ENG.30"], "milestone": "M1", "notes": "", "assignee": "", "started": ""}, {"id": "2GEO.1", "description": "Design spike: terrain→sound-change bias ruleset — split into a social-geography contact/isolation axis (sound change) and a physical-geography terrain axis (semantic salience), with a full implementation contract for 2GEO.2 and 2GEO.3 (`docs/spikes/2geo-1-terrain-sound-change.md`)", "status": "done", "display": "done", "dependsOn": [], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2GEO.2", "description": "Implement terrain-biased rule weighting in `phonology.ts` — contract specified in the 2GEO.1 spike", "status": "done", "display": "done", "dependsOn": ["2GEO.1"], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2GEO.3", "description": "Implement biome-driven vocabulary resistance — terrain-salient concepts (`salienceRetention` in `lexicon.ts`) drift/replace more slowly, gating word-level drift in `applyRuleToLex` (`phonology.ts`) — contract specified in the 2GEO.1 spike, Axis B minimum scope (iii)", "status": "done", "display": "done", "dependsOn": ["2GEO.1"], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2GEO.4", "description": "Design spike: neighbour contact/borrowing mechanic — bordering branches converge via borrowing, the one convergent force in an otherwise all-divergent turn loop (drift, fracture and assimilation-death all pull branches apart or remove one). Specifies a directional per-ordered-pair mechanic: eligibility gated on the lender's terrain-salient concepts (`salienceRetention`/`dominantTerrain` — the borrowable subset of an otherwise borrowing-resistant basic list, per Tadmor/WOLD), selection of the most-divergent eligible concept, a pair-local contact throttle (passable A–B edges as a share of A's border), and a contact-graded outcome (faithful whole-copy at high contact, one-step adaptation at low contact — contact proxying bilingual proficiency, per Thomason & Kaufman). Salient concepts thus resist drift *and* attract borrowing (the real Wanderwort profile). Full build-ready contract for 2GEO.5, following the 2GEO.1 pattern (`docs/spikes/2geo-4-neighbour-contact-borrowing.md`)", "status": "done", "display": "done", "dependsOn": ["2GEO.2", "2GEO.3"], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2GEO.5", "description": "Implement the neighbour-borrowing mechanic — new `borrowing.ts` (`resolveBorrow`, `BORROW_RATE`, `BORROW_FAITHFUL_CUT`), `pairContact` in `geography.ts`, `formSimilarity` factored out of `intelligibility.ts`, `borrowableConcepts`/`stepToward` beside the salience helpers, and a new turn-loop step 3.5 in `generation.ts` (after spread, before assimilation). No new randomness beyond a fresh `hashRand` salt; seeded replay preserved — contract specified in the 2GEO.4 spike", "status": "done", "display": "done", "dependsOn": ["2GEO.4"], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2GEO.6", "description": "Design spike: seeded generational world events — a small table of events (a pass opens/freezes via an edge-passability flip, a plague empties a region, a prestige court arises and becomes a preferred borrowing source) that create fracture and contact pressure on demand instead of leaving the map static once free territory runs out (design-analysis §6, \"a world that pushes back\", cheap tier)", "status": "todo", "display": "todo", "dependsOn": [], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2GEO.7", "description": "Implement seeded world events *(placeholder — depends on 2GEO.6)*", "status": "blocked", "display": "blocked", "dependsOn": ["2GEO.6"], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2GEO.8", "description": "Design spike: rival language family — a second, autonomous seeded language family competing across the map, giving expansion an opponent, assimilation a genuine threat, and borrowing a direction (substrate/superstrate). Design-analysis §6 flags this as the biggest single swing in scope and recommends not attempting it until the stakes layer (ambitions/contact events) has proven out; deliberately not paired with an implementation task yet", "status": "blocked", "display": "blocked", "dependsOn": ["2STK.4", "2STK.5"], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2GEO.9", "description": "Design spike: map-shape diversification — `genRegions` (geography.ts) generates a fixed rectangular grid; 1ENG.21 grew it 4x3 (12 regions) to 10x8 (80) purely to fix `pairContact`'s `ORDER_CONTACT_CUT` reachability (a branch's single-neighbour border share couldn't clear 0.6 on a map that small), not as a map-generation improvement in its own right. Explore varied shapes and non-rectangular layouts (irregular coastlines, non-uniform region density, procedurally varied grid dimensions per seed) so every world's geography doesn't read as the same rectangle at a different scale — the actual gap this task exists to close, surfaced but out of scope during 1ENG.21's playtest fix", "status": "todo", "display": "todo", "dependsOn": [], "milestone": "M2", "notes": "A spike: when it finishes it spawns an implementation task. Move the 2GEO.9 gate onto that task for 2STK.4, 2STK.6, 2LEX.3 and 2SIM.1 so each waits for the built map.", "assignee": "", "started": ""}, {"id": "2GEO.10", "description": "Investigation spike: family-structure reachability (docs/spikes/2geo-10-family-structure-reachability.md) — a 12-seed census found fracture/assimilation death never fire autonomously on the 10x8 grid (genesis connectivity sits far above the bond-percolation threshold). Terrain-probability tuning alone produces a bimodal outcome (0 fractures or unbounded branch-count runaway), traced to a spread/fracture feedback loop, not a number to find — genuine reachability needs better map generation (2GEO.9's territory). Ships two safety fixes regardless: FRACTURE_COOLDOWN (rate-limits re-fracturing, breaking the runaway) and STUCK_TURNS (a time-based escape so a genesis-walled-in branch doesn't freeze forever). Terrain probability ships unchanged from baseline. Census harness (docs/spikes/assets/2geo-10-family-census.ts) committed for 2GEO.9/2SIM.1 to extend.", "status": "done", "display": "done", "dependsOn": [], "milestone": "M2", "notes": "Unblocks 2STK.4's territory/fracture/death-dependent ambitions once 2GEO.9 delivers real reachability; the two safety fixes ship now regardless.", "assignee": "", "started": ""}, {"id": "2GEO.11", "description": "Discussion spike: fracture triggers. What it is: the rules for when one language splits into daughters. Today a branch fractures only when impassable terrain cuts its territory into separate pieces (`passableComponents`, `generation.ts` step 5); 2GEO.10 found this almost never happens on the current grid. Because the pieces are cut apart by impassable terrain, fracture siblings can never border, trade or borrow, which is why autonomous play produces no borrowing at all. Candidate extra triggers to discuss: distance between a language's regions (a widespread branch whose far parts lose contact), the presence and pressure of neighbouring languages, and any others that come up. Work through in order: (a) how real languages split and what causes it; (b) how a split should look in play; (c) which triggers to include, if any; (d) the conditions they need (map shape from 2GEO.9, world events from 2GEO.6, a rival family from 2GEO.8, `FRACTURE_COOLDOWN` and `STUCK_TURNS` from 2GEO.10). Extends the 2GEO.10 spike (`docs/spikes/2geo-10-family-structure-reachability.md`)", "status": "todo", "display": "todo", "dependsOn": ["2GEO.10"], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2LEX.1", "description": "Design spike: homophone-collision resolution — measured collision dynamics in autonomous play (98% of branch-turns carry a live collision; 87% self-heal, median 3 turns; a 13% chronic tail never heals), then specified a severity × persistence mechanic: a six-field semantic grouping of `CONCEPTS` gates severity (same-field = confusable, operationalising Wedel's functional-load finding; cross-field homophones tolerated indefinitely and surfaced as flavour), a per-pair pressure counter (`COLLISION_TURNS` = 6, census-tuned) triggers autonomous repair, and repair compounds the less terrain-salient concept with a clipped field-mate modifier (the catfish pattern) under a per-world `compoundOrder` headedness trait — plus a Gilliéron-style borrowed-replacement arm gated on 2GEO.5 and a player choice-at-apply-time path (repair at `changeCost` or tolerate into the pressure clock). Full build-ready contract for 2LEX.2 (`docs/spikes/2lex-1-homophone-collision-resolution.md`) **Revised in the critique pass:** the six-field grouping was replaced by a class gate (via 1ENG.14's `CONCEPT_CLASS`) plus a graded Numberbatch semantic-distance table (`SEVERITY_CUT` = 0.2, distance-scaled thresholds, nearest-neighbour modifiers; census re-run: 13.2% severe, 30.3 repairs/game)", "status": "done", "display": "done", "dependsOn": [], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2STK.1", "description": "Design spike: rule-choice stakes mechanic (resource trade-offs vs directional goals vs prerequisite chains). Design-analysis candidate answer to evaluate: drift momentum (applying a rule tilts that branch's future autonomous drift toward its category, capped and decaying, feeding `biasedMult`/`driftRule`) plus seeded ambitions (three per world, scored at a fixed horizon, computable from existing state incl. the anchor chain) plus intelligibility-as-a-live-resource contact events (seeded per-generation contact between bordering branches, success odds = mutual intelligibility via `hashRand`, the missing convergent incentive) — explicitly recommends skipping prerequisite chains (wrong fantasy: turns phonology into a tech tree)", "status": "done", "display": "done", "dependsOn": ["2GEO.2", "2GEO.5"], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2STK.2", "description": "Implement focal identity & reach (2stk-1 spike §2) — `GameState.focusId`, kinship-dominant `blendDistance`/`reachMult` (capped multiplier, never a gate), fracture focus choice, succession dialog (≤3 ranked heirs, per-candidate penalties shown, silence always electable), hoarse-voice mourning multiplier, and the silence ending (the game's single formal ending). New `stakes.ts` (`blendDistance`, `reachMult`, `mourningMult`, `heirCandidates`), `kinshipDistance` (`tree.ts`, LCA over `parentId` chains), breaking `GameState` fields (`focusId`, `mourning`, `pendingFocusChoice`, `ended`), focus-death/fracture-focus detection in `generation.ts` (focus death is the existing assimilation trigger emptying the focal branch's territory, not a new pressure counter), reach-priced `apply`/`expandInto` in `game.svelte.ts`, and the first modal/dialog pattern in the codebase (`FocusDialog.svelte`, `SilenceScreen.svelte`)", "status": "done", "display": "done", "dependsOn": ["2STK.1"], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2STK.3", "description": "Implement drift momentum (2stk-1 spike §3) — `Branch.momentum` per `RuleCategory`, player-weighted accrual (drift at half), per-turn decay, `momentumMult` joining `biasedMult` in `driftRule` (naturalness stays dominant), momentum shown in the rule picker", "status": "done", "display": "done", "dependsOn": ["2STK.1"], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2STK.4", "description": "Implement ambitions & lock-in (2stk-1 spike §4) — `World.ambitions` via constrained tension draw, live-condition evaluation each repool, natural deadlines only, lock-in grading and freezing the record, goal-driven → sandbox phase flag, starter roster (self-referencing ambitions need focusId; roster items reading momentum/contact state activate as 2STK.3/2STK.5 land)", "status": "blocked", "display": "blocked", "dependsOn": ["2STK.1", "2STK.2", "2GEO.10", "2GEO.9"], "milestone": "M2", "notes": "Planning surfaced that 7/10 roster ambitions need fracture/death, which 2GEO.10 found near-unreachable autonomously — blocked behind 2GEO.10's safety fixes landing and, for genuine reachability, 2GEO.9.", "assignee": "", "started": ""}, {"id": "2STK.5", "description": "Implement contact events & trade routes (2stk-1 spike §5) — one seeded event per generation between bordering branches, odds = mutual intelligibility, pure roll with pre-resolution preview, typed failure consequences, `CONTACT_YIELD` income, and trade routes gating `resolveBorrow` (⚠️ behaviour change to shipped 2GEO.5: borrowing now requires an open route)", "status": "done", "display": "done", "dependsOn": ["2STK.1"], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2STK.7", "description": "Design spike: contact deadlock escape — intelligibility 0 is an absorbing state for 2STK.5's pure-roll contact odds (success = roll \u003c odds can never fire), so a fully-diverged bordering pair can never open a route and can never borrow its way back. Evaluate a second route-opening condition against `shouldOpenRoute` (contact.ts): a sustained-border-pressure counter mirroring `assimilationPressure`, a `pairContact` force-open threshold (no new state), or an odds floor", "status": "todo", "display": "todo", "dependsOn": ["2STK.5"], "milestone": "M2", "notes": "A spike: when it finishes it spawns an implementation task. Move the 2STK.7 gate onto that task for 2STK.6, 2LEX.3 and 2SIM.1 so each waits for the built escape.", "assignee": "", "started": ""}, {"id": "2STK.6", "description": "Implement the treasury-and-laboratory economy (2stk-1 spike §6) — steepened size-scaled rule costs (`SIZE_COST` on `overheadFor`), isolation-scaled extra drift rate, stacked cost-multiplier cap (`COST_CAP`), the scarcity-guarantee sweep, and re-verification of the 1ENG.11 ossification sweeps under momentum and rate caps", "status": "blocked", "display": "blocked", "dependsOn": ["2STK.1", "2STK.2", "2STK.3", "2STK.5", "2GEO.9", "2STK.7"], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2GLY.1", "description": "Design spike: glyph mutation ruleset — shape-drift grammar + phoneme→glyph reassignment rules, referencing real script lineages (e.g. Phoenician → Greek → Etruscan → Latin)", "status": "blocked", "display": "blocked", "dependsOn": ["2STK.4", "2STK.6"], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2GLY.2", "description": "Implement per-generation glyph shape drift (independent stylistic mutation)", "status": "blocked", "display": "blocked", "dependsOn": ["2GLY.1"], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2GLY.3", "description": "Implement phoneme→glyph reassignment logic, tied to phone split/merge/deletion from phonology rules. Consumes 1ENG.26's `PhonemicEvent` stream (merger/split/loss/gain) — the 1ENG.23 spike was commissioned specifically because this task needs phonemic events to exist as nameable objects, and it now has them", "status": "blocked", "display": "blocked", "dependsOn": ["1ENG.26", "2GLY.1"], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2GLY.4", "description": "Build glyph rendering component (branch-level script display)", "status": "blocked", "display": "blocked", "dependsOn": ["2GLY.2", "2GLY.3"], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2LEX.2", "description": "Implement the homophone-collision resolution mechanic — new `collision.ts` (`pairScore`, `pairThreshold`, `severePairs`, `yieldingConcept`, `modifierCandidates`, `compoundWord`, `resolveCollision`, `COLLISION_TURNS`, `SEVERITY_CUT`), the Numberbatch distance table copied to `src/lib/engine/semantic-distance.json`, `World.compoundOrder` + `Branch.collisionPressure` (breaking: required fields), turn-loop step 1.5 in `generation.ts` and the apply-time repair prompt in `game.svelte.ts`. Severity = class gate + graded relatedness with distance-scaled thresholds; no new randomness beyond one world-gen draw — contract specified in the revised 2LEX.1 spike; the borrowing arm consumes 2GEO.5's exports. **Revised during implementation:** `CONCEPT_CLASS`/`SUBSTRATE_ORDER` were added to `lexicon.ts` now (covering the full 48-concept substrate) rather than waiting for 1ENG.19, so severity tier 1 is live from this task rather than staying vacuous; the autonomous-repair cap is `MAX_REPAIRS_PER_TURN = 3` ripest pairs per branch per turn, not one — a live-engine census found up to 14 concurrent severe pairs on a single branch-turn (far more than the spike's passive pre-mechanic census implied), so a 1-per-turn cap left a permanent backlog. Verified via a 30-seed/150-turn sweep: zero severe pairs remain stuck past their own threshold at horizon", "status": "done", "display": "done", "dependsOn": ["2LEX.1", "2GEO.5"], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2LEX.3", "description": "Discussion spike: borrowed doublets. What it is: a word borrowed from a neighbour sits beside the native word for the same concept instead of replacing it (English keeps native *cow* beside borrowed *beef*; today `resolveBorrow` always overwrites). Work through in order: (a) what a doublet is and how real languages treat one; (b) how it should look in play, if at all (a second form in the word table, a chronicle line, nothing visible); (c) whether to include it; (d) the conditions it needs. Known so far: it needs bordering branches that can trade words, which autonomous play never produces (fracture siblings are walled apart by definition), so it waits on the map, contact and fracture work. Whatever this decides about storing a second form per concept also shapes 2LEX.7, 4PHON.3 and 4MOR.1. Evidence: `docs/spikes/assets/2lex-3-multi-form-census.ts` (0 borrowings in 60 autonomous seeds; 33% to 69% of forced-family loans copy the whole word, depending on how the family forms). Outcome is a decision and, if included, a contract for 2LEX.4", "status": "blocked", "display": "blocked", "dependsOn": ["2GEO.9", "2STK.7", "2GEO.11"], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2LEX.4", "description": "Implement borrowed doublets *(placeholder: only if 2LEX.3 decides to include them)*", "status": "blocked", "display": "blocked", "dependsOn": ["2LEX.3"], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2LEX.5", "description": "Design spike: archive / loss with residue — a dead branch's frozen final lexicon becomes spendable: living branches pay influence to revive a dead relative's word, resolving a homophone collision or purely for flavour (the learned-borrowing/Cornish-revival move). Explicitly waits on 2LEX.2 so collisions give it a mechanical reason to exist, not just flavour (design-analysis §8)", "status": "todo", "display": "todo", "dependsOn": ["2LEX.2"], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2LEX.6", "description": "Implement archive / loss with residue *(placeholder — depends on 2LEX.5)*", "status": "blocked", "display": "blocked", "dependsOn": ["2LEX.5"], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2LEX.7", "description": "Discussion spike: coordinate compounds. What it is: a word built by joining two near-synonyms with neither as the head (Mandarin 道路, 'way-road'). Today 2LEX.2's collision repair joins a concept to a clipped neighbouring concept instead. Work through in order: (a) what a coordinate compound is; (b) how it should look in play; (c) whether to include it; (d) the conditions it needs. Known so far: it needs a source of synonyms, and borrowing is not one (0.2% of collision repairs land on a concept with a recent loan). Candidate sources to discuss: words revived under 2LEX.5, existing neighbouring concepts, or something else. Depends on 2LEX.3's decision about storing a second form", "status": "blocked", "display": "blocked", "dependsOn": ["2LEX.3", "2LEX.6"], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2UI.1", "description": "UI completeness audit across all components — existing panels plus new biome/stakes/glyph/lexicon data — verify every player-facing decision has a legible data source", "status": "blocked", "display": "blocked", "dependsOn": ["2STK.4", "2STK.6", "2GLY.4", "2LEX.2"], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2UI.2", "description": "Build onboarding — inline explainers, full tutorial mode, and a UI layout rethink, informed by the audit findings", "status": "blocked", "display": "blocked", "dependsOn": ["2UI.1"], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2UI.3", "description": "Retire the economy config panel from the player-facing surface (keep behind a dev flag); replace with difficulty presets once the economy purchases real consequences via the stakes mechanic (design-analysis roadmap edit 3)", "status": "blocked", "display": "blocked", "dependsOn": ["2STK.6"], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2UI.4", "description": "Design spike: dead-phase phrase viewer — PhrasePanel is currently gated behind !game.viewing (+page.svelte), so it never renders when previewing a dead/frozen era, alongside HistoryList. Anchor only snapshots `lex`, not order/weights/paradigm, so naively rendering PhrasePanel against viewedLex with the live branch's current grammar repeats the exact anachronism the 1ENG.20 code comment already flags for Changes. Decide: freeze grammar per-anchor too, degrade to a lex-only view for dead phases, or another resolution — producing a build-ready contract for 2UI.5", "status": "todo", "display": "todo", "dependsOn": [], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2UI.5", "description": "Implement the 2UI.4 contract *(placeholder — depends on 2UI.4)*", "status": "blocked", "display": "blocked", "dependsOn": ["2UI.4"], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2SIM.1", "description": "Integration pacing census — re-run the census harness with every mechanic active (borrowing, collision repair, syntax gating, paradigms): combined event density per branch-turn, collision dynamics at 48 concepts under the class-gate + distance model, affix lifetime distribution with the explicit acceptance criterion that grammaticalisation cycles observably turn (else the 1ENG.15 backstop question reopens with data in hand), and a tuning pass across the constant family (`COLLISION_TURNS`, `SEVERITY_CUT`, `BORROW_RATE`, `SYNTAX_STRENGTH`, `FRAME_WALK`, `ORDER_*`). **Flagged during 1ENG.21 implementation:** a live playtest sweep found `ORDER_TURNS` and `RENEWAL_TURNS` both at 6 made rigidification structurally unreachable — step 1 (`tickParadigm`) runs before step 3.75 in the same turn, so renewal always revived a fully collapsed paradigm one tick before rigidification's own same-value threshold could check it. Fixed narrowly by dropping `ORDER_TURNS` to 5 (1ENG.21), but it surfaces a broader question this census should take up: should any sustained-N-turns threshold (`ASSIM_TURNS`, `ORDER_TURNS`, `RENEWAL_TURNS`, `FUSE_TURNS`, collision pressure) vary stochastically rather than being a fixed integer, given real language change doesn't run on a metronome — and if so, how the \"N/M turns until X\" UI convention (`pressureLabel` in `game.svelte.ts`, `PhrasePanel`'s order-pressure label) would need to adapt so it doesn't become misleading. A design question to take up here, not a mechanism to implement speculatively Should extend 2GEO.10's family-census harness (docs/spikes/assets/2geo-10-family-census.ts) rather than rebuilding branch/territory/fracture instrumentation from scratch.", "status": "blocked", "display": "blocked", "dependsOn": ["2GEO.5", "2LEX.2", "1ENG.20", "1ENG.22", "2GEO.9", "2STK.6", "2STK.7", "2GEO.11"], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2NAR.1", "description": "Design spike: the seed text — a fixed proverb composed from six to eight lexicon concepts at world gen, rendered per branch every generation by looking up each concept's current form; pure display over existing state, no new simulation machinery. Shown on branch selection, side by side at fracture events, and proposed as the shareable image for Milestone 3 (design-analysis §1)", "status": "todo", "display": "todo", "dependsOn": [], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2NAR.2", "description": "Implement the seed text *(placeholder — depends on 2NAR.1)*. Deepens for free once 1ENG.19's word order lands (the text would inherit real syntax), a non-blocking enrichment rather than a prerequisite", "status": "blocked", "display": "blocked", "dependsOn": ["2NAR.1"], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2NAR.3", "description": "Design spike: the chronicle — replace the one-line end-of-turn log with a generated chronicle narrating each resolution in era-named prose (fracture, assimilation, borrowing); doubles as the run's exportable history (design-analysis §7)", "status": "todo", "display": "todo", "dependsOn": [], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2NAR.4", "description": "Implement the chronicle *(placeholder — depends on 2NAR.3)*", "status": "blocked", "display": "blocked", "dependsOn": ["2NAR.3"], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2MAP.1", "description": "Design spike: living toponymy — regions named on first claim from a compound of two terrain-salient concepts in the claiming branch's current forms; the name is stored as word ids and drifts under that branch's subsequent sound changes like any other lexicon entry, flagged out of the intelligibility calculation. Old names survive conquest as fossils under the new owner's pronunciation (design-analysis §5)", "status": "todo", "display": "todo", "dependsOn": [], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "2MAP.2", "description": "Implement living toponymy *(placeholder — depends on 2MAP.1)*", "status": "blocked", "display": "blocked", "dependsOn": ["2MAP.1"], "milestone": "M2", "notes": "", "assignee": "", "started": ""}, {"id": "3PER.1", "description": "Local persistence — save/load a session via `localStorage`", "status": "blocked", "display": "blocked", "dependsOn": ["M2"], "milestone": "M3", "notes": "Placeholder — deferred from Milestone 2", "assignee": "", "started": ""}, {"id": "3SHR.1", "description": "Shareable output — export/share a family tree or result (image, link, or data export)", "status": "blocked", "display": "blocked", "dependsOn": ["3PER.1"], "milestone": "M3", "notes": "Placeholder — deferred from Milestone 2", "assignee": "", "started": ""}, {"id": "4PHON.1", "description": "Design spike: tonogenesis — tone arising from lost segmental contrasts (the Sinitic and Vietnamese histories are largely tonogenetic; the LCK names it as a change type worth modelling). **Deliberately deferred to the Secondary tier, not merely unscheduled:** tone is suprasegmental, so it needs a new axis on `Phone`, a tone-bearing-unit notion (specified by 1ENG.25, implemented by 1ENG.28), a reckoning with all 21 rules, and a decision about how `intelligibility.ts`'s Levenshtein metric should weigh a tone difference against a segment difference — that last one is a genuine design question, since tone differences are perceptually salient in ways a naive edit distance would understate. Recorded so the 1ENG.16 survey's judgement (cost, not merit) stays on the record rather than being rediscovered. Revisit no earlier than 1ENG.24, and only once M1-M3 have shipped. **Updated by the 1ENG.24 spike:** the tone-bearing-unit prerequisite is discharged (1ENG.28's `syllabify`), and 1ENG.24 slice 1 (1ENG.29) does the `Phone`-axis widening this task would otherwise have had to do itself for tone, while 1ENG.24 slice 2 (1ENG.30)'s `Rule.stressed` establishes the per-segment conditioning channel a tone rule will also need. `dependsOn` stays on 1ENG.24 (the spike, now done) rather than 1ENG.31, since this task's own spike is still unscheduled and should read 1ENG.24's contract, not wait on its implementation.", "status": "deferred", "display": "deferred", "dependsOn": ["1ENG.24", "M3", "GSECONDARY"], "milestone": "M4", "notes": "", "assignee": "", "started": ""}, {"id": "4PHON.2", "description": "Climate/terrain-coded phonology — the claim that physical environment shapes a language's sound inventory (e.g. tone correlating with humidity, sonority with ambient noise). **Contested in real linguistics**, which is why it sits here rather than in the 2GEO line: 2GEO.1 deliberately split terrain's influence into a social contact/isolation axis (sound change) and a physical axis (semantic salience), both defensible, and specifically avoided asserting that terrain shapes phonology directly. If ever pursued, treat as flavour and ledger it as such — the engine's honesty ledgers exist precisely so a mechanic like this can't quietly present itself as attested", "status": "deferred", "display": "deferred", "dependsOn": ["M3", "GSECONDARY"], "milestone": "M4", "notes": "", "assignee": "", "started": ""}, {"id": "4PHON.3", "description": "Discussion spike: liaison alternants. What it is: one word with two forms depending on what follows it (French *les* is /le/ before a consonant and /lez/ before a vowel). Today the engine stores one form and only uses `followerVowelShare` to slow final-consonant loss (1ENG.14 §4.2). Work through in order: (a) what liaison is and what the current statistic already captures; (b) how it should look in play; (c) whether to include it; (d) the conditions it needs. Known so far: about 28% of word-turns end in a consonant; in 77% of those the word's class always ends the utterance, so only one form would be heard, and about 8% would hear both. These figures depend on today's word orders and phrase frames, which 2SIM.1 re-tunes. Depends on 2LEX.3's decision about storing a second form", "status": "deferred", "display": "deferred", "dependsOn": ["2LEX.3", "2SIM.1", "M3", "GSECONDARY"], "milestone": "M4", "notes": "", "assignee": "", "started": ""}, {"id": "4MOR.1", "description": "Discussion spike: affix allomorphy. What it is: one grammatical ending taking different shapes depending on the word it attaches to (English plural *-s*, *-z*, *-iz*). Today each paradigm cell holds one form (`AffixState.form`), evolved against the majority stem ending (1ENG.15 §7). Work through in order: (a) what allomorphy is; (b) how it should look in play; (c) whether to include it; (d) the conditions it needs. Known so far: nothing measured. It changes `AffixState`, not `LexEntry`, though 1ENG.15 §7 ties it to the same second-form storage question as 2LEX.3. 2SIM.1's acceptance test (paradigm cycles observably turn) is its natural precondition", "status": "deferred", "display": "deferred", "dependsOn": ["2LEX.3", "2SIM.1", "M3", "GSECONDARY"], "milestone": "M4", "notes": "", "assignee": "", "started": ""}, {"id": "4GLY.1", "description": "Writing-system variance beyond phonemic — logographic, alphabetic and abjad glyph sets coexisting per branch, so a script's *type* can diverge as well as its shapes. Flagged during the 2GLY interview and deliberately scoped down to phonemic-only for Milestone 2; recorded here rather than dropped because the 2GLY spike's shape-drift and reassignment model assumes a phonemic script throughout, so lifting that assumption later is a redesign of 2GLY.1's ruleset, not an extension of it", "status": "deferred", "display": "deferred", "dependsOn": ["M3", "GSECONDARY"], "milestone": "M5", "notes": "", "assignee": "", "started": ""}], "ready": {"phase": "MVP", "candidates": [{"id": "2GEO.9", "description": "Design spike: map-shape diversification — `genRegions` (geography.ts) generates a fixed rectangular grid; 1ENG.21 grew it 4x3 (12 regions) to 10x8 (80) purely to fix `pairContact`'s `ORDER_CONTACT_CUT` reachability (a branch's single-neighbour border share couldn't clear 0.6 on a map that small), not as a map-generation improvement in its own right. Explore varied shapes and non-rectangular layouts (irregular coastlines, non-uniform region density, procedurally varied grid dimensions per seed) so every world's geography doesn't read as the same rectangle at a different scale — the actual gap this task exists to close, surfaced but out of scope during 1ENG.21's playtest fix", "milestone": "M2", "milestoneName": "Depth & Legibility", "tier": 0, "tierLabel": "Core", "status": "todo", "display": "todo", "started": "", "milestoneDonePct": 29, "directDependents": 5, "transitiveUnblocks": 21, "unblocksNow": 1, "unblocksPartly": 4, "unblocksLater": 16, "isMilestoneSink": false, "notes": "A spike: when it finishes it spawns an implementation task. Move the 2GEO.9 gate onto that task for 2STK.4, 2STK.6, 2LEX.3 and 2SIM.1 so each waits for the built map.", "assignee": ""}, {"id": "2STK.7", "description": "Design spike: contact deadlock escape — intelligibility 0 is an absorbing state for 2STK.5's pure-roll contact odds (success = roll \u003c odds can never fire), so a fully-diverged bordering pair can never open a route and can never borrow its way back. Evaluate a second route-opening condition against `shouldOpenRoute` (contact.ts): a sustained-border-pressure counter mirroring `assimilationPressure`, a `pairContact` force-open threshold (no new state), or an odds floor", "milestone": "M2", "milestoneName": "Depth & Legibility", "tier": 0, "tierLabel": "Core", "status": "todo", "display": "todo", "started": "", "milestoneDonePct": 29, "directDependents": 4, "transitiveUnblocks": 19, "unblocksNow": 0, "unblocksPartly": 4, "unblocksLater": 15, "isMilestoneSink": false, "notes": "A spike: when it finishes it spawns an implementation task. Move the 2STK.7 gate onto that task for 2STK.6, 2LEX.3 and 2SIM.1 so each waits for the built escape.", "assignee": ""}, {"id": "2GEO.11", "description": "Discussion spike: fracture triggers. What it is: the rules for when one language splits into daughters. Today a branch fractures only when impassable terrain cuts its territory into separate pieces (`passableComponents`, `generation.ts` step 5); 2GEO.10 found this almost never happens on the current grid. Because the pieces are cut apart by impassable terrain, fracture siblings can never border, trade or borrow, which is why autonomous play produces no borrowing at all. Candidate extra triggers to discuss: distance between a language's regions (a widespread branch whose far parts lose contact), the presence and pressure of neighbouring languages, and any others that come up. Work through in order: (a) how real languages split and what causes it; (b) how a split should look in play; (c) which triggers to include, if any; (d) the conditions they need (map shape from 2GEO.9, world events from 2GEO.6, a rival family from 2GEO.8, `FRACTURE_COOLDOWN` and `STUCK_TURNS` from 2GEO.10). Extends the 2GEO.10 spike (`docs/spikes/2geo-10-family-structure-reachability.md`)", "milestone": "M2", "milestoneName": "Depth & Legibility", "tier": 0, "tierLabel": "Core", "status": "todo", "display": "todo", "started": "", "milestoneDonePct": 29, "directDependents": 3, "transitiveUnblocks": 11, "unblocksNow": 0, "unblocksPartly": 3, "unblocksLater": 8, "isMilestoneSink": false, "notes": "", "assignee": ""}, {"id": "2LEX.5", "description": "Design spike: archive / loss with residue — a dead branch's frozen final lexicon becomes spendable: living branches pay influence to revive a dead relative's word, resolving a homophone collision or purely for flavour (the learned-borrowing/Cornish-revival move). Explicitly waits on 2LEX.2 so collisions give it a mechanical reason to exist, not just flavour (design-analysis §8)", "milestone": "M2", "milestoneName": "Depth & Legibility", "tier": 0, "tierLabel": "Core", "status": "todo", "display": "todo", "started": "", "milestoneDonePct": 29, "directDependents": 2, "transitiveUnblocks": 9, "unblocksNow": 1, "unblocksPartly": 1, "unblocksLater": 7, "isMilestoneSink": false, "notes": "", "assignee": ""}, {"id": "2GEO.6", "description": "Design spike: seeded generational world events — a small table of events (a pass opens/freezes via an edge-passability flip, a plague empties a region, a prestige court arises and becomes a preferred borrowing source) that create fracture and contact pressure on demand instead of leaving the map static once free territory runs out (design-analysis §6, \"a world that pushes back\", cheap tier)", "milestone": "M2", "milestoneName": "Depth & Legibility", "tier": 0, "tierLabel": "Core", "status": "todo", "display": "todo", "started": "", "milestoneDonePct": 29, "directDependents": 2, "transitiveUnblocks": 8, "unblocksNow": 1, "unblocksPartly": 1, "unblocksLater": 6, "isMilestoneSink": false, "notes": "", "assignee": ""}, {"id": "2MAP.1", "description": "Design spike: living toponymy — regions named on first claim from a compound of two terrain-salient concepts in the claiming branch's current forms; the name is stored as word ids and drifts under that branch's subsequent sound changes like any other lexicon entry, flagged out of the intelligibility calculation. Old names survive conquest as fossils under the new owner's pronunciation (design-analysis §5)", "milestone": "M2", "milestoneName": "Depth & Legibility", "tier": 0, "tierLabel": "Core", "status": "todo", "display": "todo", "started": "", "milestoneDonePct": 29, "directDependents": 2, "transitiveUnblocks": 8, "unblocksNow": 1, "unblocksPartly": 1, "unblocksLater": 6, "isMilestoneSink": false, "notes": "", "assignee": ""}, {"id": "2NAR.1", "description": "Design spike: the seed text — a fixed proverb composed from six to eight lexicon concepts at world gen, rendered per branch every generation by looking up each concept's current form; pure display over existing state, no new simulation machinery. Shown on branch selection, side by side at fracture events, and proposed as the shareable image for Milestone 3 (design-analysis §1)", "milestone": "M2", "milestoneName": "Depth & Legibility", "tier": 0, "tierLabel": "Core", "status": "todo", "display": "todo", "started": "", "milestoneDonePct": 29, "directDependents": 2, "transitiveUnblocks": 8, "unblocksNow": 1, "unblocksPartly": 1, "unblocksLater": 6, "isMilestoneSink": false, "notes": "", "assignee": ""}, {"id": "2NAR.3", "description": "Design spike: the chronicle — replace the one-line end-of-turn log with a generated chronicle narrating each resolution in era-named prose (fracture, assimilation, borrowing); doubles as the run's exportable history (design-analysis §7)", "milestone": "M2", "milestoneName": "Depth & Legibility", "tier": 0, "tierLabel": "Core", "status": "todo", "display": "todo", "started": "", "milestoneDonePct": 29, "directDependents": 2, "transitiveUnblocks": 8, "unblocksNow": 1, "unblocksPartly": 1, "unblocksLater": 6, "isMilestoneSink": false, "notes": "", "assignee": ""}, {"id": "2UI.4", "description": "Design spike: dead-phase phrase viewer — PhrasePanel is currently gated behind !game.viewing (+page.svelte), so it never renders when previewing a dead/frozen era, alongside HistoryList. Anchor only snapshots `lex`, not order/weights/paradigm, so naively rendering PhrasePanel against viewedLex with the live branch's current grammar repeats the exact anachronism the 1ENG.20 code comment already flags for Changes. Decide: freeze grammar per-anchor too, degrade to a lex-only view for dead phases, or another resolution — producing a build-ready contract for 2UI.5", "milestone": "M2", "milestoneName": "Depth & Legibility", "tier": 0, "tierLabel": "Core", "status": "todo", "display": "todo", "started": "", "milestoneDonePct": 29, "directDependents": 2, "transitiveUnblocks": 8, "unblocksNow": 1, "unblocksPartly": 1, "unblocksLater": 6, "isMilestoneSink": false, "notes": "", "assignee": ""}], "claimed": []}, "mermaid": "graph TD\n\tclassDef todo fill:var(--color-todo-bg),stroke:var(--color-todo),color:var(--color-todo)\n\tclassDef inProgress fill:var(--color-in-progress-bg),stroke:var(--color-in-progress),color:var(--color-in-progress)\n\tclassDef blocked fill:var(--color-blocked-bg),stroke:var(--color-blocked),color:var(--color-blocked),stroke-width:2px\n\tclassDef paused fill:var(--color-paused-bg),stroke:var(--color-paused),color:var(--color-paused),stroke-dasharray:4 3\n\tclassDef deferred fill:var(--color-deferred-bg),stroke:var(--color-deferred),color:var(--color-deferred),stroke-dasharray:2 4,font-style:italic\n\tclassDef done fill:var(--color-done-bg),stroke:var(--color-done),color:var(--color-done)\n\tclassDef outOfScope fill:var(--color-out-of-scope-bg),stroke:var(--color-out-of-scope),color:var(--color-out-of-scope),stroke-dasharray:2 2\n\tclassDef mile fill:var(--color-milestone-bg),stroke:var(--color-milestone),color:var(--color-milestone),font-weight:bold\n\tclassDef external fill:var(--color-gate-bg),stroke:var(--color-gate),color:var(--color-gate),stroke-dasharray:4 3,font-style:italic\n\tclassDef tierUnderway fill:var(--color-tier-underway-bg),stroke:var(--color-tier-underway),color:var(--color-tier-underway)\n\tclassDef tierDeferred fill:var(--color-tier-deferred-bg),stroke:var(--color-tier-deferred),color:var(--color-tier-deferred),stroke-dasharray:6 4\n\tsubgraph tier0[\"Core · underway\"]\n\t\t2GEO.6[\"2GEO.6: Design spike: seeded generational world…\"]\n\t\t2GEO.7[\"2GEO.7: Implement seeded world events *(placeho…\"]\n\t\t2GEO.9[\"2GEO.9: Design spike: map-shape diversification…\"]\n\t\t2GEO.11[\"2GEO.11: Discussion spike: fracture triggers. W…\"]\n\t\t2STK.4[\"2STK.4: Implement ambitions & lock-in (2stk-1 s…\"]\n\t\t2GEO.8[\"2GEO.8: Design spike: rival language family — a…\"]\n\t\t2STK.7[\"2STK.7: Design spike: contact deadlock escape —…\"]\n\t\t2STK.6[\"2STK.6: Implement the treasury-and-laboratory e…\"]\n\t\t2GLY.1[\"2GLY.1: Design spike: glyph mutation ruleset —…\"]\n\t\t2GLY.2[\"2GLY.2: Implement per-generation glyph shape dr…\"]\n\t\t2GLY.3[\"2GLY.3: Implement phoneme→glyph reassignment lo…\"]\n\t\t2GLY.4[\"2GLY.4: Build glyph rendering component (branch…\"]\n\t\t2LEX.3[\"2LEX.3: Discussion spike: borrowed doublets. Wh…\"]\n\t\t2LEX.4[\"2LEX.4: Implement borrowed doublets *(placehold…\"]\n\t\t2LEX.5[\"2LEX.5: Design spike: archive / loss with resid…\"]\n\t\t2LEX.6[\"2LEX.6: Implement archive / loss with residue *…\"]\n\t\t2LEX.7[\"2LEX.7: Discussion spike: coordinate compounds.…\"]\n\t\t2UI.1[\"2UI.1: UI completeness audit across all compone…\"]\n\t\t2UI.2[\"2UI.2: Build onboarding — inline explainers, fu…\"]\n\t\t2UI.3[\"2UI.3: Retire the economy config panel from the…\"]\n\t\t2UI.4[\"2UI.4: Design spike: dead-phase phrase viewer —…\"]\n\t\t2UI.5[\"2UI.5: Implement the 2UI.4 contract *(placehold…\"]\n\t\t2SIM.1[\"2SIM.1: Integration pacing census — re-run the…\"]\n\t\t2NAR.1[\"2NAR.1: Design spike: the seed text — a fixed p…\"]\n\t\t2NAR.2[\"2NAR.2: Implement the seed text *(placeholder —…\"]\n\t\t2NAR.3[\"2NAR.3: Design spike: the chronicle — replace t…\"]\n\t\t2NAR.4[\"2NAR.4: Implement the chronicle *(placeholder —…\"]\n\t\t2MAP.1[\"2MAP.1: Design spike: living toponymy — regions…\"]\n\t\t2MAP.2[\"2MAP.2: Implement living toponymy *(placeholder…\"]\n\t\tM2[\"M2: Depth & Legibility\"]:::mile\n\t\t3PER.1[\"3PER.1: Local persistence — save/load a session…\"]\n\t\t3SHR.1[\"3SHR.1: Shareable output — export/share a famil…\"]\n\t\tM3[\"M3: Persistence & Sharing\"]:::mile\n\tend\n\tsubgraph tier1[\"Secondary · deferred\"]\n\t\tGSECONDARY[\"GSECONDARY: Secondary tier release\"]:::external\n\t\t4PHON.1[\"4PHON.1: Design spike: tonogenesis — tone arisi…\"]\n\t\t4PHON.2[\"4PHON.2: Climate/terrain-coded phonology — the…\"]\n\t\t4PHON.3[\"4PHON.3: Discussion spike: liaison alternants.…\"]\n\t\t4MOR.1[\"4MOR.1: Discussion spike: affix allomorphy. Wha…\"]\n\t\tM4[\"M4: Phonology & Morphology (Secondary)\"]:::mile\n\t\t4GLY.1[\"4GLY.1: Writing-system variance beyond phonemic…\"]\n\t\tM5[\"M5: Script Typology (Secondary)\"]:::mile\n\tend\n\tGSECONDARY --\u003e 4PHON.1\n\tGSECONDARY --\u003e 4PHON.2\n\tGSECONDARY --\u003e 4PHON.3\n\tGSECONDARY --\u003e 4MOR.1\n\tGSECONDARY --\u003e 4GLY.1\n\t2GEO.6 --\u003e 2GEO.7\n\t2GEO.6 -.-\u003e 2GEO.11\n\t2GEO.7 --\u003e M2\n\t2GEO.9 -.-\u003e 2GEO.11\n\t2GEO.9 --\u003e 2STK.4\n\t2GEO.9 --\u003e 2STK.6\n\t2GEO.9 --\u003e 2LEX.3\n\t2GEO.9 --\u003e 2SIM.1\n\t2GEO.11 --\u003e 2LEX.3\n\t2GEO.11 --\u003e 2SIM.1\n\t2STK.4 --\u003e 2GEO.8\n\t2STK.4 --\u003e 2GLY.1\n\t2STK.4 --\u003e 2UI.1\n\t2GEO.8 --\u003e M2\n\t2STK.7 --\u003e 2STK.6\n\t2STK.7 --\u003e 2LEX.3\n\t2STK.7 --\u003e 2SIM.1\n\t2STK.6 --\u003e 2GLY.1\n\t2STK.6 --\u003e 2UI.1\n\t2STK.6 --\u003e 2UI.3\n\t2STK.6 --\u003e 2SIM.1\n\t2GLY.1 --\u003e 2GLY.2\n\t2GLY.1 --\u003e 2GLY.3\n\t2GLY.2 --\u003e 2GLY.4\n\t2GLY.3 --\u003e 2GLY.4\n\t2GLY.4 --\u003e 2UI.1\n\t2LEX.3 --\u003e 2LEX.4\n\t2LEX.3 --\u003e 2LEX.7\n\t2LEX.3 --\u003e 4PHON.3\n\t2LEX.3 --\u003e 4MOR.1\n\t2LEX.4 --\u003e M2\n\t2LEX.5 --\u003e 2LEX.6\n\t2LEX.6 --\u003e 2LEX.7\n\t2LEX.7 --\u003e M2\n\t2UI.1 --\u003e 2UI.2\n\t2UI.2 --\u003e M2\n\t2UI.3 --\u003e M2\n\t2UI.4 --\u003e 2UI.5\n\t2UI.5 --\u003e M2\n\t2SIM.1 --\u003e M2\n\t2SIM.1 --\u003e 4PHON.3\n\t2SIM.1 --\u003e 4MOR.1\n\t2NAR.1 --\u003e 2NAR.2\n\t2NAR.2 --\u003e M2\n\t2NAR.3 --\u003e 2NAR.4\n\t2NAR.4 --\u003e M2\n\t2MAP.1 --\u003e 2MAP.2\n\t2MAP.2 --\u003e M2\n\tM2 --\u003e 3PER.1\n\t3PER.1 --\u003e 3SHR.1\n\t3SHR.1 --\u003e M3\n\tM3 --\u003e 4PHON.1\n\tM3 --\u003e 4PHON.2\n\tM3 --\u003e 4PHON.3\n\tM3 --\u003e 4MOR.1\n\tM3 --\u003e 4GLY.1\n\t4PHON.1 --\u003e M4\n\t4PHON.2 --\u003e M4\n\t4PHON.3 --\u003e M4\n\t4MOR.1 --\u003e M4\n\t4GLY.1 --\u003e M5\n\tclass 2GEO.11,2GEO.6,2GEO.9,2LEX.5,2MAP.1,2NAR.1,2NAR.3,2STK.7,2UI.4 todo\n\tclass 2GEO.7,2GEO.8,2GLY.1,2GLY.2,2GLY.3,2GLY.4,2LEX.3,2LEX.4,2LEX.6,2LEX.7,2MAP.2,2NAR.2,2NAR.4,2SIM.1,2STK.4,2STK.6,2UI.1,2UI.2,2UI.3,2UI.5,3PER.1,3SHR.1 blocked\n\tclass 4GLY.1,4MOR.1,4PHON.1,4PHON.2,4PHON.3 deferred\n\tclass tier0 tierUnderway\n\tclass tier1 tierDeferred", "graphDirection": "TD", "validation": [], "devColours": {"Jason Warren": "lime"}, "depKinds": {"1ENG.1": {"kind": "task", "status": "done", "display": "done"}, "1ENG.2": {"kind": "task", "status": "done", "display": "done"}, "1ENG.3": {"kind": "task", "status": "done", "display": "done"}, "1ENG.4": {"kind": "task", "status": "done", "display": "done"}, "1ENG.5": {"kind": "task", "status": "done", "display": "done"}, "1ENG.6": {"kind": "task", "status": "done", "display": "done"}, "1ENG.7": {"kind": "task", "status": "done", "display": "done"}, "1ENG.8": {"kind": "task", "status": "done", "display": "done"}, "1ENG.11": {"kind": "task", "status": "done", "display": "done"}, "1ENG.12": {"kind": "task", "status": "done", "display": "done"}, "1ENG.9": {"kind": "task", "status": "done", "display": "done"}, "1ENG.10": {"kind": "task", "status": "done", "display": "done"}, "1ENG.18": {"kind": "task", "status": "done", "display": "done"}, "1UI.1": {"kind": "task", "status": "done", "display": "done"}, "1UI.2": {"kind": "task", "status": "done", "display": "done"}, "1UI.3": {"kind": "task", "status": "done", "display": "done"}, "1UI.4": {"kind": "task", "status": "done", "display": "done"}, "1ENG.13": {"kind": "task", "status": "done", "display": "done"}, "1ENG.14": {"kind": "task", "status": "done", "display": "done"}, "1ENG.15": {"kind": "task", "status": "done", "display": "done"}, "1ENG.16": {"kind": "task", "status": "done", "display": "done"}, "1ENG.17": {"kind": "task", "status": "done", "display": "done"}, "1ENG.19": {"kind": "task", "status": "done", "display": "done"}, "1ENG.20": {"kind": "task", "status": "done", "display": "done"}, "1ENG.21": {"kind": "task", "status": "done", "display": "done"}, "1ENG.22": {"kind": "task", "status": "done", "display": "done"}, "1ENG.23": {"kind": "task", "status": "done", "display": "done"}, "1ENG.25": {"kind": "task", "status": "done", "display": "done"}, "1ENG.26": {"kind": "task", "status": "done", "display": "done"}, "1ENG.27": {"kind": "task", "status": "done", "display": "done"}, "1ENG.28": {"kind": "task", "status": "done", "display": "done"}, "1ENG.24": {"kind": "task", "status": "done", "display": "done"}, "1ENG.29": {"kind": "task", "status": "done", "display": "done"}, "1ENG.30": {"kind": "task", "status": "done", "display": "done"}, "1ENG.31": {"kind": "task", "status": "done", "display": "done"}, "2GEO.1": {"kind": "task", "status": "done", "display": "done"}, "2GEO.2": {"kind": "task", "status": "done", "display": "done"}, "2GEO.3": {"kind": "task", "status": "done", "display": "done"}, "2GEO.4": {"kind": "task", "status": "done", "display": "done"}, "2GEO.5": {"kind": "task", "status": "done", "display": "done"}, "2GEO.6": {"kind": "task", "status": "todo", "display": "todo"}, "2GEO.7": {"kind": "task", "status": "blocked", "display": "blocked"}, "2GEO.8": {"kind": "task", "status": "blocked", "display": "blocked"}, "2GEO.9": {"kind": "task", "status": "todo", "display": "todo"}, "2GEO.10": {"kind": "task", "status": "done", "display": "done"}, "2GEO.11": {"kind": "task", "status": "todo", "display": "todo"}, "2LEX.1": {"kind": "task", "status": "done", "display": "done"}, "2STK.1": {"kind": "task", "status": "done", "display": "done"}, "2STK.2": {"kind": "task", "status": "done", "display": "done"}, "2STK.3": {"kind": "task", "status": "done", "display": "done"}, "2STK.4": {"kind": "task", "status": "blocked", "display": "blocked"}, "2STK.5": {"kind": "task", "status": "done", "display": "done"}, "2STK.7": {"kind": "task", "status": "todo", "display": "todo"}, "2STK.6": {"kind": "task", "status": "blocked", "display": "blocked"}, "2GLY.1": {"kind": "task", "status": "blocked", "display": "blocked"}, "2GLY.2": {"kind": "task", "status": "blocked", "display": "blocked"}, "2GLY.3": {"kind": "task", "status": "blocked", "display": "blocked"}, "2GLY.4": {"kind": "task", "status": "blocked", "display": "blocked"}, "2LEX.2": {"kind": "task", "status": "done", "display": "done"}, "2LEX.3": {"kind": "task", "status": "blocked", "display": "blocked"}, "2LEX.4": {"kind": "task", "status": "blocked", "display": "blocked"}, "2LEX.5": {"kind": "task", "status": "todo", "display": "todo"}, "2LEX.6": {"kind": "task", "status": "blocked", "display": "blocked"}, "2LEX.7": {"kind": "task", "status": "blocked", "display": "blocked"}, "2UI.1": {"kind": "task", "status": "blocked", "display": "blocked"}, "2UI.2": {"kind": "task", "status": "blocked", "display": "blocked"}, "2UI.3": {"kind": "task", "status": "blocked", "display": "blocked"}, "2UI.4": {"kind": "task", "status": "todo", "display": "todo"}, "2UI.5": {"kind": "task", "status": "blocked", "display": "blocked"}, "2SIM.1": {"kind": "task", "status": "blocked", "display": "blocked"}, "2NAR.1": {"kind": "task", "status": "todo", "display": "todo"}, "2NAR.2": {"kind": "task", "status": "blocked", "display": "blocked"}, "2NAR.3": {"kind": "task", "status": "todo", "display": "todo"}, "2NAR.4": {"kind": "task", "status": "blocked", "display": "blocked"}, "2MAP.1": {"kind": "task", "status": "todo", "display": "todo"}, "2MAP.2": {"kind": "task", "status": "blocked", "display": "blocked"}, "3PER.1": {"kind": "task", "status": "blocked", "display": "blocked"}, "3SHR.1": {"kind": "task", "status": "blocked", "display": "blocked"}, "4PHON.1": {"kind": "task", "status": "deferred", "display": "deferred"}, "4PHON.2": {"kind": "task", "status": "deferred", "display": "deferred"}, "4PHON.3": {"kind": "task", "status": "deferred", "display": "deferred"}, "4MOR.1": {"kind": "task", "status": "deferred", "display": "deferred"}, "4GLY.1": {"kind": "task", "status": "deferred", "display": "deferred"}, "M1": {"kind": "milestone"}, "M2": {"kind": "milestone"}, "M3": {"kind": "milestone"}, "M4": {"kind": "milestone"}, "M5": {"kind": "milestone"}, "GSECONDARY": {"kind": "gate"}}}</script>
+<script type="module">
+import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+
+const DATA = JSON.parse(document.getElementById("roadmap-data").textContent);
+const esc = s => String(s ?? "").replace(/[&<>"']/g,
+	c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+document.getElementById("pageTitle").textContent =
+	DATA.project ? `${DATA.project}: ${DATA.phase}` : DATA.phase;
+document.getElementById("meta").textContent =
+	`generated ${DATA.generated} · source .claude/roadmaps.json`;
+
+/* Validation banner (empty when clean) */
+if (DATA.validation && DATA.validation.length) {
+	document.getElementById("validation").innerHTML =
+		`<div class="validation"><strong>${DATA.validation.length} validation ` +
+		`discrepancy(ies):</strong> the numbers below reflect the file as-is.` +
+		`<ul>${DATA.validation.map(v => `<li>${esc(v)}</li>`).join("")}</ul></div>`;
+}
+
+/* Milestone-level state (distinct from task status): computed server-side by
+   roadmap.py's milestone_state() and carried as m.state, so the artefact
+   never re-derives it and cannot disagree with the CLI's own stats/render
+   paths. Milestone states: empty, done, deferred, inProgress, blocked, todo
+   (see roadmap-conventions.md; `empty` is a flagged bug, not a legitimate
+   state, and borrows the blocked/red colour). The same map also colours
+   dependency chips by a *task's* display status, which still uses `paused`
+   and adds in_progress (a claimed task) and out_of_scope: task status and
+   milestone state are different vocabularies sharing one colour table. */
+const STATE_VAR = {
+	empty: "blocked", done: "done", deferred: "deferred",
+	inProgress: "in-progress", blocked: "blocked", todo: "todo",
+	paused: "paused", in_progress: "in-progress", out_of_scope: "out-of-scope",
+};
+/* Overview cards and Milestones details both render DATA.overview.milestones
+   in the order roadmap.py's overview_layout() already sorted (see
+   roadmap-conventions.md's milestone sort rules): partially-done first,
+   then tier, then donePct, then milestone id. The artefact never re-sorts. */
+const sortedMilestones = DATA.overview.milestones;
+
+/* A dev-chip helper: colour + label for an assignee, empty string when unset. */
+const devChip = assignee => {
+	const varName = DATA.devColours?.[assignee];
+	if (!assignee || !varName) return "";
+	return `<span class="chip" style="--chip-fg:var(--color-dev-${varName});--chip-bg:var(--color-dev-${varName}-bg)">${esc(assignee)}</span>`;
+};
+/* A dependency-id chip: colour by what the id resolves to (task status,
+   milestone sky, or gate yellow), using the server-computed depKinds map
+   so the artefact never re-derives the graph. */
+const depChip = id => {
+	const k = DATA.depKinds?.[id];
+	if (!k) return `<span class="chip">${esc(id)}</span>`;
+	const varName = k.kind === "task" ? STATE_VAR[k.display ?? k.status] ?? "todo"
+		: k.kind === "milestone" ? "milestone" : "gate";
+	return `<span class="chip" style="--chip-fg:var(--color-${varName});--chip-bg:var(--color-${varName}-bg)">${esc(id)}</span>`;
+};
+
+/* Section 1: Overview. Title Case throughout the headline bar; the
+   section itself is an open-by-default <details> (see the overview.body
+   CSS), and the headline is the only thing left visible once collapsed. */
+const st = DATA.stats;
+/* Every done/total readout counts in-scope tasks only (inScope, computed by
+   roadmap.py's build_stats()): an out_of_scope task is struck from play, so
+   it is neither done nor outstanding. One readout shape serves the project
+   headline and each tier's own. */
+const readout = s =>
+	`${s.done}/${s.inScope} Tasks · ${s.donePct}% Complete · ` +
+	`${s.milestonesDone}/${s.milestonesTotal} Milestones`;
+document.getElementById("headline").textContent =
+	readout({ ...st, done: st.byStatus.done });
+
+/* A milestone's own count: "No tasks" for an empty one (a flagged bug),
+   "Out of scope" when every task it holds was struck, else done/inScope. */
+const milestoneCount = (m, suffix = "") =>
+	m.state === "empty" ? "No tasks"
+	: !m.inScope ? "Out of scope"
+	: `${m.done}/${m.inScope}${suffix}`;
+
+const milestoneCard = m => `
+	<div class="card mini" style="--m-colour:var(--color-${STATE_VAR[m.state]})">
+		<h3>${esc(m.id)}: ${esc(m.name)}</h3>
+		<span class="count">${milestoneCount(m, ` done · ${m.donePct}%`)}</span>
+		<div class="progress-bar"><div class="progress-fill"
+			style="width:${m.donePct}%;background:var(--color-${STATE_VAR[m.state]})"></div></div>
+	</div>`;
+
+/* Section 2 groups lead with actionable work; milestones themselves follow
+   DATA.overview's own sort/tier-group order (roadmap.py's overview_layout,
+   see roadmap-conventions.md), so a reader scanning top-to-bottom sees the
+   same priority twice across Overview and Milestones, not two different
+   orderings of the same data; Overview's tier grouping mirrors it too. */
+/* The fourth field marks a group that renders as its own closed <details>:
+   blocked, done and out-of-scope tasks are nothing a reader can pick up, so
+   they fold away behind a heading that carries their count. */
+const GROUPS = [
+	["in_progress", "▸ In Progress",  "in-progress",  false],
+	["todo",        "○ To Do",        "todo",         false],
+	["blocked",     "✗ Blocked",      "blocked",      true],
+	["paused",      "⏸ Paused",       "paused",       false],
+	["deferred",    "⤓ Deferred",     "deferred",     false],
+	["done",        "✓ Done",         "done",         true],
+	["out_of_scope","⊘ Out of Scope", "out-of-scope", true],
+];
+const tasksByMilestone = {};
+for (const t of DATA.tasks) (tasksByMilestone[t.milestone] ??= []).push(t);
+
+const devChips = m => m.devs?.length
+	? `<span class="devs">${m.devs.map(devChip).join("")}</span>` : "";
+
+const milestoneDetails = m => {
+	const tasks = tasksByMilestone[m.id] || [];
+	const groups = GROUPS.map(([status, label, varName, collapsed]) => {
+		const members = tasks.filter(t => (t.display ?? t.status) === status);
+		if (!members.length) return "";
+		const items = members.map(t => {
+			const deps = (t.dependsOn && t.dependsOn.length)
+				? `<span class="deps">${t.dependsOn.map(depChip).join("")}</span>` : "";
+			return `<li class="${status === "out_of_scope" ? "oos" : ""}">
+				<span class="tid">${esc(t.id)}</span>${devChip(t.assignee)}
+				<span class="tasktext">${esc(t.description)}</span>${deps}</li>`;
+		}).join("");
+		if (collapsed) return `<details class="group statusgroup">
+			<summary><span class="arrow">▸</span><h4 style="color:var(--color-${varName})">${label} (${members.length})</h4></summary>
+			<ul>${items}</ul></details>`;
+		return `<div class="group">
+			<h4 style="color:var(--color-${varName})">${label}</h4><ul>${items}</ul></div>`;
+	}).join("");
+	// All milestones render collapsed; the reader chooses what to expand
+	return `<details class="milestone" style="--m-colour:var(--color-${STATE_VAR[m.state]})">
+		<summary><span class="mid">${esc(m.id)}</span>${esc(m.name)}
+			${devChips(m)}
+			<span class="count">${milestoneCount(m)}</span></summary>
+		<div class="body">${groups || "<p class='depnote'>No tasks.</p>"}</div>
+	</details>`;
+};
+
+const milestonesById = Object.fromEntries(DATA.overview.milestones.map(m => [m.id, m]));
+
+if (DATA.overview.tiers) {
+	// Tiered phase: one <details class="tier"> per tier, expanded flag and
+	// milestone membership/order both computed server-side (overview_layout).
+	// Overview's tier header carries the tier's own readout (g.stats), the
+	// per-tier counterpart of the headline; Milestones' keeps the bare name.
+	document.getElementById("milestone-cards").innerHTML = DATA.overview.tiers.map(g => `
+		<details class="tier"${g.expanded ? " open" : ""}>
+			<summary><span class="arrow">▸</span><h3>${esc(g.tierLabel)}</h3>
+				<span class="readout">${esc(readout(g.stats))}</span></summary>
+			<div class="grid">${g.milestoneIds.map(id => milestoneCard(milestonesById[id])).join("")}</div>
+		</details>`).join("");
+	document.getElementById("milestone-details").innerHTML = DATA.overview.tiers.map(g => `
+		<details class="tier"${g.expanded ? " open" : ""}>
+			<summary><span class="arrow">▸</span><h3>${esc(g.tierLabel)}</h3></summary>
+			<div>${g.milestoneIds.map(id => milestoneDetails(milestonesById[id])).join("")}</div>
+		</details>`).join("");
+} else {
+	// No tiered milestones: flat, unwrapped list, no tier markup at all.
+	// milestone-cards still needs its own grid wrapper now that the static
+	// container is plain (the tiered branch above puts a grid inside each
+	// tier <details> instead of on the shared outer container).
+	document.getElementById("milestone-cards").innerHTML =
+		`<div class="grid">${sortedMilestones.map(milestoneCard).join("")}</div>`;
+	document.getElementById("milestone-details").innerHTML = sortedMilestones.map(milestoneDetails).join("");
+}
+
+/* Section 3 — Dependency graph */
+/* A tiered phase draws each tier as its own subgraph (roadmap.py's
+   mermaid_source()), so its legend gains the two tier backgrounds; an
+   untiered phase has no subgraph and keeps the keys hidden. */
+document.getElementById("tier-keys").hidden = !DATA.overview.tiers;
+/* ELK lays out this dense a graph with far fewer crossings than the default
+   dagre engine; if its module fails to load, dagre still renders. */
+let layout = "dagre";
+try {
+	const elkLayouts = (await import("https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0/dist/mermaid-layout-elk.esm.min.mjs")).default;
+	mermaid.registerLayoutLoaders(elkLayouts);
+	layout = "elk";
+} catch { /* CDN unreachable — fall back */ }
+/* Mermaid 11's classDef parser rejects var(--x), so the semantic variables
+   are resolved to concrete colours before rendering, and the graph re-renders
+   when the colour scheme flips so it keeps tracking the page theme. A render
+   failure is contained to the diagram shell — the sections after it must
+   still populate.
+
+   Node fills/strokes come entirely from the classDefs above (resolved via
+   the var() replace below), but mermaid's "base" theme still supplies its
+   own defaults for everything a classDef doesn't touch — edge stroke,
+   arrowhead fill, edge-label background. Those defaults assume a white
+   canvas, so left alone they render near-black on the dark surface. Fixing
+   that means passing --diagram-line/--diagram-edge-label-bg/--diagram-text
+   through as themeVariables — and critically, mermaid.initialize() must be
+   called again on every render (not once at module load) reading the
+   *currently resolved* values, or a colour-scheme flip silently keeps the
+   load-time edge colours and the explicit data-theme toggle below never
+   takes effect at all (matchMedia doesn't fire for it). */
+const wrap = document.getElementById("wrap");
+const shell = document.getElementById("shell");
+const diagram = document.getElementById("diagram");
+let svgEl = null;
+let scale = 1, tx = 0, ty = 0;
+const apply = () => { if (svgEl) svgEl.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`; };
+const renderGraph = async () => {
+	const rootStyle = getComputedStyle(document.documentElement);
+	const cssVar = name => rootStyle.getPropertyValue(name).trim() || "#888888";
+	mermaid.initialize({
+		startOnLoad: false,
+		theme: "base",
+		layout,
+		themeVariables: {
+			fontSize: "16px",
+			fontFamily: '"IBM Plex Mono", monospace',
+			background: cssVar("--surface"),
+			lineColor: cssVar("--diagram-line"),
+			edgeLabelBackground: cssVar("--diagram-edge-label-bg"),
+			textColor: cssVar("--diagram-text"),
+		},
+	});
+	const src = DATA.mermaid.replace(/var\((--[\w-]+)\)/g, (_, name) => cssVar(name));
+	try {
+		const { svg } = await mermaid.render("roadmap-graph", src);
+		diagram.innerHTML = svg;
+	} catch (err) {
+		document.getElementById("droadmap-graph")?.remove();
+		diagram.innerHTML = `<p class="depnote">Dependency graph failed to render: ${esc(String(err))}</p>`;
+		return;
+	}
+	svgEl = wrap.querySelector("svg");
+	svgEl.addEventListener("dblclick", () => shell.classList.toggle("expanded"));
+	apply();
+};
+await renderGraph();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", renderGraph);
+/* Covers the explicit data-theme toggle (no UI ships today, but the
+   three-state contract says a future one must just work — see the CSS
+   comment above :root[data-theme="dark"]). matchMedia only fires for the OS
+   preference, so the attribute needs its own watcher. */
+new MutationObserver(renderGraph).observe(document.documentElement,
+	{ attributes: true, attributeFilter: ["data-theme"] });
+
+/* Zoom/pan: buttons, ctrl+wheel, drag; expand toggles a fixed overlay */
+const zoom = f => { scale = Math.min(4, Math.max(0.25, scale * f)); apply(); };
+shell.querySelector(".diagram-toolbar").addEventListener("click", e => {
+	const act = e.target.dataset.act;
+	if (act === "in") zoom(1.25);
+	else if (act === "out") zoom(0.8);
+	else if (act === "reset") { scale = 1; tx = ty = 0; apply(); }
+	else if (act === "expand") shell.classList.toggle("expanded");
+});
+wrap.addEventListener("wheel", e => {
+	if (!e.ctrlKey && !e.metaKey) return;
+	e.preventDefault();
+	zoom(e.deltaY < 0 ? 1.1 : 0.9);
+}, { passive: false });
+let drag = null;
+wrap.addEventListener("pointerdown", e => { drag = { x: e.clientX - tx, y: e.clientY - ty }; wrap.setPointerCapture(e.pointerId); });
+wrap.addEventListener("pointermove", e => { if (drag) { tx = e.clientX - drag.x; ty = e.clientY - drag.y; apply(); } });
+wrap.addEventListener("pointerup", () => { drag = null; });
+
+/* Section 4 — Next Up (pre-vetted by roadmap.py ready). Same chip structure
+   as the Milestones section (A5); grouped by dev only when the READY SET
+   (the candidates actually shown here, not the whole phase) has more than
+   one distinct assignee, so a solo project (or a phase where only one dev's
+   work happens to be unblocked right now) stays flat rather than gaining a
+   pointless single-group heading. */
+/* The dev chip shows only on an ungrouped list: under a dev's group header it
+   would repeat the header. */
+const candidateLi = (c, showDev = false) => `
+	<li>
+		<span class="pills">
+			<span class="chip" style="--chip-fg:var(--color-milestone);--chip-bg:var(--color-milestone-bg)">${esc(c.milestone)}: ${esc(c.milestoneName)}</span>
+			<span class="tid">${esc(c.id)}</span>${showDev ? devChip(c.assignee) : ""}
+			${c.isMilestoneSink ? `<span class="signal">completes milestone</span>` : ""}
+		</span>
+		<span class="tasktext">${esc(c.description)}</span>
+		<span class="leverage">
+			<span class="signal" title="Ready when this is done">▶ ${c.unblocksNow}</span>
+			<span class="signal" title="Also waits on other prerequisites">◐ ${c.unblocksPartly}</span>
+			<span class="signal" title="Further downstream">↓ ${c.unblocksLater}</span>
+		</span>
+	</li>`;
+const readyAssignees = new Set(DATA.ready.candidates.map(c => c.assignee).filter(Boolean));
+const readyHtml = !DATA.ready.candidates.length
+	? "<li>No unblocked tasks: clear a blocker or a gate.</li>"
+	: readyAssignees.size > 1
+	? [...readyAssignees].sort().map(dev => `
+		<li class="nextup-devgroup"><h4>${devChip(dev)}</h4>
+			<ul style="list-style:none;margin:0;padding:0">${DATA.ready.candidates.filter(c => c.assignee === dev).map(c => candidateLi(c)).join("")}</ul>
+		</li>`).join("") +
+		(DATA.ready.candidates.some(c => !c.assignee)
+			? `<li class="nextup-devgroup"><h4>Unassigned</h4>
+				<ul style="list-style:none;margin:0;padding:0">${DATA.ready.candidates.filter(c => !c.assignee).map(c => candidateLi(c)).join("")}</ul>
+			</li>` : "")
+	: DATA.ready.candidates.map(c => candidateLi(c, true)).join("");
+/* Claims in play lead, since someone is already on them; the ready set then
+   gets its own heading so the two lists never read as one. A parked claim
+   (paused/deferred wins over a claim) stays in its Milestones group. */
+const claimLi = c => `
+	<li>
+		<span class="pills"><span class="tid">${esc(c.id)}</span>${devChip(c.assignee)}</span>
+		<span class="tasktext">${esc(c.description)}</span>
+		<span class="signal">since ${esc(c.started)}${c.status === "todo" ? "" : ` · ${esc(c.status)}`}</span>
+	</li>`;
+const claimed = (DATA.ready.claimed ?? []).filter(c => c.display === "in_progress");
+document.getElementById("ready").innerHTML = claimed.length
+	? `<li class="nextup-devgroup"><h4 style="color:var(--color-in-progress)">▸ In progress</h4>
+		<ul style="list-style:none;margin:0;padding:0">${claimed.map(claimLi).join("")}</ul></li>
+		<li class="nextup-devgroup"><h4>Ready</h4>
+		<ul style="list-style:none;margin:0;padding:0">${readyHtml}</ul></li>`
+	: readyHtml;
+
+/* Nav highlight */
+const links = [...document.querySelectorAll("nav a")];
+const highlight = new IntersectionObserver(entries => {
+	for (const en of entries) if (en.isIntersecting) {
+		links.forEach(a => a.classList.toggle("active", a.hash === "#" + en.target.id));
+	}
+}, { rootMargin: "-30% 0px -60% 0px" });
+links.forEach(a => highlight.observe(document.querySelector(a.hash)));
+</script>
+</body>
+</html>
